@@ -1,0 +1,251 @@
+{
+  "organization": {
+    "name": "Grayson and Co.",
+    "industry": "Diversified Conglomerate",
+    "size": "28,000 employees across 14 subsidiaries",
+    "description": "A large multinational conglomerate spanning manufacturing, logistics, financial services, and real estate with a maturing enterprise security program"
+  },
+  "nist_csf": {
+    "identify": {
+      "asset_management": {
+        "status": "Largely Implemented",
+        "notes": "Enterprise CMDB maintained centrally and synchronized with subsidiary IT teams quarterly. Automated discovery deployed across corporate and financial services divisions; manufacturing OT/ICS assets catalogued manually. Data classification policy enforced at corporate level with uneven adoption in recently acquired subsidiaries.",
+        "hardware_inventory": true,
+        "software_inventory": true,
+        "data_classification": true,
+        "tools": ["ServiceNow CMDB", "Lansweeper", "Tenable.io"]
+      },
+      "business_environment": {
+        "status": "Largely Implemented",
+        "notes": "Critical business processes mapped for top six revenue-generating subsidiaries. Dependency mapping completed for corporate and financial services units; logistics and manufacturing mapping is in progress. Formal third-party risk program in place covering Tier 1 and Tier 2 vendors — approximately 340 active vendors assessed in the last 12 months.",
+        "supply_chain_risk_program": true
+      },
+      "governance": {
+        "status": "Largely Implemented",
+        "cybersecurity_policy": true,
+        "roles_responsibilities": "Defined at enterprise level; subsidiary CISOs operate under federated model",
+        "ciso_reports_to": "CRO",
+        "board_oversight": true,
+        "notes": "Enterprise CISO with dotted-line authority over 14 subsidiary security leads. Board Risk Committee receives quarterly security briefings. Policy framework covers enterprise standards; some subsidiaries maintain supplemental policies due to regulatory context. Security team of ~120 across the enterprise."
+      },
+      "risk_assessment": {
+        "status": "Largely Implemented",
+        "last_assessment": "2025-11-01",
+        "vulnerability_scanning": true,
+        "scan_frequency": "Bi-weekly for corporate; monthly for subsidiaries",
+        "threat_intelligence": true,
+        "threat_intel_feeds": ["Recorded Future (corporate tier)", "FS-ISAC (financial subsidiary)", "ISA/IEC feeds (manufacturing)"],
+        "notes": "Centralized vulnerability management program. Threat intel consumed at enterprise level but operationalization at subsidiary level is inconsistent. Annual penetration tests for top four business units; others on an 18-month cycle. OT/ICS environments receive specialized assessments annually."
+      },
+      "risk_management_strategy": {
+        "status": "Largely Implemented",
+        "risk_tolerance": "Moderate-Low — formally documented with tiered thresholds by business unit",
+        "risk_register": true,
+        "notes": "Enterprise risk register maintained with subsidiary rollups. Risk owners assigned at VP level or above. Remediation SLAs defined and tracked centrally, though escalation paths vary by subsidiary. Board-approved risk appetite statement reviewed annually."
+      }
+    },
+    "protect": {
+      "access_control": {
+        "status": "Largely Implemented",
+        "mfa_enabled": true,
+        "mfa_coverage": "~93% — gaps remain in legacy manufacturing ERP systems and two recently acquired subsidiaries still mid-migration",
+        "privileged_access_management": true,
+        "pam_solution": "CyberArk (corporate and financial services); BeyondTrust (logistics and manufacturing)",
+        "zero_trust_architecture": false,
+        "password_policy": "14+ chars, complexity, 90-day rotation; passwordless piloted in corporate division",
+        "sso_implemented": true,
+        "notes": "PAM deployed for ~80% of privileged accounts; OT/ICS privileged access managed separately with operational constraints. Zero Trust roadmap approved but implementation 18 months out. Legacy ERP shared accounts remain a known risk with compensating controls in place."
+      },
+      "awareness_training": {
+        "status": "Largely Implemented",
+        "last_training": "2026-01-10",
+        "training_frequency": "Annual mandatory with targeted quarterly modules for high-risk roles",
+        "phishing_simulations": true,
+        "phishing_frequency": "Bi-monthly",
+        "click_rate": "~7%",
+        "notes": "Enterprise-wide LMS delivers role-based training. Executive and finance roles receive supplemental social engineering modules. Phishing simulation results fed into remedial training pipeline. Click rate down from 14% two years ago."
+      },
+      "data_security": {
+        "status": "Largely Implemented",
+        "encryption_at_rest": true,
+        "encryption_in_transit": true,
+        "encryption_standard": "AES-256, TLS 1.2/1.3 (TLS 1.3 mandated for new projects)",
+        "dlp_solution": true,
+        "dlp_tools": ["Microsoft Purview (corporate and financial)"],
+        "data_masking": true,
+        "notes": "Encryption enforced across corporate and financial services. DLP deployed for email and cloud storage in corporate division; subsidiary coverage incomplete. Data masking applied in financial services for PII in non-production environments. Manufacturing operational data not covered by DLP policy."
+      },
+      "information_protection": {
+        "status": "Largely Implemented",
+        "baseline_configurations": true,
+        "hardening_standards": ["CIS Benchmarks Level 1", "DISA STIGs (financial subsidiary)"],
+        "change_management": true,
+        "notes": "Hardening standards enforced via automated compliance scanning for corporate endpoints and servers. Legacy manufacturing systems and some acquired subsidiary servers carry accepted deviations. Change management process mature in corporate; subsidiaries operate on lighter change control procedures with quarterly reconciliation."
+      },
+      "maintenance": {
+        "status": "Largely Implemented",
+        "patch_management": "Centrally managed via SCCM and Ansible; OT patching handled by engineering teams",
+        "critical_patch_sla": "14 days",
+        "standard_patch_sla": "45 days",
+        "notes": "~88% critical patch compliance across the enterprise. OT environments patched during scheduled maintenance windows (quarterly) with vendor coordination. Two legacy financial applications on extended vendor support with accepted patching risk."
+      },
+      "protective_technology": {
+        "status": "Largely Implemented",
+        "firewall": "Next-gen with application awareness and IPS",
+        "firewall_vendor": "Palo Alto Networks (corporate); Fortinet (subsidiary perimeters)",
+        "endpoint_protection": "EDR with behavioral analysis",
+        "edr_vendor": "SentinelOne (corporate and financial); CrowdStrike Falcon (logistics)",
+        "network_segmentation": true,
+        "microsegmentation": false,
+        "waf_deployed": true,
+        "email_security": "Advanced filtering with sandboxing",
+        "notes": "EDR deployed on ~87% of endpoints enterprise-wide; manufacturing workstations use traditional AV due to OS compatibility constraints. WAF protecting customer-facing and financial applications. Network segmentation between business units; no microsegmentation within segments. Email sandboxing active for all corporate domains."
+      }
+    },
+    "detect": {
+      "anomalies_and_events": {
+        "status": "Largely Implemented",
+        "baseline_established": true,
+        "event_correlation": true,
+        "ueba_deployed": true,
+        "notes": "Behavioral baselines established for corporate and financial services users. UEBA deployed via Microsoft Sentinel for corporate division. Subsidiary environments feed into central SIEM but UEBA coverage limited to ~60% of the enterprise user base. OT environments have separate anomaly detection with industrial-focused tooling."
+      },
+      "security_monitoring": {
+        "status": "Largely Implemented",
+        "siem_deployed": true,
+        "siem_platform": "Microsoft Sentinel (primary); Splunk retained for financial subsidiary",
+        "log_retention_days": 365,
+        "monitoring_coverage": "~85% of critical assets",
+        "soc_model": "24/7 enterprise SOC (in-house) with MDR coverage for subsidiaries outside business hours",
+        "notes": "Enterprise SOC staffed 24/7 covering corporate and financial divisions. Logistics and manufacturing subsidiaries covered by MDR partner after hours. Log retention at 365 days for corporate; 90 days for some subsidiaries under review. Approximately 15% of critical assets (primarily OT) lack real-time SIEM integration."
+      },
+      "detection_processes": {
+        "status": "Largely Implemented",
+        "ids_ips": true,
+        "edr_solution": true,
+        "ndr_solution": true,
+        "threat_hunting": true,
+        "hunt_frequency": "Monthly structured hunts; ad hoc following threat intel",
+        "mttd": "~2 hours for critical threats in monitored environments; ~18 hours for OT/subsidiary gaps",
+        "notes": "Threat hunting team of 4 analysts conducts monthly hypothesis-driven hunts. NDR deployed at enterprise WAN boundaries. Detection coverage gap in OT environments and two subsidiaries awaiting SIEM onboarding. Purple team exercise conducted annually."
+      }
+    },
+    "respond": {
+      "response_planning": {
+        "status": "Largely Implemented",
+        "incident_response_plan": true,
+        "last_plan_review": "2025-10-15",
+        "tabletop_exercises": true,
+        "tabletop_frequency": "Semi-annual at enterprise level; annual for each subsidiary",
+        "notes": "Enterprise IR plan with subsidiary-specific appendices. Playbooks for ransomware, data breach, insider threat, and OT disruption scenarios. Executive tabletop conducted in Q4 2025. Subsidiary tabletops completed on rotating schedule. IR plan last updated following credential stuffing incident in 2024."
+      },
+      "communications": {
+        "status": "Largely Implemented",
+        "internal_comms_plan": true,
+        "external_comms_plan": true,
+        "regulatory_contacts": true,
+        "pr_crisis_plan": true,
+        "notes": "Pre-drafted communication templates for breach notification and service disruption. Legal and communications teams briefed on incident roles. Regulatory contacts documented for all jurisdictions (SEC, FTC, GDPR supervisory authorities, FFIEC). Crisis PR firm on retainer but formal runbook not tested end-to-end."
+      },
+      "analysis": {
+        "status": "Partially Implemented",
+        "forensic_capability": true,
+        "forensic_tools": ["Velociraptor", "FTK Imager"],
+        "root_cause_analysis": true,
+        "ir_retainer": "CrowdStrike Services",
+        "notes": "In-house forensics capability exists for IT environments; 3 trained analysts. OT forensics relies on ICS vendor support and the IR retainer. CrowdStrike Services retainer covers surge capacity and specialized expertise. Root cause analysis conducted for all Sev1 and Sev2 incidents with findings tracked to closure."
+      },
+      "mitigation": {
+        "status": "Largely Implemented",
+        "containment_procedures": true,
+        "automated_response": true,
+        "soar_platform": "Microsoft Sentinel SOAR (playbooks for isolation, enrichment, ticketing)",
+        "mttr": "~12 hours for critical IT incidents; OT recovery timelines undefined",
+        "notes": "Automated playbooks handle alert enrichment, endpoint isolation, and ticketing creation. SOAR covers corporate and financial environments. OT incident containment relies on manual procedures coordinated between security and engineering — formal MTTR metrics not established for operational environments."
+      },
+      "improvements": {
+        "status": "Largely Implemented",
+        "lessons_learned": true,
+        "post_incident_reviews": "Mandatory for Sev1 and Sev2; discretionary for Sev3",
+        "notes": "Post-incident reviews completed within 10 business days for major incidents. Improvement items tracked in risk register with assigned owners. Recurrence rate for known issue classes has declined year-over-year."
+      }
+    },
+    "recover": {
+      "recovery_planning": {
+        "status": "Largely Implemented",
+        "disaster_recovery_plan": true,
+        "business_continuity_plan": true,
+        "rto": "8 hours for Tier 1 systems; 24-48 hours for Tier 2",
+        "rpo": "4 hours for Tier 1; 12 hours for Tier 2",
+        "dr_site": "Warm standby cloud (Azure) for corporate; co-location DR for financial subsidiary",
+        "notes": "DR and BCP maintained and reviewed annually. Tier 1 systems (financial processing, corporate identity) have validated failover capability. Logistics and manufacturing DRPs are documented but exercise coverage is less frequent. RTO/RPO commitments validated through annual DR tests for corporate and financial divisions."
+      },
+      "improvements": {
+        "status": "Largely Implemented",
+        "recovery_testing": true,
+        "test_frequency": "Annual full DR test (corporate); bi-annual tabletop for subsidiaries",
+        "last_successful_test": "2025-09-14",
+        "notes": "Corporate DR test completed successfully in September 2025 with 6-hour RTO achieved. Financial subsidiary achieved target RPO. Logistics division DR test deferred to Q1 2026. Manufacturing OT recovery procedures not formally exercised — validated through equipment vendor simulation only."
+      },
+      "communications": {
+        "status": "Largely Implemented",
+        "stakeholder_comms": true,
+        "crisis_communication_tested": true,
+        "notes": "Stakeholder notification procedures included in BCP with defined escalation timelines. Crisis communication flow tested during the Q4 2025 executive tabletop. Customer-facing communication templates reviewed by legal; not tested in a live incident scenario."
+      },
+      "backups": {
+        "status": "Largely Implemented",
+        "backup_frequency": "Daily for Tier 1; weekly for Tier 2; real-time replication for financial transaction data",
+        "backup_testing": true,
+        "restore_test_frequency": "Quarterly for Tier 1 systems; semi-annual for Tier 2",
+        "offsite_backups": true,
+        "air_gapped_backups": false,
+        "backup_encryption": true,
+        "immutable_backups": true,
+        "last_successful_restore_test": "2026-01-22",
+        "notes": "Immutable backups enabled for Tier 1 and financial systems via Azure Blob immutable storage. Offsite replication active. Air-gapped backups not yet implemented — on the roadmap for H2 2026. Backup encryption enforced with centrally managed keys. OT/ICS system backup procedures exist but restore tests are infrequent and dependent on vendor involvement."
+      }
+    }
+  },
+  "recent_incidents": [
+    {
+      "date": "2025-08-29",
+      "type": "Ransomware attempt — logistics subsidiary",
+      "impact": "Low — contained to 3 endpoints before lateral movement; operations unaffected",
+      "resolved": true,
+      "detection_time": "~1.5 hours (EDR behavioral alert)",
+      "notes": "EDR detected anomalous file encryption behavior and isolated affected endpoints automatically. MDR partner escalated after-hours alert within 18 minutes. No data exfiltration confirmed. Recovery from backup in 4 hours."
+    },
+    {
+      "date": "2025-05-11",
+      "type": "Third-party data exposure via misconfigured vendor API",
+      "impact": "Medium — PII of approximately 8,200 customers exposed for 11 days",
+      "resolved": true,
+      "detection_time": "11 days (discovered via vendor notification, not internal detection)",
+      "notes": "Vendor misconfigured an API integration that exposed customer records. Not detected by internal monitoring. Triggered mandatory breach notification to regulators. Led to revision of third-party security assessment requirements and API security controls."
+    },
+    {
+      "date": "2024-11-19",
+      "type": "Credential stuffing against customer portal",
+      "impact": "Medium — ~1,400 accounts accessed over 72 hours",
+      "resolved": true,
+      "detection_time": "~18 hours (SIEM anomaly on login velocity)",
+      "notes": "Attack leveraged previously breached credential lists. SIEM flagged unusual login velocity pattern. Adaptive MFA challenge rate was insufficient at the time. Bot management controls upgraded post-incident."
+    }
+  ],
+  "compliance": {
+    "frameworks": ["NIST CSF", "ISO 27001", "SOC 2 Type II", "PCI DSS", "GDPR", "NERC CIP (manufacturing subsidiary)"],
+    "audits": "Annual third-party audits for ISO 27001 and SOC 2; PCI QSA annually; internal audit team conducts semi-annual subsidiary reviews",
+    "certifications": ["ISO 27001:2022 (corporate)", "SOC 2 Type II (financial subsidiary)", "PCI DSS Level 1 (financial subsidiary)"],
+    "last_audit": "2025-12-01",
+    "audit_findings": "1 high finding (remediation in progress — OT asset visibility gap), 4 moderate findings, 7 low findings"
+  },
+  "budget": {
+    "annual_it_budget": "$180,000,000",
+    "security_allocation": "9%",
+    "security_budget": "$16,200,000",
+    "cyber_insurance": true,
+    "insurance_coverage": "$100,000,000",
+    "notes": "Security budget increased 15% year-over-year following 2024 credential stuffing incident. Cyber insurance policy active with a $500,000 retention. Board Risk Committee approved a 3-year security investment roadmap in Q3 2025 targeting Zero Trust architecture and OT security uplift."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "organization": {
+    "name": "Acme Corp",
+    "sector": "finance",
+    "employeeCount": 500,
+    "complianceFrameworks": ["SOC2", "PCI-DSS"],
+    "cloudProvider": "AWS"
+  },
+  "nistCsf": {
+    "identify": {
+      "assetInventoryComplete": true,
+      "riskAssessmentAgeMonths": 6,
+      "criticalAssetsDocumented": true
+    },
+    "protect": {
+      "mfaAdoptionPercent": 91,
+      "encryptionAtRest": true,
+      "endpointHardeningPolicy": true,
+      "securityAwarenessTrainingFrequency": "annual",
+      "patchCadenceDays": 14,
+      "zeroTrustMaturity": "in-progress"
+    },
+    "detect": {
+      "siemActive": true,
+      "edrCoveragePercent": 82,
+      "meanTimeToDetectHours": 12,
+      "threatHuntingFrequency": "monthly"
+    },
+    "respond": {
+      "irPlanExists": true,
+      "irPlanAgeMonths": 18,
+      "tabletopExerciseDays": 90,
+      "meanTimeToRespondHours": 4
+    },
+    "recover": {
+      "backupsTested": true,
+      "backupFrequencyHours": 24,
+      "lastDrTestDays": 30,
+      "rtoHours": 4,
+      "rpoHours": 1
+    }
+  },
+  "openRisks": [
+    "3 critical CVEs unpatched > 30 days",
+    "MFA not enforced on contractor accounts"
+  ]
+}

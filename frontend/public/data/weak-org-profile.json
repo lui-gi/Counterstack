@@ -1,0 +1,187 @@
+{
+  "organization": {
+    "name": "Acme Legacy Systems Inc.",
+    "industry": "Manufacturing",
+    "size": "500 employees",
+    "description": "A company that has neglected cybersecurity investments for years"
+  },
+  "nist_csf": {
+    "identify": {
+      "asset_management": {
+        "status": "Not Implemented",
+        "notes": "No formal asset inventory exists. IT discovers devices ad-hoc when issues arise.",
+        "hardware_inventory": false,
+        "software_inventory": false,
+        "data_classification": false
+      },
+      "business_environment": {
+        "status": "Partial",
+        "notes": "Critical business processes are not documented. No supply chain risk assessment."
+      },
+      "governance": {
+        "status": "Not Implemented",
+        "cybersecurity_policy": false,
+        "roles_responsibilities": "Undefined",
+        "notes": "No dedicated security team. IT handles security reactively."
+      },
+      "risk_assessment": {
+        "status": "Not Implemented",
+        "last_assessment": null,
+        "vulnerability_scanning": false,
+        "threat_intelligence": false,
+        "notes": "No formal risk assessments conducted. Management unaware of threat landscape."
+      },
+      "risk_management_strategy": {
+        "status": "Not Implemented",
+        "risk_tolerance": "Undefined",
+        "notes": "No documented risk management strategy or acceptance criteria."
+      }
+    },
+    "protect": {
+      "access_control": {
+        "status": "Minimal",
+        "mfa_enabled": false,
+        "privileged_access_management": false,
+        "password_policy": "No minimum requirements",
+        "notes": "Shared admin accounts common. Passwords on sticky notes observed."
+      },
+      "awareness_training": {
+        "status": "Not Implemented",
+        "last_training": null,
+        "phishing_simulations": false,
+        "notes": "No security awareness program. Employees click on everything."
+      },
+      "data_security": {
+        "status": "Not Implemented",
+        "encryption_at_rest": false,
+        "encryption_in_transit": false,
+        "dlp_solution": false,
+        "notes": "Sensitive data stored in plaintext on shared drives accessible to all employees."
+      },
+      "information_protection": {
+        "status": "Not Implemented",
+        "baseline_configurations": false,
+        "change_management": false,
+        "notes": "No hardening standards. Default configurations used on all systems."
+      },
+      "maintenance": {
+        "status": "Minimal",
+        "patch_management": "Ad-hoc only",
+        "notes": "Systems often 2+ years behind on patches. No maintenance windows."
+      },
+      "protective_technology": {
+        "status": "Minimal",
+        "firewall": "Basic perimeter only",
+        "endpoint_protection": "Expired antivirus licenses",
+        "network_segmentation": false,
+        "notes": "Flat network. Single firewall with default rules from 2018."
+      }
+    },
+    "detect": {
+      "anomalies_and_events": {
+        "status": "Not Implemented",
+        "baseline_established": false,
+        "event_correlation": false,
+        "notes": "No baseline of normal activity. Would not detect anomalies."
+      },
+      "security_monitoring": {
+        "status": "Not Implemented",
+        "siem_deployed": false,
+        "log_retention_days": 0,
+        "monitoring_coverage": "None",
+        "notes": "No centralized logging. Logs disabled on most systems to 'improve performance'."
+      },
+      "detection_processes": {
+        "status": "Not Implemented",
+        "ids_ips": false,
+        "edr_solution": false,
+        "threat_hunting": false,
+        "notes": "No detection capabilities. Breaches discovered by customers or law enforcement."
+      }
+    },
+    "respond": {
+      "response_planning": {
+        "status": "Not Implemented",
+        "incident_response_plan": false,
+        "last_plan_review": null,
+        "notes": "No documented incident response plan. Chaos during incidents."
+      },
+      "communications": {
+        "status": "Not Implemented",
+        "internal_comms_plan": false,
+        "external_comms_plan": false,
+        "regulatory_contacts": false,
+        "notes": "No breach notification procedures. Previous incident disclosed via Twitter rumor."
+      },
+      "analysis": {
+        "status": "Not Implemented",
+        "forensic_capability": false,
+        "root_cause_analysis": false,
+        "notes": "No forensic tools or expertise. Evidence routinely destroyed."
+      },
+      "mitigation": {
+        "status": "Minimal",
+        "containment_procedures": false,
+        "notes": "Standard response is to 'turn it off and on again' or reimage."
+      },
+      "improvements": {
+        "status": "Not Implemented",
+        "lessons_learned": false,
+        "notes": "Same incidents repeat. No post-incident reviews conducted."
+      }
+    },
+    "recover": {
+      "recovery_planning": {
+        "status": "Not Implemented",
+        "disaster_recovery_plan": false,
+        "business_continuity_plan": false,
+        "notes": "No formal recovery plans. Would take weeks to recover from major incident."
+      },
+      "improvements": {
+        "status": "Not Implemented",
+        "recovery_testing": false,
+        "notes": "Recovery procedures untested. Last attempted restore failed."
+      },
+      "communications": {
+        "status": "Not Implemented",
+        "stakeholder_comms": false,
+        "notes": "No crisis communication plan."
+      },
+      "backups": {
+        "status": "Critical",
+        "backup_frequency": "Monthly (when remembered)",
+        "backup_testing": false,
+        "offsite_backups": false,
+        "backup_encryption": false,
+        "last_successful_backup": "Unknown",
+        "notes": "Backups stored on same network as production. Ransomware would encrypt both."
+      }
+    }
+  },
+  "recent_incidents": [
+    {
+      "date": "2024-08-15",
+      "type": "Ransomware",
+      "impact": "3 days downtime",
+      "resolved": true,
+      "paid_ransom": true
+    },
+    {
+      "date": "2024-03-22",
+      "type": "Phishing - credential theft",
+      "impact": "CFO email compromised for 2 weeks",
+      "resolved": true,
+      "detection_method": "Discovered when vendor reported fraudulent wire request"
+    }
+  ],
+  "compliance": {
+    "frameworks": [],
+    "audits": "None conducted",
+    "certifications": []
+  },
+  "budget": {
+    "annual_it_budget": "$200,000",
+    "security_allocation": "0%",
+    "notes": "Security seen as cost center. All requests denied."
+  }
+}

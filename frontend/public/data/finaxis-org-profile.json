@@ -1,0 +1,243 @@
+{
+  "organization": {
+    "name": "Finaxis",
+    "industry": "Financial Services",
+    "size": "1,200 employees",
+    "description": "A regional financial firm with compliance-driven security investment but underdeveloped recovery capabilities"
+  },
+  "nist_csf": {
+    "identify": {
+      "asset_management": {
+        "status": "Partially Implemented",
+        "notes": "Asset inventory is partially automated. Hardware tracked via network scans; software inventory relies on manual spreadsheets updated quarterly. Data classification schema defined but inconsistently applied.",
+        "hardware_inventory": true,
+        "software_inventory": false,
+        "data_classification": false,
+        "tools": ["Qualys Asset View", "Manual spreadsheets"]
+      },
+      "business_environment": {
+        "status": "Partially Implemented",
+        "notes": "Core business processes documented but dependency mapping incomplete. No formal supply chain risk assessment program; vendor reviews conducted ad hoc.",
+        "supply_chain_risk_program": false
+      },
+      "governance": {
+        "status": "Partially Implemented",
+        "cybersecurity_policy": true,
+        "roles_responsibilities": "Partially defined — gaps exist in cloud and third-party coverage",
+        "ciso_reports_to": "CTO",
+        "board_oversight": false,
+        "notes": "8-person security team. Security briefed to CTO quarterly; no standing board security committee. Policies reviewed annually but some are 18+ months out of date."
+      },
+      "risk_assessment": {
+        "status": "Partially Implemented",
+        "last_assessment": "2025-08-15",
+        "vulnerability_scanning": true,
+        "scan_frequency": "Monthly",
+        "threat_intelligence": false,
+        "threat_intel_feeds": [],
+        "notes": "Annual third-party risk assessment supplemented by quarterly internal scans. No threat intelligence subscriptions. Penetration test conducted 14 months ago."
+      },
+      "risk_management_strategy": {
+        "status": "Partially Implemented",
+        "risk_tolerance": "Moderate - informally documented",
+        "risk_register": true,
+        "notes": "Risk register maintained but owner assignments inconsistent. Remediation timelines often missed with no escalation path."
+      }
+    },
+    "protect": {
+      "access_control": {
+        "status": "Partially Implemented",
+        "mfa_enabled": true,
+        "mfa_coverage": "~85% - full-time employees only; contractors excluded",
+        "privileged_access_management": false,
+        "pam_solution": null,
+        "zero_trust_architecture": false,
+        "password_policy": "12+ chars, complexity required, 90-day rotation",
+        "sso_implemented": true,
+        "notes": "MFA enforced for corporate SSO but contractor and third-party access relies on username/password. Shared service accounts exist for legacy systems. No PAM tooling deployed."
+      },
+      "awareness_training": {
+        "status": "Partially Implemented",
+        "last_training": "2025-09-01",
+        "training_frequency": "Annual",
+        "phishing_simulations": true,
+        "phishing_frequency": "Quarterly",
+        "click_rate": "~12%",
+        "notes": "Annual mandatory training module. Phishing simulations run quarterly but results are not consistently tied to remedial training. No role-based programs for high-risk users."
+      },
+      "data_security": {
+        "status": "Partially Implemented",
+        "encryption_at_rest": true,
+        "encryption_in_transit": true,
+        "encryption_standard": "AES-256, TLS 1.2/1.3",
+        "dlp_solution": false,
+        "dlp_tools": [],
+        "data_masking": false,
+        "notes": "Encryption enforced on production databases and file transfers. No DLP tooling deployed. PII handling relies on policy controls rather than technical enforcement."
+      },
+      "information_protection": {
+        "status": "Partially Implemented",
+        "baseline_configurations": true,
+        "hardening_standards": ["CIS Benchmarks Level 1"],
+        "change_management": true,
+        "notes": "CIS Level 1 hardening applied to new builds. Legacy systems carry unmitigated deviations. Change management process exists but emergency changes frequently bypass review."
+      },
+      "maintenance": {
+        "status": "Partially Implemented",
+        "patch_management": "Manual with ticketing system",
+        "critical_patch_sla": "30 days",
+        "standard_patch_sla": "90 days",
+        "notes": "Critical patches targeted within 30 days; actual compliance around 78%. Several legacy financial systems cannot be patched without vendor coordination, creating extended exposure windows."
+      },
+      "protective_technology": {
+        "status": "Partially Implemented",
+        "firewall": "Stateful with basic IPS",
+        "firewall_vendor": "Fortinet",
+        "endpoint_protection": "Traditional AV with cloud-based reputation lookup",
+        "edr_vendor": null,
+        "network_segmentation": true,
+        "microsegmentation": false,
+        "waf_deployed": false,
+        "email_security": "Standard filtering with spam and basic phishing detection",
+        "notes": "Network segmented between core zones but no microsegmentation within segments. Traditional AV on endpoints; no behavioral EDR. No WAF protecting customer-facing applications."
+      }
+    },
+    "detect": {
+      "anomalies_and_events": {
+        "status": "Partially Implemented",
+        "baseline_established": false,
+        "event_correlation": true,
+        "ueba_deployed": false,
+        "notes": "SIEM performs basic log correlation but no formal behavioral baseline has been established. High false-positive rate results in alert fatigue. No UEBA capabilities."
+      },
+      "security_monitoring": {
+        "status": "Partially Implemented",
+        "siem_deployed": true,
+        "siem_platform": "IBM QRadar (limited deployment)",
+        "log_retention_days": 90,
+        "monitoring_coverage": "~60% of critical assets",
+        "soc_model": "Business hours only (8am-6pm local time)",
+        "notes": "SIEM covers core financial systems and perimeter but gaps exist in cloud workloads and third-party SaaS. No after-hours monitoring coverage; alerts queue until next business day. Log retention at 90 days does not meet recommended 12-month guidance."
+      },
+      "detection_processes": {
+        "status": "Partially Implemented",
+        "ids_ips": true,
+        "edr_solution": false,
+        "ndr_solution": false,
+        "threat_hunting": false,
+        "hunt_frequency": null,
+        "mttd": "~24 hours for critical threats (business hours); up to 72 hours for after-hours events",
+        "notes": "IDS/IPS at perimeter. No EDR or NDR deployed. No proactive threat hunting capability. Detection relies entirely on reactive SIEM alerting."
+      }
+    },
+    "respond": {
+      "response_planning": {
+        "status": "Partially Implemented",
+        "incident_response_plan": true,
+        "last_plan_review": "2024-10-01",
+        "tabletop_exercises": false,
+        "tabletop_frequency": null,
+        "notes": "IR plan documented and reviewed annually. Playbooks exist for ransomware and data breach scenarios but are not regularly tested. No tabletop exercises conducted in 18+ months."
+      },
+      "communications": {
+        "status": "Partially Implemented",
+        "internal_comms_plan": true,
+        "external_comms_plan": false,
+        "regulatory_contacts": true,
+        "pr_crisis_plan": false,
+        "notes": "Internal escalation paths defined. No pre-drafted external communications or PR crisis runbook. Regulatory notification contacts documented (OCC, FFIEC) but workflows not rehearsed."
+      },
+      "analysis": {
+        "status": "Partially Implemented",
+        "forensic_capability": false,
+        "forensic_tools": [],
+        "root_cause_analysis": true,
+        "ir_retainer": null,
+        "notes": "No in-house forensics capability or tooling. Post-incident root cause analysis performed for major events. No IR retainer in place — incident response vendors would need to be engaged ad hoc."
+      },
+      "mitigation": {
+        "status": "Partially Implemented",
+        "containment_procedures": true,
+        "automated_response": false,
+        "soar_platform": null,
+        "mttr": "~48 hours for critical incidents",
+        "notes": "Manual containment procedures documented. No SOAR or automated response capability. Network isolation requires manual coordination between security and IT ops."
+      },
+      "improvements": {
+        "status": "Partially Implemented",
+        "lessons_learned": true,
+        "post_incident_reviews": "Conducted for Sev1 incidents only",
+        "notes": "Post-incident reviews held for major events but improvement items are tracked informally and completion is inconsistent."
+      }
+    },
+    "recover": {
+      "recovery_planning": {
+        "status": "Minimal",
+        "disaster_recovery_plan": true,
+        "business_continuity_plan": false,
+        "rto": "48 hours (target, untested)",
+        "rpo": "24 hours (target, untested)",
+        "dr_site": "Warm standby — failover procedures documented but not validated",
+        "notes": "DR plan drafted and approved two years ago. Never been exercised or tested in any form. RTO/RPO commitments are aspirational with no evidence base. No formal Business Continuity Plan exists — only the DR plan document. DR site configurations may have drifted from production."
+      },
+      "improvements": {
+        "status": "Not Implemented",
+        "recovery_testing": false,
+        "test_frequency": null,
+        "last_successful_test": null,
+        "notes": "No DR testing has been conducted. Recovery testing has been deferred annually due to budget and scheduling constraints. There is no established cadence or ownership for recovery validation."
+      },
+      "communications": {
+        "status": "Minimal",
+        "stakeholder_comms": false,
+        "crisis_communication_tested": false,
+        "notes": "No stakeholder communication plan for recovery scenarios. Executive notification procedure exists in the DR document but has never been rehearsed. Customer communication in a major outage would be improvised."
+      },
+      "backups": {
+        "status": "Minimal",
+        "backup_frequency": "Weekly full, daily incremental for core systems",
+        "backup_testing": false,
+        "restore_test_frequency": null,
+        "offsite_backups": true,
+        "air_gapped_backups": false,
+        "backup_encryption": true,
+        "immutable_backups": false,
+        "last_successful_restore_test": null,
+        "notes": "Backups are being performed but restore success has not been verified in 18+ months. Offsite replication to a secondary data center exists but is not air-gapped. No immutable backup copies. Backup encryption enabled but key management is informal. In a ransomware scenario, backup integrity cannot be guaranteed."
+      }
+    }
+  },
+  "recent_incidents": [
+    {
+      "date": "2025-07-12",
+      "type": "Business email compromise attempt",
+      "impact": "Low — finance employee flagged suspicious wire request before transfer",
+      "resolved": true,
+      "detection_time": "Human detection, ~6 hours after initial email",
+      "notes": "Wire fraud attempt via spoofed executive email. Caught by employee due to awareness training. No technical controls flagged the email."
+    },
+    {
+      "date": "2025-04-03",
+      "type": "Credential stuffing on customer portal",
+      "impact": "Medium — 47 customer accounts accessed before detection",
+      "resolved": true,
+      "detection_time": "~28 hours (detected during business hours review of prior night logs)",
+      "notes": "Attack occurred overnight. Not detected until morning log review. Affected accounts locked and customers notified per regulatory requirements. Remediation took 3 days."
+    }
+  ],
+  "compliance": {
+    "frameworks": ["NIST CSF", "SOC 2 Type I", "PCI DSS", "GLBA"],
+    "audits": "Annual third-party audit for PCI DSS; internal audits semi-annual",
+    "certifications": ["SOC 2 Type I", "PCI DSS Level 2"],
+    "last_audit": "2025-06-30",
+    "audit_findings": "3 moderate findings (1 remediated, 2 in progress), 5 low findings"
+  },
+  "budget": {
+    "annual_it_budget": "$12,000,000",
+    "security_allocation": "7%",
+    "security_budget": "$840,000",
+    "cyber_insurance": false,
+    "insurance_coverage": null,
+    "notes": "Security budget has remained flat for three years. No cyber insurance policy — procurement was initiated but stalled due to premium cost concerns. Recovery and resilience investments consistently deprioritized in favor of compliance-mandated controls."
+  }
+}
