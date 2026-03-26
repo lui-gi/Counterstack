@@ -1,1 +1,65 @@
+/* Google Fonts — must come before @import "tailwindcss" */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* Tailwind v4 — single import replaces @tailwind base/components/utilities */
 @import "tailwindcss";
+
+/* ── Custom Design Tokens ─────────────────────────────── */
+@theme {
+  /* Suit neon colors */
+  --color-clubs:         #10B981;
+  --color-diamonds:      #3B82F6;
+  --color-hearts:        #EC4899;
+  --color-spades:        #EF4444;
+
+  /* Surface backgrounds */
+  --color-surface:       #0F172A;
+  --color-surface-light: #1E293B;
+
+  /* Neon glow shadows */
+  --shadow-glow-clubs:    0 0 20px rgba(16, 185, 129, 0.5);
+  --shadow-glow-diamonds: 0 0 20px rgba(59, 130, 246, 0.5);
+  --shadow-glow-hearts:   0 0 20px rgba(236, 72, 153, 0.5);
+  --shadow-glow-spades:   0 0 20px rgba(239, 68, 68, 0.5);
+
+  /* Monospace font stack */
+  --font-family-mono: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* CRT flicker animation */
+  --animate-crt-flicker: crtFlicker 0.15s infinite;
+}
+
+@keyframes crtFlicker {
+  0%,  100% { opacity: 1; }
+  25%        { opacity: 0.97; }
+  75%        { opacity: 0.98; }
+}
+
+/* ── Base Reset ───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+  background-color: #0F172A;
+  color: #CBD5E1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Neon Glow Text Utilities ─────────────────────────── */
+.glow-clubs    { text-shadow: 0 0 8px #10B981, 0 0 20px rgba(16, 185, 129, 0.4); }
+.glow-diamonds { text-shadow: 0 0 8px #3B82F6, 0 0 20px rgba(59, 130, 246, 0.4); }
+.glow-hearts   { text-shadow: 0 0 8px #EC4899, 0 0 20px rgba(236, 72, 153, 0.4); }
+.glow-spades   { text-shadow: 0 0 8px #EF4444, 0 0 20px rgba(239, 68, 68, 0.4); }
+
+/* Red Alert — apply to root when posture < 30 */
+.red-alert-flicker {
+  animation: crtFlicker 0.15s infinite;
+}

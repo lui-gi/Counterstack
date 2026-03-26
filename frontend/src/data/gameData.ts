@@ -1,133 +1,145 @@
 import type { SuitConfig } from '../interfaces/SuitConfig.interface';
+import type { SuitMetric } from '../interfaces/SuitMetric.interface';
+import type { SuitRisk } from '../interfaces/SuitRisk.interface';
+import type { SuitDataEntry } from '../interfaces/SuitDataEntry.interface';
+import type { MockIncident } from '../interfaces/MockIncident.interface';
+import type { MockEngineer } from '../interfaces/MockEngineer.interface';
+import type { JokerThreat } from '../interfaces/JokerThreat.interface';
+import type { CommMessage } from '../interfaces/CommMessage.interface';
+import type { AIRec } from '../interfaces/AIRec.interface';
 
-export const RANK_NAMES = ["","A","2","3","4","5","6","7","8","9","10","J","Q","K"] as const;
+export type { SuitConfig, SuitMetric, SuitRisk, SuitDataEntry, MockIncident, MockEngineer, JokerThreat, CommMessage, AIRec };
+
+export const RANK_NAMES: string[] = ["","A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+export const RANK_FULL: string[] = ["","Ace","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Jack","Queen","King"];
 
 export const SUITS: Record<string, SuitConfig> = {
-  clover:  { sym: '♣', name: 'HEALTH',   sub: 'Baseline Health & Monitoring',  color: '#00f5d4', dark: '#021a14', glow: '#00f5d440', pos: 'top'    },
-  spade:   { sym: '♠', name: 'ENGAGE',   sub: 'Detection & Containment',       color: '#00aaff', dark: '#001428', glow: '#00aaff4040', pos: 'left'   },
-  diamond: { sym: '♦', name: 'STRENGTH', sub: 'Hardening & Access Control',    color: '#b48afa', dark: '#130a2a', glow: '#b48afa40', pos: 'right'  },
-  heart:   { sym: '♥', name: 'RECOVERY', sub: 'Backup & Business Continuity',  color: '#ff2277', dark: '#1f0012', glow: '#ff227740', pos: 'bottom' },
+  clover:  { sym:"♣", name:"RESOURCES",  sub:"Baseline Health",     color:"#39d353", dark:"#0a1f0d", glow:"#39d35340", pos:"top"   },
+  spade:   { sym:"♠", name:"OFFENSIVE",  sub:"Detection & Contain", color:"#00d4ff", dark:"#001f2d", glow:"#00d4ff40", pos:"left"  },
+  diamond: { sym:"♦", name:"HARDEN",     sub:"Hardening & Access",  color:"#a78bfa", dark:"#160f2d", glow:"#a78bfa40", pos:"right" },
+  heart:   { sym:"♥", name:"RESILIENCE", sub:"Backup & Continuity", color:"#f72585", dark:"#1f0010", glow:"#f7258540", pos:"bottom"},
 };
-
-export const INIT_RANKS: Record<string, number> = {
-  clover: 7,
-  spade: 7,
-  diamond: 7,
-  heart: 7,
-};
-
-export interface SuitMetric {
-  key: string;
-  value: string;
-  rawPct: number;
-  trend: 'up' | 'down' | 'flat';
-}
-
-export interface SuitRisk {
-  label: string;
-  severity: 'high' | 'medium' | 'low';
-}
-
-export interface SuitDataEntry {
-  metrics: SuitMetric[];
-  risks: SuitRisk[];
-  capabilities: string[];
-  upgradePath: string[];
-  aiRecs: string[];
-}
 
 export const SUIT_DATA: Record<string, SuitDataEntry> = {
   clover: {
     metrics: [
-      { key: 'Patch Compliance',    value: '87%',   rawPct: 87, trend: 'up'   },
-      { key: 'Asset Visibility',    value: '2,419', rawPct: 91, trend: 'up'   },
-      { key: 'Vuln Scan Coverage',  value: '91%',   rawPct: 91, trend: 'up'   },
-      { key: 'Config Drift',        value: '6%',    rawPct: 6,  trend: 'down' },
+      { k:"Patch Compliance",     v:"87%",   raw:87,  trend:+3 },
+      { k:"Asset Visibility",     v:"2,419", raw:91,  trend:+14},
+      { k:"Vuln Scan Coverage",   v:"91%",   raw:91,  trend:+2 },
+      { k:"Config Drift",         v:"6%",    raw:6,   trend:-4 },
     ],
-    risks: [
-      { label: 'Legacy OS endpoints (47)',     severity: 'high'   },
-      { label: 'Unpatched critical CVEs (12)', severity: 'high'   },
-      { label: 'Rogue device detected',        severity: 'medium' },
-      { label: 'SIEM rule staleness',          severity: 'low'    },
+    risks:[
+      { n:"Legacy OS endpoints (47)",      lvl:"high"   },
+      { n:"Unpatched critical CVEs (12)",  lvl:"high"   },
+      { n:"Rogue device detected",         lvl:"medium" },
+      { n:"SIEM rule staleness",           lvl:"low"    },
     ],
-    capabilities: ['Asset Discovery', 'Vulnerability Scanning', 'Compliance Tracking', 'Network Baseline', 'EDR Coverage'],
-    upgradePath:  ['Achieve 100% asset inventory', 'Automate patch deployment', 'Implement continuous compliance', 'Deploy EDR universally'],
-    aiRecs: [
-      'Patch the 12 critical CVEs immediately',
-      'Enable auto-discovery on subnet 10.0.4.x',
-      'Schedule EDR rollout for legacy OS tier',
-      'Increase scan frequency to 4-hour cycles',
-    ],
+    capabilities:["Asset Discovery","Vulnerability Scanning","Compliance Tracking","Network Baseline","EDR Coverage"],
+    upgrade:["Achieve 100% asset inventory","Automate patch deployment","Implement continuous compliance","Deploy EDR universally"],
+    aiRecs:["Patch the 12 critical CVEs immediately","Enable auto-discovery on subnet 10.0.4.x","Schedule EDR rollout for legacy OS tier","Increase scan frequency to 4-hour cycles"],
+    baseScore: 72,
   },
   spade: {
-    metrics: [
-      { key: 'Mean Time to Detect', value: '4.2m', rawPct: 58, trend: 'down' },
-      { key: 'SOC Analysts Online',  value: '7',   rawPct: 70, trend: 'flat' },
-      { key: 'Containment Rate',     value: '94%', rawPct: 94, trend: 'up'   },
-      { key: 'Alert Fatigue',        value: '23%', rawPct: 77, trend: 'down' },
+    metrics:[
+      { k:"Mean Time to Detect", v:"4.2m",  raw:58, trend:-12 },
+      { k:"SOC Analysts Online",  v:"7",    raw:70, trend:0   },
+      { k:"Containment Rate",     v:"94%",  raw:94, trend:+5  },
+      { k:"Alert Fatigue",        v:"23%",  raw:77, trend:-8  },
     ],
-    risks: [
-      { label: 'No 24/7 SOC coverage',            severity: 'high'   },
-      { label: 'Unmonitored endpoint segment',     severity: 'medium' },
-      { label: 'Playbook gaps in IR workflow',     severity: 'medium' },
+    risks:[
+      { n:"No 24/7 SOC coverage",             lvl:"high"   },
+      { n:"Unmonitored endpoint segment",     lvl:"medium" },
+      { n:"Playbook gaps in IR workflow",     lvl:"medium" },
     ],
-    capabilities: ['SIEM Integration', 'Threat Hunting', 'Automated Playbooks', 'XDR Coverage', 'Deception Tech'],
-    upgradePath:  ['Activate 24/7 SOC rotation', 'Deploy deception honeypots', 'Integrate threat intel feeds', 'Enable ML anomaly detection'],
-    aiRecs: [
-      'Schedule night-shift SOC rotation',
-      'Deploy honeypot on DMZ segment',
-      'Integrate MITRE ATT&CK framework',
-      'Tune alert threshold to reduce fatigue',
-    ],
+    capabilities:["SIEM Integration","Threat Hunting","Automated Playbooks","XDR Coverage","Deception Tech"],
+    upgrade:["Activate 24/7 SOC rotation","Deploy deception honeypots","Integrate threat intel feeds","Enable ML anomaly detection"],
+    aiRecs:["Schedule night-shift SOC rotation","Deploy honeypot on DMZ segment","Integrate MITRE ATT&CK framework","Tune alert threshold to reduce fatigue"],
+    baseScore: 81,
   },
   diamond: {
-    metrics: [
-      { key: 'Zero Trust Coverage',  value: '68%', rawPct: 68, trend: 'up'   },
-      { key: 'MFA Enforcement',      value: '96%', rawPct: 96, trend: 'up'   },
-      { key: 'Privileged Accts OK',  value: '78%', rawPct: 78, trend: 'up'   },
-      { key: 'Attack Surface',       value: '34',  rawPct: 66, trend: 'down' },
+    metrics:[
+      { k:"Zero Trust Coverage", v:"68%", raw:68, trend:+12 },
+      { k:"MFA Enforcement",     v:"96%", raw:96, trend:+4  },
+      { k:"Privileged Accts OK", v:"78%", raw:78, trend:+8  },
+      { k:"Attack Surface",      v:"34",  raw:66, trend:-9  },
     ],
-    risks: [
-      { label: '15 over-privileged service accounts', severity: 'high'   },
-      { label: 'WAF bypass attempt detected',         severity: 'high'   },
-      { label: 'Stale API tokens (31)',               severity: 'medium' },
+    risks:[
+      { n:"15 over-privileged service accounts", lvl:"high"   },
+      { n:"WAF bypass attempt detected",         lvl:"high"   },
+      { n:"Stale API tokens (31)",               lvl:"medium" },
     ],
-    capabilities: ['Zero Trust Architecture', 'PAM Controls', 'WAF Rules', 'IAM Governance', 'API Gateway'],
-    upgradePath:  ['Complete Zero Trust rollout', 'Automate privilege reviews', 'Harden API gateway', 'Implement CASB'],
-    aiRecs: [
-      'Revoke 31 stale API tokens immediately',
-      'Enforce PAM on all service accounts',
-      'Update WAF ruleset — CVE-2026-1337',
-      'Enable CASB for SaaS shadow IT',
-    ],
+    capabilities:["Zero Trust Architecture","PAM Controls","WAF Rules","IAM Governance","API Gateway"],
+    upgrade:["Complete Zero Trust rollout","Automate privilege reviews","Harden API gateway","Implement CASB"],
+    aiRecs:["Revoke 31 stale API tokens immediately","Enforce PAM on all service accounts","Update WAF ruleset — CVE-2024-3901","Enable CASB for SaaS shadow IT"],
+    baseScore: 74,
   },
   heart: {
-    metrics: [
-      { key: 'RTO Achieved',        value: '99m',   rawPct: 67, trend: 'down' },
-      { key: 'Backup Success Rate', value: '99.4%', rawPct: 99, trend: 'up'   },
-      { key: 'DR Test Score',       value: 'B+',    rawPct: 75, trend: 'flat' },
-      { key: 'MTTR',                value: '2.1hrs', rawPct: 71, trend: 'down' },
+    metrics:[
+      { k:"RTO Achieved",        v:"99m",   raw:67, trend:-18 },
+      { k:"Backup Success Rate", v:"99.4%", raw:99, trend:+1  },
+      { k:"DR Test Score",       v:"B+",    raw:75, trend:0   },
+      { k:"MTTR",                v:"2.1hrs",raw:71, trend:-22 },
     ],
-    risks: [
-      { label: 'DR plan untested (6 months)',  severity: 'high'   },
-      { label: 'Offsite backup latency',       severity: 'medium' },
-      { label: 'Single restore point — DB',    severity: 'medium' },
+    risks:[
+      { n:"DR plan untested (6 months)", lvl:"high"   },
+      { n:"Offsite backup latency",      lvl:"medium" },
+      { n:"Single restore point — DB",   lvl:"medium" },
     ],
-    capabilities: ['Automated Backups', 'DR Orchestration', 'Runbook Automation', 'BCP Testing', 'Multi-region Replication'],
-    upgradePath:  ['Achieve sub-1hr RTO', 'Test DR quarterly', 'Multi-region replication', 'Automate restore validation'],
-    aiRecs: [
-      'Schedule DR drill this week',
-      'Enable multi-region S3 replication',
-      'Automate nightly restore validation',
-      'Reduce RTO target to 60 min',
-    ],
+    capabilities:["Automated Backups","DR Orchestration","Runbook Automation","BCP Testing","Multi-region Replication"],
+    upgrade:["Achieve sub-1hr RTO","Test DR quarterly","Multi-region replication","Automate restore validation"],
+    aiRecs:["Schedule DR drill this week","Enable multi-region S3 replication","Automate nightly restore validation","Reduce RTO target to 60 min"],
+    baseScore: 63,
   },
 };
 
-/** Sparkline history for posture chart (last 6 data points per suit) */
+export const HAND_ORDER = ["HIGH CARD","ONE PAIR","TWO PAIR","THREE OF A KIND","STRAIGHT","FULL HOUSE","FOUR OF A KIND","ROYAL FLUSH"];
+
+export const MOCK_INCIDENTS: MockIncident[] = [
+  {id:1,name:"Zero-Day API Exploit",sev:"Critical",time:"14:23",suit:"spade",status:"Active"},
+  {id:2,name:"Phishing — Finance",sev:"High",time:"13:50",suit:"clover",status:"Investigating"},
+  {id:3,name:"Ransomware Precursor",sev:"High",time:"12:12",suit:"heart",status:"Contained"},
+  {id:4,name:"Privilege Escalation",sev:"Medium",time:"11:45",suit:"diamond",status:"Monitoring"},
+  {id:5,name:"Anomalous API Traffic",sev:"Low",time:"10:30",suit:"spade",status:"Resolved"},
+];
+
+export const MOCK_ENGINEERS: MockEngineer[] = [
+  {name:"SOC Online",pct:100,color:"#39d353"},
+  {name:"Cloud Sec",pct:65,color:"#f72585"},
+  {name:"Dev Patching",pct:42,color:"#a78bfa"},
+];
+
 export const HISTORY: Record<string, number[]> = {
-  clover:  [5, 6, 6, 7, 7, 7],
-  spade:   [4, 5, 6, 6, 7, 8],
-  diamond: [6, 6, 7, 7, 6, 7],
-  heart:   [4, 4, 5, 5, 6, 7],
+  clover: [5,6,6,7,7,8,8,9,9,9,10,10],
+  spade:  [4,5,5,6,7,7,8,8,9,9,10,10],
+  diamond:[4,5,6,6,7,8,8,9,9,10,10,10],
+  heart:  [3,3,4,4,5,5,6,6,7,7,7,8],
 };
+
+export const JOKER_THREATS: JokerThreat[] = [
+  {n:"Remote Code Exec (RCE)",     lvl:"critical"},
+  {n:"Lateral Movement",           lvl:"high"},
+  {n:"Data Exfiltration",          lvl:"high"},
+  {n:"Privilege Escalation",       lvl:"critical"},
+  {n:"Persistence via API Keys",   lvl:"medium"},
+];
+
+export const INIT_RANKS: Record<string, number> = { clover:7, spade:9, diamond:8, heart:6 };
+export const INIT_TELEMETRY: Record<string, number> = { clover:0, spade:0, diamond:0, heart:0 };
+
+export const COMMS_INIT: CommMessage[] = [
+  {role:"AI",   msg:"Threat vector identified: API Gateway. Recommend immediate containment.",time:"14:23"},
+  {role:"Sec",  msg:"Acknowledged. Initiating SOC response protocol Alpha.",                  time:"14:24"},
+  {role:"Dev",  msg:"Patching CVE-2024-3912 now. ETA 15 minutes.",                            time:"14:26"},
+  {role:"AI",   msg:"Lateral movement in subnet 10.0.4.x — escalate containment scope.",      time:"14:28"},
+];
+
+export const TAG_COLORS: Record<string, string> = {External:"#00d4ff",Cloud:"#a78bfa","Priv Esc":"#f72585",RCE:"#ff9f1c"};
+export const SEV_COLOR: Record<string, string>  = {Critical:"#f72585",High:"#ff9f1c",Medium:"#f7df1e",Low:"#39d353"};
+export const STAT_COLOR: Record<string, string> = {Active:"#f72585",Investigating:"#ff9f1c",Contained:"#39d353",Monitoring:"#00d4ff",Resolved:"rgba(205,217,229,.45)"};
+
+export const AI_RECS: AIRec[] = [
+  {suit:"spade",  rank:10, rationale:"Increase SOC coverage to close detection gap"},
+  {suit:"diamond",rank:11, rationale:"Enforce PAM on all privilege accounts"},
+  {suit:"heart",  rank:9,  rationale:"Schedule DR test to validate RTO"},
+  {suit:"clover", rank:11, rationale:"Patch critical CVEs & achieve 95%+ compliance"},
+];

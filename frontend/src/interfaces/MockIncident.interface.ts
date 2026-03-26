@@ -1,7 +1,8 @@
 export interface MockIncident {
-  id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
+  id: number;
+  name: string;
+  sev: string;
   time: string;
-  status: 'open' | 'investigating' | 'resolved';
+  suit: string;
+  status: string;
 }

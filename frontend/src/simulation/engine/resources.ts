@@ -1,59 +1,162 @@
-import type { PlayerResources, SimCard, PostureLevel, PostureState } from './types';
+// ============================================================
+// simulation/engine/resources.ts
+// Pure functions for manipulating PlayerResources.
+// Each suit card maps to a specific resource effect.
+// ============================================================
 
-export function applyIncomingDamage(resources: PlayerResources, damage: number): PlayerResources {
-  const blocked = Math.min(resources.strength, damage);
-  const remaining = damage - blocked;
+import type { PlayerResources, SimCard, DiamondRollResult } from './types';
+import { RESOURCE_CAPS, STRENGTH_DECAY_PER_TURN } from './types';
+
+// ----------------------------
+// Clamp helpers
+// ----------------------------
+
+function clamp(val: number, min = 0, max = 100): number {
+  return Math.min(max, Math.max(min, val));
+}
+
+export function clampResources(r: PlayerResources): PlayerResources {
   return {
-    ...resources,
-    strength: Math.max(0, resources.strength - blocked),
-    health: Math.max(0, resources.health - remaining),
+    health:   clamp(r.health,   0, RESOURCE_CAPS.health),
+    mana:     clamp(r.mana,     0, RESOURCE_CAPS.mana),
+    strength: clamp(r.strength, 0, RESOURCE_CAPS.strength),
   };
 }
 
-export function applyTurnDecay(resources: PlayerResources): PlayerResources {
-  return { ...resources, strength: Math.max(0, resources.strength - 10) };
-}
+// ----------------------------
+// Spades — Attack (deal damage to the threat, NOT the player)
+// Player resource cost: high-rank Spades cost mana.
+// Returns updated resources after paying the mana cost.
+// ----------------------------
 
-export function applyClubCard(resources: PlayerResources, card: SimCard): PlayerResources {
-  const manaGained = Math.round(card.power * 0.8);
-  return { ...resources, mana: Math.min(100, resources.mana + manaGained) };
-}
-
-export function applyHeartCard(resources: PlayerResources, card: SimCard): PlayerResources {
-  const healthGained = Math.round(card.power * 1.5);
-  const manaBonus = Math.round(card.power * 0.3);
-  return {
+export function applySpadeCardCost(
+  resources: PlayerResources,
+  card: SimCard,
+): PlayerResources {
+  return clampResources({
     ...resources,
-    health: Math.min(100, resources.health + healthGained),
-    mana: Math.min(100, resources.mana + manaBonus),
-  };
+    mana: resources.mana - card.manaCost,
+  });
 }
+
+// ----------------------------
+// Clubs — Mana Recovery (restores mana ONLY, never health)
+// Free to play (manaCost = 0 for all Clubs).
+// Recovery amount scales with card power.
+// ----------------------------
+
+export function applyClubCard(
+  resources: PlayerResources,
+  card: SimCard,
+): PlayerResources {
+  const manaGain = Math.round(card.power * 0.8); // e.g. Ace (14) → +11 mana
+  return clampResources({
+    ...resources,
+    mana: resources.mana + manaGain,
+  });
+}
+
+// ----------------------------
+// Hearts — Health Recovery
+// Restores health and a small amount of mana (SIEM correlation side-effect).
+// ----------------------------
+
+export function applyHeartCard(
+  resources: PlayerResources,
+  card: SimCard,
+): PlayerResources {
+  const healthGain = Math.round(card.power * 1.5);  // e.g. King (13) → +19 HP
+  const manaBonus  = Math.max(1, Math.floor(card.power / 4));
+  return clampResources({
+    ...resources,
+    health: resources.health + healthGain,
+    mana:   resources.mana   + manaBonus,
+  });
+}
+
+// ----------------------------
+// Diamonds — Reinforce
+// Costs mana. Boosts strength.
+// Chance mechanics per the tabletop spec:
+//   10% — block the next incoming threat attack
+//   20% — grant an extra action this turn
+// ----------------------------
 
 export function applyDiamondCard(
   resources: PlayerResources,
-  card: SimCard
-): { resources: PlayerResources; attackBlocked: boolean; extraTurn: boolean } {
-  const strengthGain = Math.round(card.power / 4);
-  const attackBlocked = Math.random() < 0.10;
-  const extraTurn = Math.random() < 0.20;
+  card: SimCard,
+): { resources: PlayerResources; roll: DiamondRollResult } {
+  if (resources.mana < card.manaCost) {
+    // Not enough mana — card fizzles, no effect
+    return {
+      resources,
+      roll: { blockedAttack: false, extraTurn: false, strengthGained: 0 },
+    };
+  }
+
+  const strengthGain = Math.round(card.power * 1.2); // e.g. Queen (12) → +14 strength
+
+  const roll1 = Math.random();
+  const roll2 = Math.random();
+
+  const roll: DiamondRollResult = {
+    blockedAttack: roll1 < 0.10,   // 10% block
+    extraTurn:     roll2 < 0.20,   // 20% extra turn
+    strengthGained: strengthGain,
+  };
+
   return {
-    resources: {
+    resources: clampResources({
       ...resources,
-      mana: Math.max(0, resources.mana - card.manaCost),
-      strength: Math.min(100, resources.strength + strengthGain),
-    },
-    attackBlocked,
-    extraTurn,
+      mana:     resources.mana     - card.manaCost,
+      strength: resources.strength + strengthGain,
+    }),
+    roll,
   };
 }
 
-export function computeSimPosture(resources: PlayerResources): PostureState {
-  const score = Math.round(resources.health * 0.5 + resources.mana * 0.3 + resources.strength * 0.2);
-  let level: PostureLevel;
-  if (score >= 80) level = 'secure';
-  else if (score >= 60) level = 'stable';
-  else if (score >= 40) level = 'strained';
-  else if (score >= 20) level = 'critical';
-  else level = 'breached';
-  return { level, score };
+// ----------------------------
+// Incoming Damage — applied during enemy-respond phase
+// Strength absorbs damage before health.
+// Damage is 0 if attackBlocked (Diamond proc).
+// ----------------------------
+
+export function applyIncomingDamage(
+  resources: PlayerResources,
+  rawDamage: number,
+  attackBlocked: boolean,
+): PlayerResources {
+  if (attackBlocked) return resources;
+
+  const absorbed = Math.min(resources.strength, rawDamage);
+  const remainder = rawDamage - absorbed;
+
+  return clampResources({
+    ...resources,
+    strength: resources.strength - absorbed,
+    health:   resources.health   - remainder,
+  });
+}
+
+// ----------------------------
+// Turn decay — strength falls each turn
+// ----------------------------
+
+export function applyTurnDecay(resources: PlayerResources): PlayerResources {
+  return clampResources({
+    ...resources,
+    strength: Math.max(0, resources.strength - STRENGTH_DECAY_PER_TURN),
+  });
+}
+
+// ----------------------------
+// Jackpot resource recovery
+// ----------------------------
+
+export function applyJackpotRecovery(resources: PlayerResources): PlayerResources {
+  return clampResources({
+    health:   Math.max(resources.health,   80),
+    mana:     Math.max(resources.mana,     80),
+    strength: Math.max(resources.strength, 30),
+  });
 }

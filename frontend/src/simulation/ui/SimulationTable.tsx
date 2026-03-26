@@ -1,620 +1,4269 @@
-import { useEffect } from 'react';
-import { useSimulation } from '../gameplay/useSimulation';
-import { SUITS, RANK_NAMES } from '../../data/gameData';
-import type { SimCard } from '../engine/types';
+// ============================================================
+// simulation/ui/SimulationTable.tsx
+// Open 8-bit casino battle arena — no panels, no boxes.
+// Characters stand tall in the background.
+// Real playing cards at the bottom with number-picker tabs.
+// Phase prompt lives TOP LEFT only after battle starts.
+// Audio: main-ui → system-patch → wesker7mins+weskertheme → ai-adapter
+// ============================================================
 
-interface SimulationTableProps {
-  initialRanks: Record<string, number>;
-  onBack: () => void;
+import React, {
+  createContext, useContext, useCallback,
+  useEffect, useRef, useState,
+} from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { computePosture } from '../../engine/computePosture';
+import {
+  useCampaign,
+  suitSym, suitColor, rankDisplay, rankValue, manaCost,
+  FIXED_HAND_RANKS,
+  type CampaignState, type CampaignLogEntry, type Suit,
+} from '../gameplay/useCampaign';
+import MagicianSprite  from './MagicianSprite';
+import CardArt         from '../../components/CardArt';
+import { MusicManager } from '../audio/MusicManager';
+import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
+import './pixel.css';
+
+// ── Tutorial ──────────────────────────────────────────────
+type TutorialHighlight = 'cards' | 'intel' | 'boss' | 'full' | null;
+
+const TUTORIAL_STEPS: Array<{
+  icon: string;
+  title: string;
+  highlight: TutorialHighlight;
+  body?: string;
+  lines?: Array<{ sym: string; color: string; label: string; desc: string }>;
+  tips?: string[];
+}> = [
+  {
+    icon: '🃏',
+    title: 'WELCOME TO SIMULATION MODE',
+    highlight: 'full',
+    body: `CounterStack Simulation Mode is a tabletop cybersecurity exercise modeled after real SOC incident response. You face an active threat built around a real-world attack vector. Deploy security countermeasures as cards each turn to neutralize it before it compromises your systems.\n\nYour posture score from onboarding determines the strength of your starting hand. Higher-ranked suits mean stronger cards in that security domain. This is not just a game — it's a drill.`,
+  },
+  {
+    icon: '♠♣♦♥',
+    title: 'THE FOUR SUITS',
+    highlight: 'cards',
+    lines: [
+      { sym: '♠', color: '#4da6ff',  label: 'OFFENSIVE',  desc: 'Deploy attacks to damage the active threat. High-rank cards hit harder but cost mana.' },
+      { sym: '♣', color: '#33dd77',  label: 'RESOURCE',   desc: 'Restore your mana pool. Always free to play. Keep resources flowing.' },
+      { sym: '♦', color: '#cc88ff',  label: 'HARDEN',     desc: 'Build armor stacks that absorb incoming damage. Costs mana but pays off under pressure.' },
+      { sym: '♥', color: '#ff4455',  label: 'RESILIENCE', desc: "Recover HP. Higher ranks restore more health. Don't wait until critical." },
+    ],
+  },
+  {
+    icon: '♠',
+    title: 'SELECTING A CARD',
+    highlight: null,
+    body: 'Click the OFFENSIVE card to open its selection menu. Each suit has multiple rank options — higher rank means a stronger effect but usually a higher mana cost. Click a row to play that card immediately and trigger the action.',
+  },
+  {
+    icon: '⚡',
+    title: 'READING CARD VALUES — OFFENSIVE',
+    highlight: null,
+    lines: [
+      { sym: '⚡', color: '#4da6ff', label: 'DAMAGE VALUE',   desc: 'The number next to ⚡ is how much damage you deal to the threat this turn. Higher rank = more damage.' },
+      { sym: '💧', color: '#4da6ff', label: 'MANA COST',      desc: 'The number next to 💧 is how much mana this card costs to play. If you can\'t afford it, the card is locked.' },
+      { sym: '#',  color: '#ffd700', label: 'CARD RANK',       desc: 'The left number is the card\'s rank — cards are ordered by increasing severity and power. Higher rank cards represent more advanced, impactful security actions.' },
+      { sym: '📋', color: '#cc88ff', label: 'CARD DESCRIPTION', desc: 'Each description maps to a real cybersecurity function — from threat hunting to vulnerability patching. Read it to understand what control you\'re applying.' },
+    ],
+  },
+  {
+    icon: '📡',
+    title: 'INTEL PANEL',
+    highlight: 'intel',
+    lines: [
+      { sym: '★', color: '#cc88ff', label: 'MISSION BRIEF', desc: 'Boss objectives, special mechanics, and win conditions.' },
+      { sym: '◈', color: '#ffa844', label: 'THREAT INTEL',  desc: 'Live boss stats, battle log, and CVE reference data.' },
+      { sym: '⟳', color: '#33dd77', label: 'AI ANALYSIS',   desc: 'Real-time tactical recommendations based on your current HP, mana, and boss state.' },
+    ],
+  },
+  {
+    icon: '⚡',
+    title: 'TIPS FOR SURVIVAL',
+    highlight: 'full',
+    tips: [
+      'RESOURCE cards are always free — never let mana run dry.',
+      'High-rank OFFENSIVE cards hit hard but drain mana fast.',
+      'Stack armor (HARDEN) before a tough boss turn.',
+      'Use AI ANALYSIS when unsure which suit to play next.',
+      'A good poker hand across your suits triggers JACKPOT bonus damage.',
+    ],
+  },
+];
+
+// ── Asset paths ───────────────────────────────────────────
+const WESKER_IMG               = '/assets/sprites/wesker.png';
+const WESKER_FALLBACK          = '/assets/sprites/0C9FD310-B1BA-44F0-A4CD-750793CA35C6.png';
+const AI_ADAPTER_IMG           = '/assets/sprites/aiadapter.png';
+const AI_ADAPTER_FALLBACK      = '/assets/sprites/C0C94271-FAB8-44EA-985C-CB472E57708D.png';
+const AI_ADAPTER_TRANSFORM_IMG = '/assets/sprites/aiadaptertransformimage.png';
+const SYSTEM_PATCH_IMG         = '/assets/sprites/systempatch-new.png';
+const BG_IN_GAME               = '/assets/sprites/backgroundingame.png';
+const SIM_BG                   = '/assets/sprites/SimulationBackground.jpg';
+const WESKER_BG                = '/assets/backgrounds/ResidentEvilBackground2.jpg';
+const JACKPOT_VIDEO            = '/assets/video/jackpot.mp4';
+const JACKPOT_ICON             = '/assets/sprites/jackpoticon.png';
+
+// ── Campaign Context ──────────────────────────────────────
+interface CampaignCtxValue {
+  state:           CampaignState;
+  continueIntro:   () => void;
+  drawCard:        () => void;
+  drawSuit:        (suit: Suit) => void;
+  selectCard:      (id: string) => void;
+  advance:         () => void;
+  triggerJackpot:  () => void;
+  restart:         () => void;
+  weskerTimeLeft:  number;   // seconds remaining (0 when not a Wesker fight)
+  onBack?:         () => void;
 }
 
-const POSTURE_COLORS: Record<string, string> = {
-  secure:    '#39d353',
-  stable:    '#00d4ff',
-  strained:  '#ffd700',
-  critical:  '#ff9f1c',
-  breached:  '#f72585',
-};
+const CampaignCtx = createContext<CampaignCtxValue | null>(null);
 
-const SUIT_COLORS: Record<string, string> = {
-  spade:   '#00d4ff',
-  club:    '#39d353',
-  diamond: '#a78bfa',
-  heart:   '#f72585',
-};
+// ── Tutorial Context ───────────────────────────────────────
+interface TutorialCtxValue { step: number; open: boolean; advance: () => void; }
+const TutorialCtx = createContext<TutorialCtxValue>({ step: -1, open: false, advance: () => {} });
 
-const SUIT_SYMS: Record<string, string> = {
-  spade:   '♠',
-  club:    '♣',
-  diamond: '♦',
-  heart:   '♥',
-};
-
-interface ResourceBarProps {
-  label: string;
-  value: number;
-  color: string;
+export function useCampaignContext(): CampaignCtxValue {
+  const ctx = useContext(CampaignCtx);
+  if (!ctx) throw new Error('useCampaignContext: must be inside SimulationTable');
+  return ctx;
 }
 
-function ResourceBar({ label, value, color }: ResourceBarProps) {
+export function useSimContext(): never {
+  throw new Error('useSimContext: old context no longer active');
+}
+
+// ── Typewriter ───────────────────────────────────────────
+function Typewriter({ text, speed = 34 }: { text: string; speed?: number }) {
+  const [shown, setShown] = useState('');
+  useEffect(() => {
+    setShown('');
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setShown(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed]);
+  return <>{shown}<motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }}>█</motion.span></>;
+}
+
+// ── Playing Card component ────────────────────────────────
+interface PlayingCardProps {
+  suit: Suit;
+  rank: number;
+  size?: number;
+  onClick?: () => void;
+  glow?: boolean;
+  disabled?: boolean;
+  selected?: boolean;
+  constrainHover?: boolean;
+  flash?: boolean;
+}
+
+// Map simulation suit keys → CardArt SOC suit keys
+const SIM_TO_SOC: Record<string, string> = {
+  clubs: 'clover', spades: 'spade', diamonds: 'diamond', hearts: 'heart',
+};
+
+function PlayingCard({ suit, rank, size = 1, onClick, glow, disabled, selected, constrainHover, flash }: PlayingCardProps) {
+  const color  = suitColor(suit);
+  const socKey = SIM_TO_SOC[suit] ?? suit;
+  const w = 80 * size;
+  const h = 112 * size;
+
   return (
-    <div style={{ flex: 1 }}>
-      <div
+    <motion.button
+      whileHover={disabled ? undefined : flash ? { y: -5 } : constrainHover ? { y: -4, scale: 1.04 } : { y: -14 * size, scale: 1.08 }}
+      whileTap={disabled   ? undefined : { scale: 0.93 }}
+      animate={
+        flash
+          ? { scale: [1, 1.025, 1], y: 0 }
+          : selected
+            ? { y: -18 * size, scale: 1.1 }
+            : { y: 0, scale: 1 }
+      }
+      transition={flash ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      onClick={disabled ? undefined : onClick}
+      style={{
+        position: 'relative',
+        width: w, height: h,
+        background: '#050a10',
+        border: flash
+            ? `2px solid #4da6ff`
+            : selected
+              ? `3px solid ${color}`
+              : glow
+                ? `2px solid ${color}`
+                : disabled
+                  ? '2px solid rgba(255,255,255,0.08)'
+                  : `1px solid ${color}44`,
+        borderRadius: 8 * size,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: flash
+          ? `0 0 18px #4da6ffbb, 0 0 44px #4da6ff55, 4px 4px 0 #000`
+          : selected
+            ? `0 0 0 2px ${color}55, 6px 6px 0 #000, 0 0 28px ${color}99, 0 0 56px ${color}44`
+            : glow
+              ? `4px 4px 0 #000, 0 0 18px ${color}88, 0 0 36px ${color}44`
+              : '4px 4px 0 #000',
+        opacity: disabled ? 0.35 : 1,
+        overflow: 'hidden',
+        transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
+        flexShrink: 0,
+        padding: 0,
+      }}
+    >
+      {/* CardArt SVG fills the face */}
+      {!disabled && (
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <CardArt suitKey={socKey} color={color} rank={rank} />
+        </div>
+      )}
+
+      {/* Card back pattern (when disabled) */}
+      {disabled && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `repeating-linear-gradient(
+            45deg,
+            rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 2px,
+            transparent 2px, transparent 8px
+          )`,
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Glow tint overlay */}
+      {(glow || selected) && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(ellipse, ${color}22, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+      )}
+    </motion.button>
+  );
+}
+
+// ── System Patch CSS boss sprite ──────────────────────────
+function SystemPatchBoss() {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (!imgFailed) {
+    return (
+      <div style={{ width: 260, height: 380, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <motion.img
+          src={SYSTEM_PATCH_IMG}
+          onError={() => setImgFailed(true)}
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            height: 320,
+            width: 'auto',
+            imageRendering: 'pixelated',
+            mixBlendMode: 'screen',
+            filter: 'brightness(1.2) contrast(1.15) drop-shadow(0 0 32px rgba(51,221,119,0.55))',
+            objectFit: 'contain',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // CSS fallback when systempatch.png is not yet available
+  return (
+    <div style={{ width: 260, height: 380, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Outer glitch ring */}
+      <motion.div
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 9,
-          marginBottom: 3,
+          position: 'absolute', inset: 30,
+          border: '3px solid #33dd77',
+          borderStyle: 'dashed',
+          borderRadius: '50%',
+          boxShadow: '0 0 14px #33dd7755',
+          opacity: 0.8,
+        }}
+      />
+      <motion.div
+        animate={{ rotate: [360, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
+        style={{
+          position: 'absolute', inset: 55,
+          border: '2px solid #4da6ff',
+          borderRadius: '50%',
+          boxShadow: '0 0 10px #4da6ff55',
+          opacity: 0.6,
+        }}
+      />
+      {/* Core shield */}
+      <motion.div
+        animate={{ scale: [1, 1.08, 1], filter: ['drop-shadow(0 0 10px #33dd77)', 'drop-shadow(0 0 32px #33dd77)', 'drop-shadow(0 0 10px #33dd77)'] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        style={{ fontSize: 110, position: 'relative', zIndex: 1 }}
+      >
+        🛡️
+      </motion.div>
+      {/* Glitch bars */}
+      {[0, 1, 2, 3].map(i => (
+        <motion.div
+          key={i}
+          animate={{ x: [0, i % 2 === 0 ? 8 : -8, 0], opacity: [0, 0.9, 0] }}
+          transition={{ duration: 0.15, repeat: Infinity, delay: i * 0.4, repeatDelay: 2.5 }}
+          style={{
+            position: 'absolute',
+            top: `${25 + i * 16}%`,
+            left: 0, right: 0,
+            height: 4,
+            background: '#33dd77',
+            opacity: 0,
+            mixBlendMode: 'screen',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Boss sprite selector ──────────────────────────────────
+function BossSprite({ bossIndex, adapting }: { bossIndex: number; adapting?: boolean }) {
+  const [fallback, setFallback] = useState(false);
+  if (bossIndex === 0) return <SystemPatchBoss />;
+
+  const primary   = bossIndex === 1 ? WESKER_IMG      : AI_ADAPTER_IMG;
+  const backup    = bossIndex === 1 ? WESKER_FALLBACK : AI_ADAPTER_FALLBACK;
+  const glowColor = bossIndex === 1 ? 'rgba(180,40,40,0.5)' : 'rgba(40,200,220,0.45)';
+  const spriteHeight = bossIndex === 1 ? 280 : 400;
+
+  const sprite = (
+    <motion.img
+      src={fallback ? backup : primary}
+      onError={() => setFallback(true)}
+      animate={adapting && bossIndex === 2 ? { y: 0 } : { y: [0, -10, 0] }}
+      transition={adapting && bossIndex === 2
+        ? { duration: 0 }
+        : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+      }
+      style={{
+        height: spriteHeight,
+        width: 'auto',
+        imageRendering: 'pixelated',
+        mixBlendMode: 'screen',
+        objectFit: 'contain',
+        animation: adapting && bossIndex === 2 ? 'rainbowHue 0.4s linear infinite' : undefined,
+        filter: adapting && bossIndex === 2
+          ? 'brightness(1.5) saturate(3) contrast(1.2)'
+          : `brightness(1.2) contrast(1.15) drop-shadow(0 0 32px ${glowColor})`,
+      }}
+    />
+  );
+
+  if (bossIndex === 1) {
+    const CROP = 70; // px to remove from top of wesker sprite (chess knight artifact)
+    return (
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        {/* Crimson radial aura */}
+        <div style={{
+          position: 'absolute',
+          width: 260, height: 260,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(220,30,30,0.22) 0%, rgba(180,10,10,0.12) 45%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <img
+          src={fallback ? backup : primary}
+          onError={() => setFallback(true)}
+          style={{
+            height: spriteHeight,
+            width: 'auto',
+            imageRendering: 'pixelated',
+            mixBlendMode: 'screen',
+            objectFit: 'contain',
+            clipPath: `inset(${CROP}px 0 0 0)`,
+            filter: `brightness(1.2) contrast(1.15)`,
+          }}
+        />
+      </motion.div>
+    );
+  }
+
+  return sprite;
+}
+
+// ── Decorative slot machines ──────────────────────────────
+export function SlotMachineCSS({ flip }: { flip?: boolean }) {
+  return (
+    <div style={{
+      width: 80, height: 130,
+      transform: flip ? 'scaleX(-1)' : undefined,
+      position: 'relative',
+      background: 'linear-gradient(180deg, #2a1a3a, #1a0e28)',
+      border: '2px solid rgba(255,200,80,0.35)',
+      borderRadius: 10,
+      boxShadow: '3px 4px 0 #000, 0 0 10px rgba(255,180,40,0.1)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center',
+      gap: 4, padding: 8,
+    }}>
+      <div style={{
+        width: '100%', height: 46,
+        background: '#050810',
+        border: '2px solid rgba(80,180,255,0.5)',
+        borderRadius: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 3,
+      }}>
+        {['🍋', '🍒', '⭐'].map((sym, i) => (
+          <motion.span
+            key={i}
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 0.6 + i * 0.2, repeat: Infinity, delay: i * 0.15, repeatDelay: 3 }}
+            style={{ fontSize: 11 }}
+          >
+            {sym}
+          </motion.span>
+        ))}
+      </div>
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 5, color: '#ffd700', letterSpacing: 1 }}>LUCKY★7</div>
+      <motion.div
+        animate={{ rotate: [0, -22, 0] }}
+        transition={{ duration: 0.3, repeat: Infinity, repeatDelay: 4 }}
+        style={{
+          position: 'absolute', right: -11, top: 22,
+          width: 7, height: 32,
+          background: 'linear-gradient(#ffd700, #c09000)',
+          borderRadius: 3,
+          boxShadow: '1px 1px 0 #000',
+          transformOrigin: 'top center',
+        }}
+      />
+      <div style={{
+        width: 16, height: 5,
+        background: '#000',
+        border: '1px solid rgba(255,200,80,0.5)',
+        borderRadius: 2, marginTop: 2,
+      }} />
+    </div>
+  );
+}
+
+// ── Jackpot cinematic ────────────────────────────────────
+const REEL_SYMS = ['♠', '7', '♣', '★', '♦', '7', '♥', '7', '★', '7', '♠', '♣'];
+
+/** Synthesise a casino-bell DING tone (count = 1/2/3). No audio file needed. */
+function playDing(count: number): void {
+  try {
+    const ctx  = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    for (let i = 0; i < count; i++) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.38;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1318.5, t);
+      osc.frequency.exponentialRampToValueAtTime(880, t + 0.55);
+      gain.gain.setValueAtTime(0.75, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+      osc.start(t);
+      osc.stop(t + 0.85);
+    }
+  } catch { /* AudioContext unavailable — skip */ }
+}
+
+function SlotReel({ stopped, jackpotFlash }: { stopped: boolean; jackpotFlash: boolean }) {
+  return (
+    <div style={{
+      width: 88, height: 110, overflow: 'hidden',
+      background: '#04020a',
+      border: `3px solid ${jackpotFlash ? '#ffd700' : 'rgba(255,200,40,0.4)'}`,
+      borderRadius: 10,
+      boxShadow: jackpotFlash ? '0 0 40px #ffd700, 0 0 80px #ffd70066' : '0 0 10px rgba(255,200,40,0.2)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative',
+    }}>
+      {/* shine overlay */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
+        background: 'linear-gradient(to bottom, rgba(255,255,255,0.06), transparent)',
+        pointerEvents: 'none', borderRadius: '8px 8px 0 0',
+      }} />
+      {stopped ? (
+        <motion.div
+          initial={{ y: -40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          style={{
+            fontSize: 52, lineHeight: 1, fontWeight: 900,
+            color: '#ffd700', fontFamily: 'monospace',
+            textShadow: jackpotFlash
+              ? '0 0 24px #ffd700, 0 0 48px #ffd700'
+              : '0 0 8px #ffd70088',
+          }}
+        >
+          7
+        </motion.div>
+      ) : (
+        <motion.div
+          animate={{ y: [0, -110 * REEL_SYMS.length / 2] }}
+          transition={{ duration: 0.4, repeat: Infinity, ease: 'linear' }}
+          style={{ display: 'flex', flexDirection: 'column', position: 'absolute', top: 0 }}
+        >
+          {[...REEL_SYMS, ...REEL_SYMS].map((s, i) => (
+            <div key={i} style={{
+              height: 55, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 36, color: '#ffd700',
+            }}>
+              {s}
+            </div>
+          ))}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+
+function JackpotCinematic({ onDone }: { onDone: () => void }) {
+  const [stage, setStage] = useState<'throw' | 'reels' | 'jackpot'>('throw');
+  const [stopped, setStopped] = useState([false, false, false]);
+
+  useEffect(() => {
+    // Hat throw → reels appear
+    const t1 = setTimeout(() => setStage('reels'), 900);
+    // Reels stop left → right — each landing fires N dings
+    const t2 = setTimeout(() => { setStopped([true, false, false]); playDing(1); }, 1600);
+    const t3 = setTimeout(() => { setStopped([true, true,  false]); playDing(2); }, 2300);
+    const t4 = setTimeout(() => { setStopped([true, true,  true]);  playDing(3); }, 3100);
+    const t5 = setTimeout(() => setStage('jackpot'), 3200);
+    // Give confetti + JACKPOT text 2.5 s to breathe before calling onDone
+    const t6 = setTimeout(onDone, 5700);
+    return () => [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 950,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 28,
+        background: 'radial-gradient(ellipse at center, rgba(20,8,40,0.97) 0%, rgba(0,0,0,0.98) 100%)',
+        pointerEvents: 'none',
+      }}
+    >
+      {/* Hat throw arc — always visible during throw stage */}
+      <AnimatePresence>
+        {stage === 'throw' && (
+          <motion.div
+            key="hat-throw"
+            initial={{ x: -320, y: 180, rotate: -180, scale: 0.4, opacity: 0 }}
+            animate={{ x: 0, y: -60, rotate: 720, scale: 2.2, opacity: 1 }}
+            exit={{ y: -200, opacity: 0, scale: 0.5, rotate: 900 }}
+            transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            style={{ filter: 'drop-shadow(0 0 40px #ffd700)', position: 'absolute' }}
+          >
+            <img src={JACKPOT_ICON} alt="" style={{ width: 96, height: 96, objectFit: 'contain' }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Slot machine reels — revealed left to right */}
+      {stage !== 'throw' && (
+        <>
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.35, ease: 'backOut' }}
+            style={{ display: 'flex', gap: 14, alignItems: 'center' }}
+          >
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={i}
+                initial={{ y: -80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: i * 0.12, duration: 0.3, ease: 'backOut' }}
+              >
+                <SlotReel stopped={stopped[i]} jackpotFlash={stage === 'jackpot'} />
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <AnimatePresence>
+            {stage === 'jackpot' && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: [0, 1.5, 1.1], opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: 'backOut' }}
+                style={{ filter: 'drop-shadow(0 0 40px #ffd700) drop-shadow(0 0 80px #ffd70066)' }}
+              >
+                <img src={JACKPOT_ICON} alt="" style={{ width: 140, height: 140, objectFit: 'contain' }} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {stage === 'jackpot' && (
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              {Array.from({ length: 18 }, (_, i) => {
+                const angle = (i / 18) * 360;
+                const dist  = 200 + Math.random() * 150;
+                const x = Math.cos((angle * Math.PI) / 180) * dist;
+                const y = Math.sin((angle * Math.PI) / 180) * dist;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{ x, y, opacity: 0, scale: 0 }}
+                    transition={{ duration: 1.2, delay: i * 0.04, ease: 'easeOut' }}
+                    style={{
+                      position: 'absolute', top: '50%', left: '50%',
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: i % 3 === 0 ? '#ffd700' : i % 3 === 1 ? '#cc88ff' : '#4da6ff',
+                      boxShadow: '0 0 8px currentColor',
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Floating suit card particles ─────────────────────────
+const FLOAT_CARDS = [
+  { sym: '♠', color: '#4da6ff', x: '8%',  delay: 0,    dur: 9  },
+  { sym: '♥', color: '#ff4455', x: '18%', delay: 1.5,  dur: 11 },
+  { sym: '♦', color: '#cc88ff', x: '28%', delay: 3,    dur: 8  },
+  { sym: '♣', color: '#33dd77', x: '72%', delay: 0.8,  dur: 10 },
+  { sym: '♠', color: '#4da6ff', x: '82%', delay: 2.2,  dur: 12 },
+  { sym: '♥', color: '#ff4455', x: '91%', delay: 4,    dur: 9  },
+  { sym: '♦', color: '#cc88ff', x: '55%', delay: 5,    dur: 14 },
+  { sym: '♣', color: '#33dd77', x: '45%', delay: 6.5,  dur: 11 },
+];
+
+function FloatingCards() {
+  return (
+    <>
+      {FLOAT_CARDS.map((c, i) => (
+        <motion.div
+          key={i}
+          animate={{
+            y: [80, -120],
+            opacity: [0, 0.35, 0.35, 0],
+            rotate: [0, c.sym === '♠' ? 25 : -18],
+          }}
+          transition={{
+            duration: c.dur,
+            delay: c.delay,
+            repeat: Infinity,
+            repeatDelay: 1.5,
+            ease: 'linear',
+          }}
+          style={{
+            position: 'absolute',
+            left: c.x,
+            bottom: '30%',
+            fontSize: 22,
+            color: c.color,
+            textShadow: `0 0 12px ${c.color}88`,
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          {c.sym}
+        </motion.div>
+      ))}
+    </>
+  );
+}
+
+// ── Perspective floor grid ────────────────────────────────
+function FloorGrid() {
+  return (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        position: 'absolute', bottom: 0, left: '-20%', right: '-20%', height: '100%',
+        backgroundImage: `
+          linear-gradient(to right, rgba(255,180,40,0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255,180,40,0.08) 1px, transparent 1px)
+        `,
+        backgroundSize: '80px 60px',
+        transform: 'perspective(500px) rotateX(55deg)',
+        transformOrigin: 'bottom center',
+        maskImage: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 80%)',
+        WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 80%)',
+      }} />
+    </div>
+  );
+}
+
+// ── Ceiling chandelier lights ─────────────────────────────
+const LIGHTS = [
+  { x: '20%', color: '#ff4455', delay: 0 },
+  { x: '35%', color: '#ffd700', delay: 0.4 },
+  { x: '50%', color: '#ffd700', delay: 0.2 },
+  { x: '65%', color: '#ffd700', delay: 0.6 },
+  { x: '80%', color: '#4da6ff', delay: 0.1 },
+];
+
+function CeilingLights() {
+  return (
+    <>
+      {LIGHTS.map((l, i) => (
+        <motion.div
+          key={i}
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.8 + i * 0.3, repeat: Infinity, delay: l.delay }}
+          style={{
+            position: 'absolute', top: 0, left: l.x,
+            width: 2, height: 180,
+            background: `linear-gradient(to bottom, ${l.color}99, ${l.color}22, transparent)`,
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+      {/* Light source dots */}
+      {LIGHTS.map((l, i) => (
+        <motion.div
+          key={`dot-${i}`}
+          animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.3, 1] }}
+          transition={{ duration: 1.8 + i * 0.3, repeat: Infinity, delay: l.delay }}
+          style={{
+            position: 'absolute', top: -4, left: l.x, transform: 'translateX(-50%)',
+            width: 10, height: 10, borderRadius: '50%',
+            background: l.color,
+            boxShadow: `0 0 14px ${l.color}, 0 0 28px ${l.color}88`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ── Pre-generated SOC screen data (stable, no re-render churn) ──
+const SOC_LINES = Array.from({ length: 8 }, () =>
+  Array.from({ length: 14 }, () =>
+    Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0').toUpperCase()
+  )
+);
+
+// ── SOC monitor wall (people at computers, back of room) ──
+const SOC_STATIONS = [
+  { x: '74%', col: '#cc88ff', label: 'INF-05', tw: 58 },
+  { x: '81%', col: '#4da6ff', label: 'NET-06', tw: 50 },
+  { x: '88%', col: '#33dd77', label: 'SYS-07', tw: 62 },
+  { x: '95%', col: '#ff8844', label: 'ALR-08', tw: 54 },
+];
+
+function SocStation({ x, col, label, tw, idx }: { x: string; col: string; label: string; tw: number; idx: number }) {
+  return (
+    <div style={{ position: 'absolute', bottom: 302, left: x, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Dual monitors */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
+        {[0, 1].map(mi => (
+          <motion.div
+            key={mi}
+            animate={{ opacity: [0.55, 0.9, 0.55] }}
+            transition={{ duration: 2.2 + idx * 0.18 + mi * 0.3, repeat: Infinity, delay: idx * 0.25 + mi * 0.4 }}
+            style={{
+              width: tw - 4, height: mi === 0 ? 38 : 44,
+              background: '#030508',
+              border: `1px solid ${col}55`,
+              borderRadius: 3,
+              overflow: 'hidden',
+              position: 'relative',
+              boxShadow: `0 0 8px ${col}33, inset 0 0 6px ${col}18`,
+            }}
+          >
+            {/* Scan lines */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `repeating-linear-gradient(0deg, transparent 0px, transparent 3px, ${col}0a 3px, ${col}0a 4px)`,
+              pointerEvents: 'none',
+            }} />
+            {/* Scrolling data */}
+            <motion.div
+              animate={{ y: [0, -(14 * 9)] }}
+              transition={{ duration: 3.5 + idx * 0.4 + mi * 0.6, repeat: Infinity, ease: 'linear', delay: idx * 0.3 }}
+              style={{ position: 'absolute', left: 2, top: 2, right: 2, fontFamily: 'monospace', fontSize: 3.5, color: col, lineHeight: 1.8, opacity: 0.75 }}
+            >
+              {SOC_LINES[idx % SOC_LINES.length].map((line, li) => (
+                <div key={li}>{li % 3 === 0 ? `[${label}] ${line}` : line}</div>
+              ))}
+            </motion.div>
+          </motion.div>
+        ))}
+      </div>
+      {/* Monitor stands */}
+      <div style={{ display: 'flex', gap: tw - 8, marginTop: 1 }}>
+        {[0, 1].map(i => <div key={i} style={{ width: 3, height: 6, background: '#1a1220' }} />)}
+      </div>
+      {/* Desk surface */}
+      <div style={{ width: tw + 16, height: 5, background: 'linear-gradient(180deg, #1c1228, #0e0a18)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 1 }} />
+      {/* Person silhouette */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: -3 }}>
+        {/* Head */}
+        <div style={{ width: 14, height: 14, borderRadius: '50%', background: `rgba(12,7,22,0.9)`, border: `1px solid ${col}22` }} />
+        {/* Body */}
+        <div style={{ width: 22, height: 22, borderRadius: '40% 40% 0 0', background: `rgba(12,7,22,0.85)`, marginTop: -3 }} />
+      </div>
+      {/* Screen glow on desk */}
+      <div style={{
+        position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+        width: tw + 20, height: 50,
+        background: `radial-gradient(ellipse, ${col}18 0%, transparent 65%)`,
+        pointerEvents: 'none',
+      }} />
+    </div>
+  );
+}
+
+function SocMonitorWall() {
+  return (
+    <>
+      {SOC_STATIONS.map((s, i) => (
+        <SocStation key={i} idx={i} x={s.x} col={s.col} label={s.label} tw={s.tw} />
+      ))}
+    </>
+  );
+}
+
+// ── Roulette wheel (decorative, back-center) ──────────────
+function RouletteTable() {
+  return (
+    <div style={{
+      position: 'absolute', bottom: 302, left: '50%', transform: 'translateX(-50%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      opacity: 0.22, pointerEvents: 'none',
+    }}>
+      {/* Oval felt table */}
+      <div style={{
+        width: 220, height: 90,
+        background: 'radial-gradient(ellipse, #0a2a12 0%, #061408 70%)',
+        border: '2px solid rgba(255,200,40,0.25)',
+        borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 0 20px rgba(0,180,60,0.12)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Layout lines */}
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            position: 'absolute', top: '20%', left: `${28 + i * 18}%`,
+            width: 1, height: '60%', background: 'rgba(255,200,40,0.18)',
+          }} />
+        ))}
+        {/* Spinning wheel */}
+        <motion.div
+          animate={{ rotate: [0, 360] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+          style={{
+            width: 56, height: 56, borderRadius: '50%',
+            border: '3px solid rgba(255,200,40,0.4)',
+            background: 'radial-gradient(circle, #18080a 40%, #2a0c0e 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative',
+          }}
+        >
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} style={{
+              position: 'absolute', top: '50%', left: '50%',
+              width: 2, height: 22,
+              background: i % 2 === 0 ? 'rgba(255,60,60,0.5)' : 'rgba(0,0,0,0.5)',
+              transformOrigin: '1px 0',
+              transform: `translateX(-50%) rotate(${i * 45}deg)`,
+            }} />
+          ))}
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffd700', opacity: 0.7 }} />
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+// ── Dealer card table (center-left background) ────────────
+function DealerTable() {
+  return (
+    <div style={{
+      position: 'absolute', bottom: 302, left: '33%',
+      opacity: 0.18, pointerEvents: 'none',
+    }}>
+      {/* Felt table oval */}
+      <div style={{
+        width: 140, height: 60,
+        background: 'radial-gradient(ellipse, #0a1a2a 0%, #05100e 70%)',
+        border: '2px solid rgba(60,120,255,0.2)',
+        borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+      }}>
+        {/* Cards on table */}
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} style={{
+            width: 16, height: 22,
+            background: i < 2 ? '#1a1030' : 'linear-gradient(145deg, #f0eadc, #ddd4b8)',
+            border: `1px solid ${i < 2 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.3)'}`,
+            borderRadius: 2,
+            transform: `rotate(${(i - 2) * 8}deg)`,
+            boxShadow: '1px 1px 0 rgba(0,0,0,0.4)',
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Neon wall signs (more variety) ───────────────────────
+function NeonSigns() {
+  return (
+    <>
+      {/* SOC LIVE — bottom-left corner indicator */}
+      <motion.div
+        animate={{ opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 2.2, repeat: Infinity }}
+        style={{
+          position: 'fixed', top: 14, left: 16, zIndex: 28,
+          display: 'flex', alignItems: 'center', gap: 7,
         }}
       >
-        <span style={{ color: 'var(--dim)' }}>{label}</span>
-        <span style={{ color, fontFamily: 'var(--fh)' }}>{Math.round(value)}</span>
-      </div>
-      <div style={{ height: 5, background: '#1a2332', borderRadius: 3 }}>
-        <div
+        <motion.div
+          animate={{ opacity: [1, 0.2, 1] }}
+          transition={{ duration: 1.1, repeat: Infinity }}
           style={{
-            height: '100%',
-            width: `${Math.min(100, value)}%`,
-            background: color,
-            borderRadius: 3,
-            transition: 'width 0.3s',
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#33dd77',
+            boxShadow: '0 0 8px #33dd77, 0 0 16px #33dd7766',
           }}
+        />
+        <span style={{
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3,
+          color: '#33dd77',
+          textShadow: '0 0 10px #33dd7788',
+        }}>
+          SOC LIVE
+        </span>
+      </motion.div>
+
+      {/* THREAT LEVEL — bottom-right corner indicator */}
+      <motion.div
+        animate={{ opacity: [0.65, 1, 0.65] }}
+        transition={{ duration: 2.6, repeat: Infinity, delay: 0.6 }}
+        style={{
+          position: 'fixed', top: 14, right: 16, zIndex: 28,
+          display: 'flex', alignItems: 'center', gap: 7,
+        }}
+      >
+        <span style={{
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3,
+          color: '#ff8844',
+          textShadow: '0 0 10px #ff884488',
+        }}>
+          THREAT LVL 4
+        </span>
+        <motion.div
+          animate={{ opacity: [1, 0.3, 1] }}
+          transition={{ duration: 0.9, repeat: Infinity }}
+          style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#ff8844',
+            boxShadow: '0 0 8px #ff8844, 0 0 16px #ff884466',
+          }}
+        />
+      </motion.div>
+    </>
+  );
+}
+
+// ── Sleek tactical background ─────────────────────────────
+function CasinoBackground() {
+  const { state } = useCampaignContext();
+  const isWesker = state.bossIndex === 1;
+
+  if (isWesker) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <img
+          src={WESKER_BG}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '75%', objectFit: 'cover', transform: 'scale(1)', transformOrigin: 'center center' }}
+        />
+        {/* Dark overlay over the bottom HUD area */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 300,
+          background: 'linear-gradient(to top, rgba(4,2,10,0.92) 0%, rgba(4,2,10,0.85) 60%, rgba(4,2,10,0.4) 100%)',
+          pointerEvents: 'none',
+        }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 0,
+      pointerEvents: 'none',
+      overflow: 'hidden',
+      background: '#03050d',
+    }}>
+      {/* Edge vignette — left */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, bottom: 0, width: '28%',
+        background: 'linear-gradient(to right, rgba(0,0,0,0.72) 0%, transparent 100%)',
+      }} />
+
+      {/* Edge vignette — right */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: '28%',
+        background: 'linear-gradient(to left, rgba(0,0,0,0.72) 0%, transparent 100%)',
+      }} />
+
+      {/* Top vignette */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '22%',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.68) 0%, transparent 100%)',
+      }} />
+
+      {/* Bottom fade into HUD */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%',
+        background: 'linear-gradient(to top, #0a0010 0%, rgba(10,0,16,0.85) 40%, transparent 100%)',
+      }} />
+
+      {/* CRT scanline grid overlay */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Retro phosphor arena bloom — teal */}
+      <div style={{
+        position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)',
+        width: 700, height: 500,
+        background: 'radial-gradient(ellipse, rgba(0,200,180,0.07) 0%, rgba(0,160,255,0.03) 50%, transparent 75%)',
+      }} />
+
+      {/* Amber top-edge glow — retro ceiling light */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 180,
+        background: 'radial-gradient(ellipse 900px 120px at 50% 0%, rgba(255,180,40,0.1) 0%, transparent 70%)',
+      }} />
+
+      {/* Slow horizontal CRT sweep */}
+      <motion.div
+        animate={{ top: ['-2%', '102%'] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'linear', repeatDelay: 5 }}
+        style={{
+          position: 'absolute', left: 0, right: 0, height: 2,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(0,255,200,0.06) 25%, rgba(0,255,200,0.16) 50%, rgba(0,255,200,0.06) 75%, transparent 100%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Floating suit symbols */}
+      <FloatingCards />
+
+      {/* Status indicators */}
+      <NeonSigns />
+    </div>
+  );
+}
+
+// ── Top-left phase prompt (only shown when in actual battle) ─
+const PHASE_LABELS: Record<string, string> = {
+  'player-draw':  '► DRAW A CARD',
+  'card-select':  '► SELECT POWER',
+  'resolve':      '⟳ RESOLVING...',
+  'enemy-attack': '✕ ENEMY ATTACKING!',
+  'phase-clear':  '★ BOSS DEFEATED!',
+  'victory':      '★ VICTORY',
+  'game-over':    '✕ GAME OVER',
+};
+
+// Phases where prompt is hidden (overlay handles it)
+const HIDDEN_PHASES = new Set(['boss-intro']);
+
+export function PhasePrompt() {
+  const { state } = useCampaignContext();
+  if (HIDDEN_PHASES.has(state.phase)) return null;
+
+  // During enemy-attack, show the boss flavor text instead of generic label
+  const label = state.phase === 'enemy-attack' && state.lastAttackMsg
+    ? state.lastAttackMsg
+    : (PHASE_LABELS[state.phase] ?? state.phase.toUpperCase());
+
+  const color =
+    state.phase === 'game-over'    ? '#ff4455' :
+    state.phase === 'victory'      ? '#33dd77' :
+    state.phase === 'phase-clear'  ? '#ffd700' :
+    state.phase === 'enemy-attack' ? '#ff8844' :
+    state.phase === 'card-select'  ? '#cc88ff' :
+    state.phase === 'player-draw'  ? '#ffffff' :
+    'rgba(255,255,255,0.55)';
+
+  return (
+    <div style={{
+      position: 'fixed', top: 52, left: 18, zIndex: 60,
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 9,
+        color: 'rgba(255,255,255,0.38)', letterSpacing: 4,
+        marginBottom: 6,
+      }}>
+        TURN {state.turn}
+      </div>
+
+      <motion.div
+        key={state.phase}
+        initial={{ opacity: 0, x: -14 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 14,
+          color,
+          textShadow: `0 0 14px ${color}88, 2px 2px 0 rgba(0,0,0,0.9)`,
+          letterSpacing: 1.5, lineHeight: 1.2,
+        }}
+      >
+        {label}
+      </motion.div>
+
+      {/* Wesker diamond warning */}
+      {state.boss.id === 'wesker' && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          style={{
+            fontFamily: 'var(--px-font)', fontSize: 8,
+            color: '#cc88ff',
+            textShadow: '0 0 8px #cc88ff88, 1px 1px 0 rgba(0,0,0,0.9)',
+            marginTop: 8, letterSpacing: 2,
+          }}
+        >
+          ♦ ISOLATION: {state.diamondsUsed}/3{state.weskerExposed ? ' 🔓 STUNNED!' : ''}
+        </motion.div>
+      )}
+
+      {/* AI Adapter warning */}
+      {state.boss.id === 'ai-adapter' && !state.jackpotUsed && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          style={{
+            fontFamily: 'var(--px-font)', fontSize: 7,
+            color: '#ff8844',
+            textShadow: '0 0 8px #ff884488, 1px 1px 0 rgba(0,0,0,0.9)',
+            marginTop: 8, letterSpacing: 1,
+          }}
+        >
+          IMMUNE — USE <img src={JACKPOT_ICON} alt="" style={{ width: 14, height: 14, objectFit: 'contain', verticalAlign: 'middle', display: 'inline' }} />
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ── System Compromised banner (flashes when System Patch backfires) ─
+function SystemCompromisedBanner() {
+  const { state } = useCampaignContext();
+  if (!state.systemCompromised) return null;
+  return (
+    <motion.div
+      key="sys-compromised"
+      initial={{ opacity: 0, scale: 0.88 }}
+      animate={{ opacity: [0, 1, 0.7, 1], scale: 1 }}
+      transition={{ duration: 0.4, times: [0, 0.2, 0.6, 1] }}
+      style={{
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 200,
+        pointerEvents: 'none',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{
+        fontFamily: 'var(--px-font)',
+        fontSize: 28,
+        color: '#ff2233',
+        textShadow: '0 0 30px #ff0022, 0 0 60px #ff002288, 2px 2px 0 #000',
+        letterSpacing: 4,
+        lineHeight: 1.1,
+      }}>
+        ⚠ SYSTEM COMPROMISED
+      </div>
+      <div style={{
+        fontFamily: 'var(--px-font)',
+        fontSize: 10,
+        color: '#ff8888',
+        textShadow: '0 0 12px #ff444488',
+        letterSpacing: 3,
+        marginTop: 8,
+      }}>
+        NON-SPADE CARD BACKFIRED — PATCH EXPLOITED YOUR ACTION
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Wesker stun banner ────────────────────────────────────
+function WeskerStunnedBanner() {
+  const { state } = useCampaignContext();
+  if (!state.weskerExposed || state.weskerStunTurnsLeft <= 0) return null;
+  if (state.phase === 'boss-intro' || state.phase === 'phase-clear' ||
+      state.phase === 'victory'    || state.phase === 'game-over') return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key={`stun-${state.weskerStunTurnsLeft}`}
+        initial={{ opacity: 0, scale: 0.8, y: -30 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.7, y: -20 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        style={{
+          position: 'fixed', top: '18%', left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 200, pointerEvents: 'none', textAlign: 'center',
+        }}
+      >
+        <motion.div
+          animate={{ textShadow: [
+            '0 0 20px #cc88ff, 0 0 40px #cc88ff66, 2px 2px 0 #000',
+            '0 0 40px #cc88ff, 0 0 80px #cc88ffaa, 2px 2px 0 #000',
+            '0 0 20px #cc88ff, 0 0 40px #cc88ff66, 2px 2px 0 #000',
+          ]}}
+          transition={{ duration: 0.8, repeat: Infinity }}
+          style={{
+            fontFamily: 'var(--px-font)', fontSize: 20,
+            color: '#cc88ff', letterSpacing: 3, lineHeight: 1.2,
+          }}
+        >
+          ⚡ WESKER CAUGHT AND STUNNED!
+        </motion.div>
+        <motion.div
+          animate={{ opacity: [1, 0.5, 1] }}
+          transition={{ duration: 0.6, repeat: Infinity }}
+          style={{
+            fontFamily: 'var(--px-font)', fontSize: 13,
+            color: '#ffd700', letterSpacing: 4, marginTop: 6,
+            textShadow: '0 0 14px #ffd700aa, 2px 2px 0 #000',
+          }}
+        >
+          ATTACK NOW!! [{state.weskerStunTurnsLeft} TURN{state.weskerStunTurnsLeft !== 1 ? 'S' : ''} LEFT]
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ── Wesker 7-minute countdown display ─────────────────────
+function WeskerTimer() {
+  const { state, weskerTimeLeft } = useCampaignContext();
+  if (state.boss.id !== 'wesker') return null;
+  if (state.phase === 'boss-intro' || state.phase === 'phase-clear' ||
+      state.phase === 'victory' || state.phase === 'game-over') return null;
+
+  const mins = Math.floor(weskerTimeLeft / 60);
+  const secs = weskerTimeLeft % 60;
+  const display = `${mins}:${String(secs).padStart(2, '0')}`;
+  const urgent  = weskerTimeLeft <= 60;
+  const critical = weskerTimeLeft <= 20;
+
+  return (
+    <motion.div
+      style={{
+        position: 'fixed', top: 44, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 65, pointerEvents: 'none', textAlign: 'center',
+      }}
+    >
+      {/* Label */}
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 8,
+        color: urgent ? '#ff8844' : 'rgba(255,255,255,0.7)',
+        letterSpacing: 4, marginBottom: 2,
+        textShadow: '2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.9)',
+        fontWeight: 700,
+      }}>
+        WESKER TIMER
+      </div>
+
+      {/* Clock */}
+      <motion.div
+        animate={critical
+          ? { opacity: [1, 0.3, 1], scale: [1, 1.05, 1] }
+          : urgent
+          ? { opacity: [1, 0.7, 1] }
+          : { opacity: 1 }
+        }
+        transition={{ duration: critical ? 0.4 : 0.8, repeat: Infinity }}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: critical ? 36 : 28,
+          color: critical ? '#ff2233' : urgent ? '#ff8844' : '#ffd700',
+          textShadow: critical
+            ? '0 0 24px #ff0022, 0 0 48px #ff002266, 2px 2px 0 #000'
+            : urgent
+            ? '0 0 18px #ff8844aa, 2px 2px 0 #000'
+            : '0 0 16px #ffd700aa, 2px 2px 0 #000',
+          letterSpacing: 4,
+          fontWeight: 700,
+        }}
+      >
+        {display}
+      </motion.div>
+
+      {urgent && (
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 7,
+          color: '#ff4455', letterSpacing: 3, marginTop: 3,
+          textShadow: '0 0 10px #ff445599, 2px 2px 0 #000',
+          fontWeight: 700,
+        }}>
+          {critical ? '⚠ SYSTEM BREACH IMMINENT' : '⚠ TIME RUNNING OUT'}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Top-right phase/deck info (bars moved to arena) ───────
+function HpBars() {
+  // Replaced by CounterStack center badge — content moved to HandPhasePanel
+  return (
+    <div style={{
+      position: 'fixed', bottom: 300, left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 22, pointerEvents: 'none',
+      display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      <img src="/counterstack.ico" alt="" style={{ width: 26, height: 26, opacity: 0.85, filter: 'drop-shadow(0 0 6px rgba(255,215,0,0.6))' }} />
+      <span style={{
+        fontFamily: "'Orbitron', sans-serif",
+        fontSize: 20, letterSpacing: 4, fontWeight: 900,
+        background: 'linear-gradient(135deg, #fff8dc 0%, #ffd700 35%, #f5a623 65%, #ffe066 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        textShadow: 'none',
+        filter: 'drop-shadow(0 0 14px rgba(255,215,0,0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.9))',
+      }}>COUNTERSTACK</span>
+    </div>
+  );
+}
+
+// ── Character orbit particles ─────────────────────────────
+interface OrbitProps {
+  color: string;
+  color2: string;
+  size1?: number;
+  size2?: number;
+}
+
+function CharacterOrbit({ color, size1 = 140 }: OrbitProps) {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'none',
+    }}>
+      {/* Aura ring */}
+      <motion.div
+        animate={{ opacity: [0.12, 0.35, 0.12] }}
+        transition={{ duration: 2.8, repeat: Infinity }}
+        style={{
+          position: 'absolute',
+          width: size1 + 20, height: size1 + 20,
+          borderRadius: '50%',
+          border: `1px solid ${color}55`,
+          boxShadow: `0 0 18px ${color}22, inset 0 0 18px ${color}11`,
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Inline stat bar ───────────────────────────────────────
+function StatBar({ value, max, color, label, showNums = true, height = 10 }: {
+  value: number; max: number; color: string; label: string; showNums?: boolean; height?: number;
+}) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        fontFamily: 'var(--px-font)', fontSize: 8,
+        color: '#fff', letterSpacing: 2, marginBottom: 4,
+        textShadow: '2px 2px 0 #000, 0 0 8px rgba(0,0,0,0.9)',
+      }}>
+        <span>{label}</span>
+        {showNums && <span style={{ color, textShadow: `0 0 8px ${color}99, 2px 2px 0 #000` }}>{value}/{max}</span>}
+      </div>
+      <div style={{
+        height, background: 'rgba(0,0,0,0.6)',
+        border: '1px solid rgba(255,255,255,0.14)', borderRadius: 2, overflow: 'hidden',
+      }}>
+        <motion.div
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          style={{ height: '100%', background: color, boxShadow: `0 0 9px ${color}99` }}
         />
       </div>
     </div>
   );
 }
 
-export function SimulationTable({ initialRanks, onBack }: SimulationTableProps) {
-  const { state, startTurn, playCard, fold, useJackpot, nextPhase } =
-    useSimulation(initialRanks);
-  const {
-    phase,
-    turn,
-    resources,
-    activeThreat,
-    hand,
-    log,
-    posture,
-    jackpotAvailable,
-    jackpotUsed,
-    foldCount,
-  } = state;
+// ── Battle arena (characters tall in background) ──────────
+function BattleArena() {
+  const { state } = useCampaignContext();
+  const tut = useContext(TutorialCtx);
+  const hideBossHp = tut.open || state.bossIndex === 0;
 
-  // Auto-advance phases
+  // Attack movement state
+  const prevPhaseRef = useRef(state.phase);
+  const [magAtk, setMagAtk] = useState(false);
+  const [bossAtk, setBossAtk] = useState(false);
+
+  // Diamond strength flash
+  const [showStrengthFlash, setShowStrengthFlash] = useState(false);
+  const prevChargeRef = useRef(state.diamondCharge);
+
   useEffect(() => {
-    if (phase === 'threat-appears') {
-      const t = setTimeout(startTurn, 600);
+    const prevPhase = prevPhaseRef.current;
+    const curPhase  = state.phase;
+
+    // Magician attacks when phase goes from card-select → resolve
+    if (prevPhase === 'card-select' && curPhase === 'resolve') {
+      setMagAtk(true);
+      const t = setTimeout(() => setMagAtk(false), 400);
+      prevPhaseRef.current = curPhase;
       return () => clearTimeout(t);
     }
-    if (phase === 'enemy-respond' || phase === 'posture-update') {
-      const t = setTimeout(nextPhase, 800);
+
+    // Boss attacks when phase becomes enemy-attack
+    // For AI Adapter with adapting: delay the lunge by 1s
+    if (curPhase === 'enemy-attack') {
+      const delay = state.adapterAdapting ? 1000 : 0;
+      const t = setTimeout(() => {
+        setBossAtk(true);
+        setTimeout(() => setBossAtk(false), 400);
+      }, delay);
+      prevPhaseRef.current = curPhase;
       return () => clearTimeout(t);
     }
-  }, [phase, startTurn, nextPhase]);
 
-  const postureColor = POSTURE_COLORS[posture.level] ?? '#00d4ff';
+    prevPhaseRef.current = curPhase;
+  }, [state.phase]);
 
-  // ── Defeat / Compromised ──────────────────────────────────────────────────────
+  // Diamond charge increase → flash "STRENGTH INCREASE +"
+  useEffect(() => {
+    const prev = prevChargeRef.current;
+    const cur  = state.diamondCharge;
+    if (cur > prev) {
+      setShowStrengthFlash(true);
+      const t = setTimeout(() => setShowStrengthFlash(false), 1800);
+      prevChargeRef.current = cur;
+      return () => clearTimeout(t);
+    }
+    prevChargeRef.current = cur;
+  }, [state.diamondCharge]);
 
-  if (phase === 'defeat' || phase === 'compromised') {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--fh)',
-            fontSize: 28,
-            color: '#f72585',
-            letterSpacing: '0.2em',
-          }}
-        >
-          {phase === 'compromised' ? 'SYSTEM COMPROMISED' : 'BREACH DETECTED'}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--dim)' }}>
-          {phase === 'compromised'
-            ? 'Non-Spade card played during system patch window'
-            : `Survived ${turn} turns`}
-        </div>
-        <button
-          onClick={onBack}
-          style={{
-            background: '#f7258522',
-            border: '1px solid #f72585',
-            color: '#f72585',
-            fontFamily: 'var(--fh)',
-            fontSize: 12,
-            padding: '10px 24px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            letterSpacing: '0.1em',
-          }}
-        >
-          ← RETURN TO ANALYZE MODE
-        </button>
-      </div>
-    );
-  }
+  if (state.phase === 'boss-intro') return null;
 
-  // ── Victory ───────────────────────────────────────────────────────────────────
-
-  if (phase === 'victory') {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--fh)',
-            fontSize: 28,
-            color: '#39d353',
-            letterSpacing: '0.2em',
-          }}
-        >
-          INFRASTRUCTURE SECURED
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--dim)' }}>
-          All threats neutralized in {turn} turns
-        </div>
-        <button
-          onClick={onBack}
-          style={{
-            background: '#39d35322',
-            border: '1px solid #39d353',
-            color: '#39d353',
-            fontFamily: 'var(--fh)',
-            fontSize: 12,
-            padding: '10px 24px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            letterSpacing: '0.1em',
-          }}
-        >
-          ← RETURN TO ANALYZE MODE
-        </button>
-      </div>
-    );
-  }
-
-  // ── Main simulation table ─────────────────────────────────────────────────────
+  const boss       = state.boss;
+  const bossColor  = boss.hp / boss.maxHp > 0.6 ? '#33dd77' : boss.hp / boss.maxHp > 0.25 ? '#ffd700' : '#ff4455';
+  const playerColor = state.playerHp / state.playerMaxHp > 0.5 ? '#33dd77' : state.playerHp / state.playerMaxHp > 0.25 ? '#ffd700' : '#ff4455';
+  const bossOrbitColor  = state.bossIndex === 0 ? '#720072' : state.bossIndex === 1 ? '#ff4455' : '#4da6ff';
+  const bossOrbitColor2 = state.bossIndex === 0 ? '#960096' : state.bossIndex === 1 ? '#ffd700' : '#cc88ff';
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        padding: 16,
-        display: 'grid',
-        gridTemplateColumns: '240px 1fr 280px',
-        gridTemplateRows: '48px 1fr 160px',
-        gap: 12,
-        fontFamily: 'var(--fm)',
-      }}
-    >
-      {/* ── Top bar ── */}
-      <div
+    <div style={{
+      position: 'fixed', left: 0, right: 0,
+      top: 0, bottom: 300,
+      zIndex: 20,
+      pointerEvents: 'none',
+      display: 'flex',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      padding: '0 80px',
+    }}>
+      {/* Background — SimulationBackground flipped vertically (hidden for Wesker) */}
+      {state.bossIndex !== 1 && (
+        <img
+          src={SIM_BG}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center center',
+            transform: 'scaleY(-1)',
+            opacity: 0.55,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      )}
+
+      {/* Purple colour wash over the image (hidden for Wesker) */}
+      {state.bossIndex !== 1 && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          background: 'rgba(120, 0, 180, 0.18)',
+          mixBlendMode: 'color',
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Magician — tall left */}
+      <motion.div
+        animate={{ x: magAtk ? 60 : 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
         style={{
-          gridColumn: '1/-1',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'rgba(13,17,23,0.9)',
-          border: '1px solid rgba(0,212,255,0.15)',
-          borderRadius: 8,
-          padding: '0 16px',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 6,
+          filter: 'drop-shadow(0 0 28px rgba(0,220,200,0.35))',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span
-            style={{
-              fontFamily: 'var(--fh)',
-              fontSize: 12,
-              color: '#00d4ff',
-              letterSpacing: '0.15em',
-            }}
-          >
-            SIMULATION
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--dim)' }}>TURN {turn}</span>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <MagicianSprite size={0.82} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontFamily: 'var(--fh)', fontSize: 11, color: postureColor }}>
-            {posture.level.toUpperCase()}
-          </span>
-          <button
-            onClick={onBack}
-            style={{
-              background: 'none',
-              border: '1px solid rgba(205,217,229,0.2)',
-              color: 'var(--dim)',
-              fontSize: 10,
-              fontFamily: 'var(--fh)',
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
-          >
-            ← ANALYZE
-          </button>
+
+        {/* Player label */}
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 10, letterSpacing: 4,
+          color: '#fff',
+          textShadow: '0 0 12px rgba(0,220,200,0.9), 0 0 24px rgba(0,220,200,0.5), 2px 2px 0 #000',
+          fontWeight: 700,
+        }}>
+          PLAYER
         </div>
+
+        {/* Player stat bars + strength flash */}
+        <div style={{ position: 'relative', width: 170 }}>
+          <AnimatePresence>
+            {showStrengthFlash && (
+              <motion.div
+                key="strength-flash"
+                initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                animate={{ opacity: 1, y: -8, scale: 1 }}
+                exit={{ opacity: 0, y: -30, scale: 0.7 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  position: 'absolute', top: -46, left: '50%', transform: 'translateX(-50%)',
+                  whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 5,
+                  fontFamily: 'var(--px-font)', fontSize: 8,
+                  color: '#cc88ff',
+                  textShadow: '0 0 16px #cc88ff, 0 0 32px #cc88ff88, 2px 2px 0 #000',
+                  letterSpacing: 2,
+                }}
+              >
+                ♦ STRENGTH INCREASE +
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Player HP + Mana bars */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <StatBar value={state.playerHp} max={state.playerMaxHp} color={playerColor} label="HP" />
+            <StatBar value={state.mana} max={state.manaMax} color="#4da6ff" label="MANA" />
+            {state.defenseStacks > 0 && (
+              <div style={{
+                fontFamily: 'var(--px-font)', fontSize: 5,
+                color: '#cc88ff', textShadow: '0 0 6px #cc88ff88',
+                letterSpacing: 2, textAlign: 'center',
+              }}>
+                ♦ ARMOR +{state.defenseStacks}
+              </div>
+            )}
+          </div>
+        </div>
+
+      </motion.div>
+
+      {/* Boss — tall right */}
+      <motion.div
+        animate={{ x: bossAtk ? -30 : 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        style={{
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 6,
+          filter: state.bossIndex === 0
+            ? `drop-shadow(0 0 32px rgba(114,0,114,0.7))`
+            : state.bossIndex === 1
+            ? `drop-shadow(0 0 32px rgba(255,68,85,0.4))`
+            : `drop-shadow(0 0 32px rgba(77,166,255,0.4))`,
+        }}
+      >
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} />
+          {/* AI Adapter ADAPTING flash */}
+          <AnimatePresence>
+            {state.adapterAdapting && (
+              <motion.div
+                key="adapting"
+                initial={{ opacity: 0, scale: 0.6, y: 20 }}
+                animate={{ opacity: 1, scale: 1.1, y: -10 }}
+                exit={{ opacity: 0, scale: 0.8, y: -30 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  position: 'absolute', top: -20,
+                  fontFamily: 'var(--px-font)', fontSize: 16,
+                  color: '#4da6ff', letterSpacing: 4,
+                  textShadow: '0 0 20px #4da6ff, 0 0 40px #4da6ffaa, 2px 2px 0 #000',
+                  pointerEvents: 'none', zIndex: 10,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 0.4, repeat: Infinity }}>
+                  ⟳ ADAPTING
+                </motion.span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Boss name */}
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 10, letterSpacing: 4,
+          color: '#fff',
+          textShadow: '0 0 12px rgba(255,200,80,0.9), 0 0 24px rgba(255,200,80,0.4), 2px 2px 0 #000',
+          fontWeight: 700,
+        }}>
+          {boss.name}
+        </div>
+
+        {/* Boss HP bar */}
+        <div style={{ width: 200 }}>
+          {hideBossHp
+            ? <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: '#ff4455', letterSpacing: 3, textShadow: '0 0 12px #ff445599, 2px 2px 0 #000', fontWeight: 700 }}>HP: ???</div>
+            : <StatBar value={boss.hp} max={boss.maxHp} color={bossColor} label="BOSS HP" />
+          }
+        </div>
+
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Card action name lookup ───────────────────────────────
+const CARD_ACTIONS: Record<Suit, Record<number, string>> = {
+  spades: {
+    2: 'Threat Ping',            3: 'Flag Malicious Behavior',
+    4: 'Block Suspicious IP',    5: 'Terminate Suspicious Process',
+    6: 'Disable Compromised Account', 7: 'Remove Malware Artifact',
+    8: 'Quarantine Infected Endpoint', 9: 'Kill Persistence Mechanism',
+    10: 'Sinkhole Malicious Domain',  11: 'Contain Lateral Movement',
+    12: 'Network Isolation',     13: 'Full Threat Neutralization',
+    1:  'Advanced Counterstrike',
+  },
+  clubs: {
+    2: 'Resource Ping',          3: 'Assign SOC Analyst',
+    4: 'Increase Logging',       5: 'Activate Monitoring',
+    6: 'Deploy Detection Rule',  7: 'Enable Threat Intelligence Feed',
+    8: 'Expand Monitoring Coverage', 9: 'Automated Alert Triage',
+    10: 'Investigation Resource Boost', 11: 'SOC Surge Support',
+    12: 'Security Operations Expansion', 13: 'Full SOC Mobilization',
+    1: 'Emergency Resource Surge',
+  },
+  diamonds: {
+    2: 'System Integrity Check', 3: 'Security Posture Scan',
+    4: 'Deploy Firewall Rule',   5: 'Apply Security Configuration',
+    6: 'Enable Endpoint Protection', 7: 'Patch Vulnerability',
+    8: 'Strengthen Authentication',  9: 'Deploy Network Segmentation',
+    10: 'Infrastructure Hardening',  11: 'Defensive Reinforcement',
+    12: 'Enterprise Security Upgrade', 13: 'Maximum Defense Protocol',
+    1: 'Zero Trust Lockdown',
+  },
+  hearts: {
+    2: 'Health Check',           3: 'System Diagnostics',
+    4: 'Restore Minor Service',  5: 'Reset User Credentials',
+    6: 'Repair System Damage',   7: 'Restore Critical Service',
+    8: 'Recover Endpoint',       9: 'Restore Backup Data',
+    10: 'System Rebuild',        11: 'Incident Recovery',
+    12: 'Full System Restoration', 13: 'Enterprise Recovery Protocol',
+    1: 'Disaster Recovery Activation',
+  },
+};
+
+// ── Suit action tooltips ──────────────────────────────────
+const CARD_FLAVOR: Record<Suit, Record<number, string>> = {
+  spades: {
+    2:  'probe target for open vulnerabilities',
+    3:  'mark anomalous activity for response',
+    4:  'firewall drop — cut inbound vector',
+    5:  'kill rogue exec — stop the spread',
+    6:  'revoke credentials — lock the breach',
+    7:  'purge payload from memory',
+    8:  'isolate host — contain the damage',
+    9:  'strip autorun — deny re-entry',
+    10: 'redirect C2 traffic to null',
+    11: 'segment network — block lateral pivot',
+    12: 'full cut — zero egress allowed',
+    13: 'total sweep — threat eliminated',
+    1:  'max-power retaliation payload',
+  },
+  clubs: {
+    2:  'minimal signal — restore trace mana',
+    3:  'pull analyst — boost ops capacity',
+    4:  'widen telemetry — refuel intel stream',
+    5:  'spin up sensors — restore visibility',
+    6:  'push SIEM rule — reclaim coverage',
+    7:  'open threat feed — recharge intel',
+    8:  'extend sensor net — deep restore',
+    9:  'auto-sort queue — clear backlog',
+    10: 'surge analysts — ops refuel',
+    11: 'full team deploy — major recharge',
+    12: 'scale ops center — full restore',
+    13: 'all hands — complete mana recovery',
+    1:  'crisis override — instant refuel',
+  },
+  diamonds: {
+    2:  'run checksums — light hardening',
+    3:  'scan attack surface — patch gaps',
+    4:  'push ACL — block inbound route',
+    5:  'lock down settings — harden config',
+    6:  'spin up EDR — shield endpoints',
+    7:  'apply CVE fix — seal the crack',
+    8:  'enforce MFA — layer access gate',
+    9:  'VLAN split — contain blast radius',
+    10: 'harden all nodes — fortify stack',
+    11: 'multi-layer shield — max coverage',
+    12: 'full policy push — iron wall',
+    13: 'zero-trust lockdown — impenetrable',
+    1:  'trust nothing — verify everything',
+  },
+  hearts: {
+    2:  'quick scan — minimal recovery',
+    3:  'run checks — restore minor integrity',
+    4:  'bring up micro-service — small heal',
+    5:  'flush tokens — reboot access layer',
+    6:  'patch corrupted files — restore core',
+    7:  'revive key process — solid recovery',
+    8:  'rebuild host from last clean image',
+    9:  'pull clean snapshot — restore state',
+    10: 'full OS reinstall — major recovery',
+    11: 'post-breach restore — reclaim ops',
+    12: 'wipe and rebuild — near full health',
+    13: 'org-wide restore — full integrity',
+    1:  'BCP triggered — complete recovery',
+  },
+};
+
+function getSuitTooltip(suit: Suit, rank: number): string {
+  const name   = CARD_ACTIONS[suit]?.[rank] ?? rankDisplay(rank);
+  const flavor = CARD_FLAVOR[suit]?.[rank] ?? '';
+  return flavor ? `${name} — ${flavor}` : name;
+}
+
+function getSuitValueIcon(suit: Suit): React.ReactNode {
+  switch (suit) {
+    case 'spades':   return '⚡';
+    case 'clubs':    return '💧';
+    case 'diamonds': return <span style={{ color: '#cc88ff', fontFamily: 'system-ui', fontSize: 12, lineHeight: 1 }}>♦</span>;
+    case 'hearts':   return '❤️';
+  }
+}
+
+// ── Number picker panel (floats above D-pad) ──────────────
+interface NumberPickerPanelProps {
+  suit: Suit;
+  options: Array<{ id: string; rank: number }>;
+  onPick: (rank: number) => void;
+  onCancel: () => void;
+}
+
+// ── Power list view ───────────────────────────────────────
+interface PowerListProps extends NumberPickerPanelProps {
+  playerMana: number;
+}
+
+function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListProps) {
+  const [hoveredRank, setHoveredRank] = useState<number | null>(null);
+  const tut      = useContext(TutorialCtx);
+  const tutDemo  = tut.open && tut.step === 2;
+  const tutView  = tut.open && tut.step === 3;
+  const color  = suitColor(suit);
+  const sym    = suitSym(suit);
+  const maxVal = Math.max(...options.map(o => rankValue(o.rank)));
+  const isFree = suit === 'clubs';
+
+  const renderRow = (opt: { id: string; rank: number }, i: number) => {
+    const val       = rankValue(opt.rank);
+    const label     = rankDisplay(opt.rank);
+    const cost      = isFree ? 0 : manaCost(opt.rank);
+    const canAfford = isFree || playerMana >= cost;
+    const isHover   = hoveredRank === opt.rank && canAfford;
+    const barPct    = Math.round((val / maxVal) * 100);
+
+    return (
+      <motion.button
+        key={opt.rank}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.025, duration: 0.14 }}
+        onMouseEnter={() => canAfford && setHoveredRank(opt.rank)}
+        onMouseLeave={() => setHoveredRank(null)}
+        onClick={() => canAfford && (tutDemo ? (onCancel(), tut.advance()) : tutView ? undefined : onPick(opt.rank))}
+        whileTap={canAfford ? { scale: 0.97 } : undefined}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '8px 16px',
+          background: isHover ? `${color}18` : 'transparent',
+          border: 'none',
+          borderBottom: `1px solid rgba(255,255,255,0.05)`,
+          borderLeft: isHover ? `3px solid ${color}` : '3px solid transparent',
+          cursor: canAfford ? 'pointer' : 'not-allowed',
+          transition: 'background 0.1s, border-color 0.1s',
+          textAlign: 'left', width: '100%',
+          opacity: canAfford ? 1 : 0.3,
+        }}
+      >
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 11,
+          color: isHover ? color : color + 'bb',
+          width: 26, flexShrink: 0, textAlign: 'center',
+          textShadow: isHover ? `0 0 8px ${color}` : 'none',
+        }}>
+          {label}
+        </div>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{
+            fontFamily: 'var(--px-body-font)', fontSize: 13, fontWeight: 400,
+            color: isHover ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
+            letterSpacing: 0.4,
+          }}>
+            {getSuitTooltip(suit, opt.rank)}
+          </div>
+          <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${barPct}%` }}
+              transition={{ delay: i * 0.025 + 0.08, duration: 0.28 }}
+              style={{ height: '100%', background: isHover ? color : color + '66', boxShadow: isHover ? `0 0 4px ${color}` : 'none' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, color: isHover ? color : color + '77' }}>
+            <span style={{ fontFamily: 'var(--px-font)', fontSize: 8, lineHeight: 1 }}>{val}</span>
+            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: 8, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>{getSuitValueIcon(suit)}</span>
+          </div>
+          {!isFree && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 1, color: canAfford ? (isHover ? '#4da6ff' : '#4da6ff88') : '#ff445588' }}>
+              <span style={{ fontFamily: 'var(--px-font)', fontSize: 8, lineHeight: 1 }}>{cost}</span>
+              <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: 8, lineHeight: 1 }}>💧</span>
+            </div>
+          )}
+          {isFree && <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: '#4da6ff66' }}>FREE</div>}
+        </div>
+      </motion.button>
+    );
+  };
+
+  // ── Popup modal ───────────────────────────────────────────
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={onCancel}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        display: 'flex', alignItems: 'center',
+        justifyContent: tutView ? 'flex-start' : 'center',
+        paddingBottom: 100,
+        paddingLeft: tutView ? 'calc(50% - 412px)' : 0,
+      }}
+    >
+      {/* Arena overlay — light blur, still visible */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 300,
+        background: 'rgba(10,0,16,0.18)',
+        backdropFilter: 'blur(1px)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* HUD overlay — heavy blur */}
+      <div style={{
+        position: 'absolute', top: 'calc(100% - 300px)', left: 0, right: 0, bottom: 0,
+        background: 'rgba(10,0,16,0.5)',
+        backdropFilter: 'blur(3px)',
+        pointerEvents: 'none',
+      }} />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 20 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'relative', zIndex: 1,
+          width: 340, maxHeight: '70vh',
+          background: 'linear-gradient(160deg, #100020 0%, #0a0016 100%)',
+          border: `1px solid ${color}55`,
+          boxShadow: `0 0 40px ${color}22, 0 24px 60px rgba(0,0,0,0.8)`,
+          borderRadius: 8,
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 18px',
+          borderBottom: `1px solid ${color}33`,
+          background: `${color}0d`,
+          flexShrink: 0,
+          position: 'relative', zIndex: 2,
+        }}>
+          <div style={{
+            fontFamily: 'var(--px-font)', fontSize: 10,
+            color, letterSpacing: 4,
+            textShadow: `0 0 14px ${color}88`,
+          }}>
+            {sym} {suit.toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {!isFree && (
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: color, letterSpacing: 2 }}>
+                {playerMana} STATS MAX
+              </div>
+            )}
+            <button
+              onClick={onCancel}
+              style={{
+                fontFamily: 'var(--px-font)', fontSize: 14,
+                color: 'rgba(204,136,255,0.5)',
+                background: 'none', border: 'none',
+                cursor: 'pointer', lineHeight: 1,
+                padding: '2px 4px',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ee88ff'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.5)'; }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable list */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {options.map((opt, i) => renderRow(opt, i))}
+        </div>
+
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── D-pad card hand (console layout) ─────────────────────
+// Layout:  TOP=Clubs, LEFT=Spades, RIGHT=Diamonds, BOTTOM=Hearts
+const DPAD_LAYOUT: Array<{ suit: Suit; row: number; col: number; label: string }> = [
+  { suit: 'clubs',    row: 1, col: 2, label: 'RESOURCE'   },
+  { suit: 'spades',   row: 2, col: 1, label: 'OFFENSIVE'  },
+  { suit: 'diamonds', row: 2, col: 3, label: 'HARDEN'     },
+  { suit: 'hearts',   row: 3, col: 2, label: 'RESILIENCE' },
+];
+
+function JackpotButton() {
+  const { triggerJackpot } = useCampaignContext();
+  const [slotsActive, setSlotsActive] = useState(false);
+  const [videoOpen,   setVideoOpen]   = useState(false);
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const safetyRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Called when video ends naturally OR safety timeout fires.
+  const handleVideoDone = useCallback(() => {
+    if (safetyRef.current) { clearTimeout(safetyRef.current); safetyRef.current = null; }
+    setVideoOpen(false);
+    SfxPlayer.play(SFX.virusDefeat);
+    triggerJackpot(); // phase-clear → victory screen
+  }, [triggerJackpot]);
+
+  // Called by JackpotCinematic when 777 + confetti sequence finishes.
+  const handleSlotsDone = useCallback(() => {
+    setSlotsActive(false);
+    setVideoOpen(true);
+    const el = videoRef.current!;
+    el.currentTime = 0;
+    el.muted  = false;
+    el.volume = 1;
+    // Video was pre-authorized (muted play) in the click handler,
+    // so this unmuted play call works even outside user-gesture window.
+    el.play().catch(() => { /* safety timeout will advance */ });
+    safetyRef.current = setTimeout(handleVideoDone, 15000);
+  }, [handleVideoDone]);
+
+  const handleJackpot = () => {
+    MusicManager.stop();
+    setSlotsActive(true);
+
+    // ── Pre-authorize the video element ──────────────────────
+    // Call play() muted inside the user-gesture window so the browser
+    // marks this element as activated. Then immediately pause so the
+    // video does NOT advance and onEnded NEVER fires during the slots.
+    // handleSlotsDone will seek to 0, unmute, and start it for real.
+    const el = videoRef.current!;
+    el.currentTime = 0;
+    el.muted  = true;
+    el.volume = 1;
+    el.play()
+      .then(() => { el.pause(); el.currentTime = 0; })
+      .catch(() => { /* pre-auth failed — play() in handleSlotsDone will still work */ });
+  };
+
+  return (
+    <>
+      {/* ── JACKPOT button — gold, glowing, hard to miss ── */}
+      <motion.button
+        animate={{
+          filter: [
+            'drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #aa44ff)',
+            'drop-shadow(0 0 20px #ffd700) drop-shadow(0 0 40px #cc66ff)',
+            'drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #aa44ff)',
+          ],
+          scale: [1, 1.06, 1],
+        }}
+        transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleJackpot}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 1,
+          width: 68, height: 68,
+          cursor: 'pointer',
+          background: 'linear-gradient(135deg, rgba(255,215,0,0.18), rgba(170,68,255,0.18))',
+          border: '2px solid #ffd700',
+          color: '#ffd700',
+          boxShadow: '3px 3px 0 #000, inset 0 0 12px rgba(255,215,0,0.1)',
+          borderRadius: 6,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 2,
+          lineHeight: 1.2,
+        }}
+      >
+        <img src={JACKPOT_ICON} alt="Jackpot" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+      </motion.button>
+
+      {/* ── Slot machine cinematic — fullscreen overlay ── */}
+      <AnimatePresence>
+        {slotsActive && (
+          <JackpotCinematic key="slots" onDone={handleSlotsDone} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Dark backdrop for video ── */}
+      <AnimatePresence>
+        {videoOpen && (
+          <motion.div
+            key="jv-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 900,
+              background: 'rgba(0,0,0,0.95)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/*
+        Video is ALWAYS in the DOM (invisible when not active).
+        Pre-authorized via muted play inside the click handler so
+        the later unmuted play() in handleSlotsDone works outside
+        the user-gesture window.
+      */}
+      <video
+        ref={videoRef}
+        src={JACKPOT_VIDEO}
+        playsInline
+        onEnded={handleVideoDone}
+        style={{
+          position: 'fixed',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100vw',
+          height: '100vh',
+          objectFit: 'contain',
+          zIndex: 901,
+          opacity:    videoOpen ? 1 : 0,
+          visibility: videoOpen ? 'visible' : 'hidden',
+          transition: 'opacity 0.4s ease, visibility 0.4s',
+          pointerEvents: videoOpen ? 'auto' : 'none',
+        }}
+      />
+    </>
+  );
+}
+
+function CardHand() {
+  const { state, drawSuit, selectCard } = useCampaignContext();
+  const tut = useContext(TutorialCtx);
+  const isFourSuitsStep  = tut.open && tut.step === 1;
+  const isSelectingStep  = tut.open && tut.step === 2;
+  const [selectedSuit, setSelectedSuit] = useState<Suit | null>(null);
+  const [popupOpen, setPopupOpen] = useState(false);
+
+  const canPlay  = state.phase === 'player-draw';
+  const inSelect = state.phase === 'card-select';
+
+  useEffect(() => {
+    if (!inSelect) { setSelectedSuit(null); setPopupOpen(false); }
+  }, [inSelect]);
+
+  // Sync popup with tutorial step 3 (READING CARD VALUES)
+  useEffect(() => {
+    if (!tut.open) { setSelectedSuit(null); setPopupOpen(false); return; }
+    if (tut.step === 3) {
+      setSelectedSuit('spades');
+      setPopupOpen(true);
+      drawSuit('spades');
+    } else {
+      setSelectedSuit(null);
+      setPopupOpen(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tut.step, tut.open]);
+
+  const handleSuitClick = (suit: Suit) => {
+    if (!canPlay && !inSelect) return;
+    setSelectedSuit(suit);
+    setPopupOpen(true);
+    drawSuit(suit);
+  };
+
+  const handlePick = (rank: number) => {
+    const suit = selectedSuit ?? state.drawnCard?.suit;
+    if (!suit) return;
+    const cardId = `${suit}-pick-${rank}`;
+    const card = state.cardOptions.find(c => c.id === cardId);
+    if (card) {
+      const sfxId = CARD_SFX[card.suit];
+      if (sfxId) SfxPlayer.playId(sfxId);
+      selectCard(cardId);
+    }
+    setSelectedSuit(null);
+    setPopupOpen(false);
+  };
+
+  const handleCancel = () => { setSelectedSuit(null); setPopupOpen(false); };
+
+  const activeSuit = selectedSuit ?? (inSelect ? state.drawnCard?.suit ?? null : null);
+  const showList   = popupOpen && inSelect && activeSuit && state.cardOptions.length > 0;
+
+  const ROW_ORDER: Array<{ suit: Suit; label: string }> = [
+    { suit: 'spades',   label: 'OFFENSIVE'  },
+    { suit: 'clubs',    label: 'RESOURCE'   },
+    { suit: 'diamonds', label: 'HARDEN'     },
+    { suit: 'hearts',   label: 'RESILIENCE' },
+  ];
+
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: 18, height: '100%', padding: '10px 24px',
+    }}>
+      {/* Horizontal card row — fills panel height */}
+      {ROW_ORDER.map(({ suit, label }) => {
+        const isActiveSuit = popupOpen && inSelect && activeSuit === suit;
+        const disabled     = !canPlay && !inSelect;
+        const color        = suitColor(suit);
+        return (
+          <div key={suit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <PlayingCard
+              suit={suit}
+              rank={state.handRanks[suit]}
+              size={2.0}
+              selected={isActiveSuit}
+              glow={isActiveSuit}
+              disabled={(disabled && !isFourSuitsStep) || (isSelectingStep && suit !== 'spades')}
+              constrainHover={isFourSuitsStep}
+              flash={isSelectingStep && suit === 'spades' && !popupOpen}
+              onClick={disabled || isFourSuitsStep ? undefined : isSelectingStep ? (suit === 'spades' ? () => { handleSuitClick(suit); tut.advance(); } : undefined) : () => handleSuitClick(suit)}
+            />
+            {(!isSelectingStep || suit === 'spades') && (
+              <div style={{
+                fontFamily: "'Cinzel Decorative', serif", fontSize: 9, fontWeight: 700,
+                color: disabled ? 'rgba(255,255,255,0.18)' : color,
+                letterSpacing: 1.5,
+                textShadow: disabled ? 'none' : `0 0 8px ${color}88`,
+              }}>
+                {label}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Jackpot button — inline at end when available */}
+      {state.jackpotAvailable && !state.jackpotUsed && canPlay && <JackpotButton />}
+
+      {/* Power list popup — floats above everything when suit selected */}
+      <AnimatePresence>
+        {showList && (
+          <PowerList
+            key={activeSuit}
+            suit={activeSuit!}
+            options={state.cardOptions}
+            onPick={handlePick}
+            onCancel={handleCancel}
+            playerMana={state.mana}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Hand phase panel (left of D-pad) ────────────────────────
+// ── Posture Status Popup ───────────────────────────────────
+function PostureStatusPopup({ onClose }: { onClose: () => void }) {
+  const { state } = useCampaignContext();
+
+  // Map sim suit keys → posture rank keys
+  const ranks: Record<string, number> = {
+    spade:   state.handRanks['spades']   ?? 1,
+    clover:  state.handRanks['clubs']    ?? 1,
+    diamond: state.handRanks['diamonds'] ?? 1,
+    heart:   state.handRanks['hearts']   ?? 1,
+  };
+  const posture = computePosture(ranks);
+
+  const boss = state.boss;
+  const bossHpPct = boss.hp / boss.maxHp;
+
+  // Determine posture strength vs current threat
+  const score = posture.score;
+  const postureStrong = score >= 70;
+  const postureMid    = score >= 40 && score < 70;
+  const postureColor  = postureStrong ? '#33dd77' : postureMid ? '#ffd700' : '#ff4455';
+  const postureLabel  = postureStrong ? 'STRONG' : postureMid ? 'MODERATE' : 'WEAK';
+
+  // Threat pressure context
+  const threatPressure = bossHpPct > 0.7 ? 'LOW' : bossHpPct > 0.4 ? 'MODERATE' : 'HIGH';
+  const threatColor    = bossHpPct > 0.7 ? '#33dd77' : bossHpPct > 0.4 ? '#ffd700' : '#ff4455';
+
+  const matchup = postureStrong
+    ? 'Your posture is well-suited to absorb and counter this threat. Maintain pressure with offensive cards.'
+    : postureMid
+    ? 'Moderate posture — you can hold your ground but avoid prolonged exchanges. Prioritize efficient plays.'
+    : 'Weak posture against this threat. Lean on RESOURCE cards to sustain mana and buy time for recovery.';
+
+  const SUIT_LABELS: Record<string, { label: string; color: string }> = {
+    spade:   { label: 'OFFENSIVE',   color: '#4da6ff' },
+    clover:  { label: 'RESOURCE',    color: '#33dd77' },
+    diamond: { label: 'HARDEN',      color: '#cc88ff' },
+    heart:   { label: 'RESILIENCE',  color: '#ff6688' },
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(2,1,8,0.65)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.97 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 340,
+          background: 'linear-gradient(160deg, #0a0618 0%, #060310 100%)',
+          border: '1px solid rgba(0,212,255,0.25)',
+          borderRadius: 10,
+          boxShadow: '0 0 40px rgba(0,212,255,0.1), 4px 4px 0 #000',
+          overflow: 'hidden',
+          width: 520,
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '16px 22px 14px',
+          borderBottom: '1px solid rgba(0,212,255,0.15)',
+          background: 'rgba(0,212,255,0.04)',
+        }}>
+          <div style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 4, color: 'rgba(0,212,255,0.85)' }}>
+            ◈ POSTURE STATUS
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'var(--px-font)', fontSize: 11 }}>✕</button>
+        </div>
+
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Posture hand */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 3, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>CURRENT HAND</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontFamily: 'var(--px-font)', fontSize: 14, color: postureColor, textShadow: `0 0 16px ${postureColor}88` }}>{posture.hand}</span>
+              <span style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: postureColor, letterSpacing: 2 }}>{postureLabel}</span>
+              <span style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>SCORE {posture.score}</span>
+            </div>
+          </div>
+
+          {/* Suit ranks */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 3, color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>SUIT RANKS</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Object.entries(ranks).map(([suit, rank]) => {
+                const { label, color } = SUIT_LABELS[suit] ?? { label: suit.toUpperCase(), color: '#fff' };
+                const pct = Math.round((rank / 13) * 100);
+                return (
+                  <div key={suit}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: 2, marginBottom: 3 }}>
+                      <span style={{ color }}>{label}</span><span style={{ color }}>RANK {rank}</span>
+                    </div>
+                    <div style={{ height: 5, background: 'rgba(0,0,0,0.5)', border: `1px solid ${color}22`, borderRadius: 2, overflow: 'hidden' }}>
+                      <motion.div animate={{ width: `${pct}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} style={{ height: '100%', background: color, boxShadow: `0 0 6px ${color}88` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Threat matchup */}
+          <div style={{ borderTop: '1px solid rgba(0,212,255,0.1)', paddingTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 3, color: 'rgba(255,255,255,0.35)' }}>THREAT PRESSURE</div>
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 2, color: threatColor }}>{threatPressure}</div>
+            </div>
+            <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.55 }}>
+              {matchup}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function HandPhasePanel({ onShowInfo }: { onShowInfo?: () => void }) {
+  const { state } = useCampaignContext();
+
+  const LABELS: Record<string, string> = {
+    'player-draw':  'DRAW A CARD',
+    'card-select':  'SELECT CARD',
+    'resolve':      'RESOLVING...',
+    'enemy-attack': 'INCOMING!',
+    'phase-clear':  'BOSS DEFEATED',
+    'victory':      'VICTORY',
+    'game-over':    'GAME OVER',
+  };
+
+  const color =
+    state.phase === 'game-over'    ? '#ff4455' :
+    state.phase === 'victory'      ? '#33dd77' :
+    state.phase === 'phase-clear'  ? '#ffd700' :
+    state.phase === 'enemy-attack' ? '#ff8844' :
+    state.phase === 'card-select'  ? '#00d4ff' :
+    state.phase === 'player-draw'  ? '#e0d8ff' :
+    'rgba(255,255,255,0.45)';
+
+  const label = state.phase === 'enemy-attack' && state.lastAttackMsg
+    ? state.lastAttackMsg
+    : (LABELS[state.phase] ?? state.phase.toUpperCase());
+
+  const [showPlayerInfo, setShowPlayerInfo] = useState(false);
+
+  if (state.phase === 'boss-intro') return <div style={{ width: 215, flexShrink: 0 }} />;
+
+  const ROW = (content: React.ReactNode, color_: string = 'rgba(255,255,255,0.55)') => (
+    <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: color_, letterSpacing: 2, lineHeight: 1.5 }}>
+      {content}
+    </div>
+  );
+
+  const playerHpPct  = Math.round(state.playerHp / state.playerMaxHp * 100);
+  const manaPct      = Math.round(state.mana / state.manaMax * 100);
+  const hpColor      = playerHpPct > 50 ? '#33dd77' : playerHpPct > 25 ? '#ffd700' : '#ff4455';
+
+  return (
+    <div style={{
+      width: 215, flexShrink: 0,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'flex-start', justifyContent: 'flex-start',
+      paddingLeft: 4, paddingTop: 14, paddingRight: 4,
+      height: '100%', gap: 8, position: 'relative',
+    }}>
+      {/* Turn */}
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 16,
+        color: 'rgba(255,255,255,0.7)', letterSpacing: 4,
+        textShadow: '2px 2px 0 rgba(0,0,0,0.9)',
+      }}>
+        TURN {state.turn}
       </div>
 
-      {/* ── Left: Posture dial + resources ── */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="panel-header">POSTURE DIAL</div>
+      {/* Phase label */}
+      <motion.div
+        key={state.phase}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 13,
+          color, lineHeight: 1.3, letterSpacing: 1,
+          textShadow: `0 0 14px ${color}88, 2px 2px 0 rgba(0,0,0,0.9)`,
+        }}
+      >
+        {label}
+      </motion.div>
 
-        {/* Dial SVG */}
-        <div style={{ textAlign: 'center', padding: '12px 0' }}>
-          <svg width="140" height="80" viewBox="0 0 140 80">
-            {(
-              [
-                { level: 'breached', color: '#f72585', d: 'M10,70 A60,60 0 0,1 35,20'   },
-                { level: 'critical', color: '#ff9f1c', d: 'M35,20 A60,60 0 0,1 70,10'  },
-                { level: 'strained', color: '#ffd700', d: 'M70,10 A60,60 0 0,1 105,20' },
-                { level: 'stable',   color: '#00d4ff', d: 'M105,20 A60,60 0 0,1 130,70'},
-              ] as const
-            ).map(seg => (
-              <path
-                key={seg.level}
-                d={seg.d}
-                fill="none"
-                stroke={seg.level === posture.level ? seg.color : `${seg.color}33`}
-                strokeWidth="8"
-                strokeLinecap="round"
-              />
-            ))}
-            <text
-              x="70"
-              y="70"
-              textAnchor="middle"
-              fill={postureColor}
-              fontSize="11"
-              fontFamily="'Space Mono'"
-              fontWeight="700"
-            >
-              {posture.level.toUpperCase()}
-            </text>
-            <text
-              x="70"
-              y="82"
-              textAnchor="middle"
-              fill="rgba(205,217,229,0.5)"
-              fontSize="8"
-              fontFamily="'JetBrains Mono'"
-            >
-              {posture.score}/100
-            </text>
-          </svg>
+      {ROW(`PHASE ${state.bossIndex + 1} / 3`, 'rgba(204,136,255,0.65)')}
+      {ROW(`DECK  ${state.deck.length}`, 'rgba(204,136,255,0.65)')}
+
+      {state.boss.id === 'wesker' && ROW(
+        `♦ ${state.diamondsUsed}/3${state.weskerExposed ? ' — STUNNED!' : ' ISOLATION'}`, '#cc88ff',
+      )}
+
+      {state.boss.id === 'ai-adapter' && !state.jackpotUsed && (
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: '#ff8844', letterSpacing: 1, lineHeight: 1.6, textShadow: '0 0 8px #ff884466' }}>
+          IMMUNE TO ALL SUITS — play 🎩 JACKPOT to break immunity and deal damage
         </div>
+      )}
 
-        {/* Resource bars */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <ResourceBar label="HEALTH"   value={resources.health}   color="#f72585" />
-          <ResourceBar label="MANA"     value={resources.mana}     color="#a78bfa" />
-          <ResourceBar label="STRENGTH" value={resources.strength} color="#ffd700" />
+      {/* Posture button — styled like right panel buttons */}
+      <motion.button
+        whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+        onClick={() => setShowPlayerInfo(v => !v)}
+        onMouseEnter={e => {
+          const b = e.currentTarget as HTMLButtonElement;
+          b.style.background = 'rgba(0,212,255,0.12)';
+          b.style.borderColor = 'rgba(0,212,255,0.6)';
+          b.style.boxShadow = '0 0 20px rgba(0,212,255,0.2)';
+        }}
+        onMouseLeave={e => {
+          const b = e.currentTarget as HTMLButtonElement;
+          b.style.background = 'rgba(0,212,255,0.06)';
+          b.style.borderColor = 'rgba(0,212,255,0.3)';
+          b.style.boxShadow = '0 0 12px rgba(0,212,255,0.08)';
+        }}
+        style={{
+          marginTop: 6,
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2,
+          padding: '10px 10px', cursor: 'pointer',
+          background: 'rgba(0,212,255,0.06)',
+          border: '1px solid rgba(0,212,255,0.3)',
+          color: 'rgba(0,212,255,0.85)',
+          borderRadius: 5, transition: 'all 0.15s',
+          textShadow: '0 0 8px rgba(0,212,255,0.4)',
+          boxShadow: '0 0 12px rgba(0,212,255,0.08)',
+          width: '100%', textAlign: 'left', whiteSpace: 'nowrap',
+        }}
+      >
+        ◈ POSTURE STATUS
+      </motion.button>
+
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={() => onShowInfo?.()}
+        onMouseEnter={e => {
+          const b = e.currentTarget as HTMLButtonElement;
+          b.style.background = 'rgba(0,212,255,0.12)';
+          b.style.borderColor = 'rgba(0,212,255,0.6)';
+          b.style.boxShadow = '0 0 20px rgba(0,212,255,0.2)';
+        }}
+        onMouseLeave={e => {
+          const b = e.currentTarget as HTMLButtonElement;
+          b.style.background = 'rgba(0,212,255,0.06)';
+          b.style.borderColor = 'rgba(0,212,255,0.3)';
+          b.style.boxShadow = '0 0 12px rgba(0,212,255,0.08)';
+        }}
+        style={{
+          marginTop: 2,
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2,
+          padding: '10px 10px', cursor: 'pointer',
+          background: 'rgba(0,212,255,0.06)',
+          border: '1px solid rgba(0,212,255,0.3)',
+          color: 'rgba(0,212,255,0.85)',
+          borderRadius: 5, transition: 'all 0.15s',
+          textShadow: '0 0 8px rgba(0,212,255,0.4)',
+          boxShadow: '0 0 12px rgba(0,212,255,0.08)',
+          width: '100%', textAlign: 'left', whiteSpace: 'nowrap',
+        }}
+      >
+        ◈ GAME INFO
+      </motion.button>
+
+      <AnimatePresence>
+        {showPlayerInfo && <PostureStatusPopup onClose={() => setShowPlayerInfo(false)} />}
+      </AnimatePresence>
+
+      {/* AI Adapter jackpot hint */}
+      {state.boss.id === 'ai-adapter' && !state.jackpotUsed && (
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 6,
+          color: '#ff8844', letterSpacing: 1,
+          textShadow: '0 0 8px #ff884466',
+        }}>
+          IMMUNE — USE <img src={JACKPOT_ICON} alt="" style={{ width: 14, height: 14, objectFit: 'contain', verticalAlign: 'middle', display: 'inline' }} />
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Controls */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+// ── Threat Intel popup ────────────────────────────────────
+function ThreatIntelPopup({ onClose }: { onClose: () => void }) {
+  const { state } = useCampaignContext();
+  const tut         = useContext(TutorialCtx);
+  const hideBossHp  = tut.open || state.bossIndex === 0;
+  const boss        = state.boss;
+  const bossHpPct   = Math.round(boss.hp / boss.maxHp * 100);
+  const playerHpPct = Math.round(state.playerHp / state.playerMaxHp * 100);
+  const bossColor   = bossHpPct > 60 ? '#33dd77' : bossHpPct > 25 ? '#ffd700' : '#ff4455';
+  const playerColor = playerHpPct > 50 ? '#33dd77' : playerHpPct > 25 ? '#ffd700' : '#ff4455';
+  const recentLog   = [...state.log].reverse().slice(0, 8);
+  const logKindColor: Record<string, string> = {
+    info: 'rgba(200,190,255,0.6)', damage: '#4da6ff',
+    enemy: '#ff8844', boss: '#cc88ff', jackpot: '#ffd700',
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        paddingBottom: 100,
+      }}
+    >
+      {/* Arena overlay */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 300,
+        background: 'rgba(10,0,16,0.18)', backdropFilter: 'blur(1px)', pointerEvents: 'none',
+      }} />
+      {/* HUD overlay */}
+      <div style={{
+        position: 'absolute', top: 'calc(100% - 300px)', left: 0, right: 0, bottom: 0,
+        background: 'rgba(10,0,16,0.5)', backdropFilter: 'blur(3px)', pointerEvents: 'none',
+      }} />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 20 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'relative', zIndex: 1,
+          width: 440, maxHeight: '68vh',
+          background: 'linear-gradient(160deg, #100020 0%, #0a0016 100%)',
+          border: '1px solid rgba(204,136,255,0.35)',
+          boxShadow: '0 0 40px rgba(204,136,255,0.1), 0 24px 60px rgba(0,0,0,0.8)',
+          borderRadius: 8,
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 18px',
+          borderBottom: '1px solid rgba(204,136,255,0.2)',
+          background: 'rgba(204,136,255,0.06)',
+          flexShrink: 0,
+          position: 'relative', zIndex: 2,
+        }}>
+          <div style={{
+            fontFamily: 'var(--px-font)', fontSize: 10,
+            color: 'rgba(204,136,255,0.9)', letterSpacing: 4,
+            textShadow: '0 0 14px rgba(204,136,255,0.5)',
+          }}>
+            ★ THREAT INTEL
+          </div>
           <button
-            onClick={fold}
-            disabled={foldCount >= 3 || phase !== 'choose'}
+            onClick={onClose}
             style={{
-              flex: 1,
-              background: foldCount < 3 ? '#ffd70011' : '#1a2332',
-              border: `1px solid ${foldCount < 3 ? '#ffd70044' : 'rgba(255,255,255,0.06)'}`,
-              color: foldCount < 3 ? '#ffd700' : '#4b5563',
-              fontFamily: 'var(--fh)',
-              fontSize: 10,
-              padding: '6px',
-              borderRadius: 4,
-              cursor: foldCount < 3 ? 'pointer' : 'not-allowed',
+              fontFamily: 'var(--px-font)', fontSize: 14, lineHeight: 1,
+              color: 'rgba(204,136,255,0.5)', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '2px 4px', transition: 'color 0.15s',
             }}
-          >
-            FOLD ({3 - foldCount})
-          </button>
-          {jackpotAvailable && !jackpotUsed && (
-            <button
-              onClick={useJackpot}
-              disabled={phase !== 'choose'}
-              style={{
-                flex: 1,
-                background: '#ffd70022',
-                border: '1px solid #ffd700',
-                color: '#ffd700',
-                fontFamily: 'var(--fh)',
-                fontSize: 9,
-                padding: '6px',
-                borderRadius: 4,
-                cursor: 'pointer',
-                animation: 'threatFlash 1s infinite',
-              }}
-            >
-              🎰 JACKPOT
-            </button>
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ee88ff'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.5)'; }}
+          >✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Boss HP */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: bossColor, letterSpacing: 2, textShadow: `0 0 8px ${bossColor}66` }}>
+                {boss.name}
+              </div>
+              <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 14, fontWeight: 600, color: hideBossHp ? '#ff4455' : bossColor }}>
+                {hideBossHp ? '???' : `${boss.hp} / ${boss.maxHp}`}
+              </div>
+            </div>
+            {!hideBossHp && (
+            <div style={{ height: 6, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' }}>
+              <motion.div animate={{ width: `${bossHpPct}%` }} transition={{ duration: 0.4 }}
+                style={{ height: '100%', background: bossColor, boxShadow: `0 0 6px ${bossColor}88` }} />
+            </div>
+            )}
+            <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--px-body-font)', fontSize: 13, fontWeight: 500 }}>
+              <span style={{ color: '#ff8844' }}>⚡ {boss.atkMin}–{boss.atkMax}</span>
+              <span style={{ color: playerColor }}>♥ {state.playerHp}/{state.playerMaxHp}</span>
+              <span style={{ color: '#4da6ff' }}>💧 {state.mana}/{state.manaMax}</span>
+            </div>
+          </div>
+
+          {/* Battle Log */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.38)', letterSpacing: 3, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6, marginBottom: 8 }}>
+              BATTLE LOG
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {recentLog.map((entry, i) => (
+                <div key={entry.id} style={{
+                  fontFamily: 'var(--px-body-font)', fontSize: 13, fontWeight: 500,
+                  color: logKindColor[entry.kind] ?? 'rgba(200,190,255,0.6)',
+                  opacity: 1 - i * 0.1, lineHeight: 1.4,
+                }}>{entry.msg}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* CVE Reference */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(204,136,255,0.8)', letterSpacing: 3, borderBottom: '1px solid rgba(204,136,255,0.22)', paddingBottom: 6, marginBottom: 8, textShadow: '0 0 8px rgba(204,136,255,0.4)' }}>
+              ★ CVE REFERENCE
+            </div>
+            {/* TODO: replace with real per-encounter CVE data */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', columnGap: 20, rowGap: 5 }}>
+              {([
+                ['CVE ID',    'CVE-2024-21412'],
+                ['CVSS',      '8.1 HIGH'],
+                ['Source',    'CISA KEV / NVD'],
+                ['Published', '2024-02-13'],
+                ['Vendor',    'Microsoft'],
+                ['System',    'Windows SmartScreen'],
+                ['Vector',    'Network / User Interaction'],
+                ['Patch',     'MS24-Feb Patch Tuesday'],
+                ['MITRE',     'T1566.002 — Spear Phishing'],
+                ['Status',    'Actively Exploited (ITW)'],
+              ] as [string, string][]).map(([k, v]) => (
+                <>
+                  <span key={k + '-k'} style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(204,136,255,0.5)', letterSpacing: 1, whiteSpace: 'nowrap' }}>{k}</span>
+                  <span key={k + '-v'} style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(230,210,255,0.85)', letterSpacing: 0.5 }}>{v}</span>
+                </>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── AI Analysis Popup ─────────────────────────────────────
+function AiAnalysisPopup({ onClose }: { onClose: () => void }) {
+  const { state } = useCampaignContext();
+  const boss      = state.boss;
+  const hpPct     = state.playerHp / state.playerMaxHp;
+  const manaPct   = state.mana / state.manaMax;
+  const bossHpPct = boss.hp / boss.maxHp;
+
+  const urgency =
+    hpPct < 0.3  ? 'CRITICAL' :
+    hpPct < 0.55 ? 'ELEVATED' :
+    'NOMINAL';
+
+  const urgencyColor =
+    urgency === 'CRITICAL' ? '#ff4455' :
+    urgency === 'ELEVATED' ? '#ffd700' :
+    '#33dd77';
+
+  const tactics: { label: string; detail: string; color: string }[] = [
+    bossHpPct > 0.7
+      ? { label: 'PRESSURE PHASE', detail: 'Boss integrity is high — expend mana aggressively on high-rank plays. Conserving now costs more later.', color: '#cc88ff' }
+      : bossHpPct > 0.35
+        ? { label: 'SUSTAINED ASSAULT', detail: 'Boss is weakened. Maintain card pressure while rationing mana for defensive draws.', color: '#ffd700' }
+        : { label: 'FINISH SEQUENCE', detail: 'Boss below 35% — prioritize damage suits. Do not waste turns on recovery.', color: '#ff4455' },
+    manaPct > 0.6
+      ? { label: 'MANA SURPLUS', detail: 'Resource pool is healthy. Consider poker-hand combos for jackpot bonus damage.', color: '#33dd77' }
+      : manaPct > 0.3
+        ? { label: 'MANA WATCH', detail: 'Mid-tier mana. Favor low-cost suit plays to extend action economy.', color: '#ffd700' }
+        : { label: 'MANA CRITICAL', detail: 'Mana depleted. Draw recovery cards before committing to attacks.', color: '#ff4455' },
+    hpPct < 0.4
+      ? { label: 'DEFENSE PRIORITY', detail: 'Player integrity low. Hearts and shield suits should take precedence over offense.', color: '#4da6ff' }
+      : { label: 'FORWARD STANCE', detail: 'Player health stable. Maintain offensive tempo to reduce boss action window.', color: '#33dd77' },
+    { label: 'OPTIMAL PLAY', detail: `Current boss (${boss.name}) attacks for ${boss.atkMin}–${boss.atkMax} dmg per turn. High-variance plays increase volatility — match risk to current HP margin.`, color: '#cc88ff' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        paddingBottom: 100,
+      }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 300, background: 'rgba(10,0,16,0.18)', backdropFilter: 'blur(1px)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: 'calc(100% - 300px)', left: 0, right: 0, bottom: 0, background: 'rgba(10,0,16,0.5)', backdropFilter: 'blur(3px)', pointerEvents: 'none' }} />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 20 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'relative', zIndex: 1,
+          width: 440, maxHeight: '68vh',
+          background: 'linear-gradient(160deg, #0c0020 0%, #080018 100%)',
+          border: '1px solid rgba(204,136,255,0.35)',
+          boxShadow: '0 0 40px rgba(204,136,255,0.1), 0 24px 60px rgba(0,0,0,0.8)',
+          borderRadius: 8,
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 18px',
+          borderBottom: '1px solid rgba(204,136,255,0.18)',
+          background: 'rgba(204,136,255,0.05)',
+          flexShrink: 0,
+          position: 'relative', zIndex: 2,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: 'rgba(204,136,255,0.9)', letterSpacing: 4, textShadow: '0 0 14px rgba(204,136,255,0.5)' }}>
+              ★ AI ANALYSIS
+            </div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: urgencyColor, letterSpacing: 2, padding: '2px 6px', border: `1px solid ${urgencyColor}55`, borderRadius: 3, textShadow: `0 0 6px ${urgencyColor}88` }}>
+              {urgency}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 14, lineHeight: 1, color: 'rgba(204,136,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', transition: 'color 0.15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ee88ff'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.5)'; }}
+          >✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Status snapshot */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {([
+              { label: 'PLAYER HP', value: `${Math.round(hpPct * 100)}%`, color: hpPct > 0.5 ? '#33dd77' : hpPct > 0.25 ? '#ffd700' : '#ff4455' },
+              { label: 'MANA', value: `${state.mana}/${state.manaMax}`, color: '#4da6ff' },
+              { label: 'BOSS HP', value: `${Math.round(bossHpPct * 100)}%`, color: bossHpPct > 0.6 ? '#ff8844' : bossHpPct > 0.3 ? '#ffd700' : '#33dd77' },
+            ] as { label: string; value: string; color: string }[]).map(({ label, value, color }) => (
+              <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 4, padding: '8px 10px', border: `1px solid ${color}22` }}>
+                <div style={{ fontFamily: 'var(--px-font)', fontSize: 6, color: 'rgba(255,255,255,0.35)', letterSpacing: 2, marginBottom: 4 }}>{label}</div>
+                <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 16, fontWeight: 700, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tactic cards */}
+          <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: 3, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
+            TACTICAL DIRECTIVES
+          </div>
+          {tactics.map((t, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <div style={{ width: 3, flexShrink: 0, alignSelf: 'stretch', background: t.color, borderRadius: 2, opacity: 0.7 }} />
+              <div>
+                <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: t.color, letterSpacing: 2, marginBottom: 3, textShadow: `0 0 6px ${t.color}66` }}>{t.label}</div>
+                <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 12, color: 'rgba(210,200,240,0.75)', lineHeight: 1.55 }}>{t.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Mission Brief Popup ───────────────────────────────────
+const BOSS_BRIEFS = [
+  {
+    codename: 'UNPATCHED VULNERABILITY',
+    classification: 'PERSISTENCE THREAT',
+    accentColor: '#cc88ff',
+    overview: 'A self-replicating patch exploit that has embedded itself into core system processes. Presents as a legitimate update to evade signature detection.',
+    objectives: [
+      'Neutralize the exploit before it completes lateral movement to adjacent nodes.',
+      'Prevent the boss from triggering its PATCH CYCLE ability (deals AoE mana drain).',
+      'Maintain player HP above 40% entering the final phase.',
+    ],
+    mechanics: [
+      { name: 'PATCH CYCLE', desc: 'Every 4 turns, boss drains 2 mana from all active suits.' },
+      { name: 'INTEGRITY SHIELD', desc: 'Below 50% HP, boss gains +20% damage resistance for 2 turns.' },
+      { name: 'REPLICATE', desc: 'On crit, boss spawns a shadow copy with 30% HP.' },
+    ],
+    intel: 'CVE-2024-21412 — Microsoft SmartScreen bypass. Actively exploited in the wild. CISA KEV listed.',
+  },
+  {
+    codename: 'ROOTKIT WESKER',
+    classification: 'ELITE INFILTRATION',
+    accentColor: '#cc88ff',
+    overview: 'A kernel-level rootkit with adaptive camouflage. Named for its ability to operate with absolute system authority — invisible to standard telemetry.',
+    objectives: [
+      'Expose hidden processes before the 7-minute containment window expires.',
+      'Deplete boss HP while managing the escalating WESKER TIMER pressure.',
+      'Do not allow boss to reach 0% player mana — triggers instant defeat.',
+    ],
+    mechanics: [
+      { name: 'WESKER TIMER', desc: 'Hard 7-minute clock. Failure to defeat before timer = auto-loss.' },
+      { name: 'ROOT ACCESS', desc: 'Boss ignores card defense effects when above 60% HP.' },
+      { name: 'ADAPTIVE CLOAK', desc: 'Boss becomes untargetable for 1 turn when hit for >40 damage.' },
+    ],
+    intel: 'Mapped to APT29 TTP: T1014 (Rootkit). Persistence mechanism survives reboots via bootloader injection.',
+  },
+  {
+    codename: 'AI ADAPTER',
+    classification: 'COGNITIVE ADVERSARY',
+    accentColor: '#cc88ff',
+    overview: 'A generative adversarial system that learns card patterns in real time and adapts its attack vectors to counter observed strategies.',
+    objectives: [
+      'Defeat the boss before its ADAPTATION STACK exceeds 5 — at 5 stacks, boss goes immune.',
+      'Vary suit selection to slow adaptation accumulation.',
+      'Survive the TRANSFORMATION phase (boss enters enrage at 50% HP).',
+    ],
+    mechanics: [
+      { name: 'ADAPTATION STACK', desc: 'Each repeated suit play adds 1 stack. At 5 stacks, boss immune to that suit.' },
+      { name: 'TRANSFORMATION', desc: 'At 50% HP, boss enrages: +50% damage, visual effect active.' },
+      { name: 'MIRROR MATRIX', desc: 'Boss copies the last card played and reflects it as bonus damage.' },
+    ],
+    intel: 'Novel threat class — no existing CVE. Internal designation CS-AI-001. Behavioral analysis ongoing.',
+  },
+];
+
+function MissionBriefPopup({ onClose }: { onClose: () => void }) {
+  const { state } = useCampaignContext();
+  const brief = BOSS_BRIEFS[state.bossIndex] ?? BOSS_BRIEFS[0];
+  const ac = brief.accentColor;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        paddingBottom: 100,
+      }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 300, background: 'rgba(10,0,16,0.18)', backdropFilter: 'blur(1px)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: 'calc(100% - 300px)', left: 0, right: 0, bottom: 0, background: 'rgba(10,0,16,0.5)', backdropFilter: 'blur(3px)', pointerEvents: 'none' }} />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 20 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'relative', zIndex: 1,
+          width: 460, maxHeight: '70vh',
+          background: `linear-gradient(160deg, #0a0018 0%, #060012 100%)`,
+          border: `1px solid ${ac}40`,
+          boxShadow: `0 0 40px ${ac}12, 0 24px 60px rgba(0,0,0,0.85)`,
+          borderRadius: 8,
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '14px 18px',
+          borderBottom: `1px solid ${ac}25`,
+          background: `${ac}08`,
+          flexShrink: 0,
+          position: 'relative', zIndex: 2,
+        }}>
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: `${ac}99`, letterSpacing: 3, marginBottom: 3 }}>
+              {brief.classification}
+            </div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 11, color: ac, letterSpacing: 4, textShadow: `0 0 14px ${ac}88` }}>
+              ★ {brief.codename}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 14, lineHeight: 1, color: 'rgba(204,136,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', transition: 'color 0.15s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ee88ff'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.5)'; }}
+          >✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Overview */}
+          <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(220,210,255,0.8)', lineHeight: 1.65, borderLeft: `2px solid ${ac}55`, paddingLeft: 12 }}>
+            {brief.overview}
+          </div>
+
+          {/* Objectives */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: 3, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6, marginBottom: 10 }}>
+              OBJECTIVES
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {brief.objectives.map((obj, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: ac, marginTop: 2, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</div>
+                  <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(210,200,240,0.8)', lineHeight: 1.5 }}>{obj}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Boss Mechanics */}
+          <div>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: 3, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6, marginBottom: 10 }}>
+              SPECIAL MECHANICS
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {brief.mechanics.map((m, i) => (
+                <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 4, padding: '8px 12px', border: `1px solid ${ac}18` }}>
+                  <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: ac, letterSpacing: 2, marginBottom: 4, textShadow: `0 0 6px ${ac}66` }}>{m.name}</div>
+                  <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 12, color: 'rgba(200,195,230,0.7)', lineHeight: 1.5 }}>{m.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Intel footer */}
+          <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(204,136,255,0.55)', letterSpacing: 1, lineHeight: 1.6, paddingTop: 4, borderTop: '1px solid rgba(204,136,255,0.12)' }}>
+            ◈ INTEL: {brief.intel}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Hand demo / intel panel (right side — button stack) ───
+function HandDemoPanel({ openPanel, setOpenPanel }: { openPanel: 'threat' | 'ai' | 'mission' | null; setOpenPanel: (v: 'threat' | 'ai' | 'mission' | null) => void }) {
+  const { state } = useCampaignContext();
+
+  if (state.phase === 'boss-intro') return <div style={{ width: 280, flexShrink: 0 }} />;
+
+  const btnStyle = (color: string) => ({
+    fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 4,
+    color: `rgba(${color},0.85)`,
+    background: `rgba(${color},0.06)`,
+    border: `1px solid rgba(${color},0.3)`,
+    borderRadius: 5,
+    padding: '10px 18px',
+    cursor: 'pointer',
+    textShadow: `0 0 8px rgba(${color},0.4)`,
+    boxShadow: `0 0 12px rgba(${color},0.08)`,
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap' as const,
+    width: '100%',
+    textAlign: 'left' as const,
+  });
+
+  const onHover = (e: React.MouseEvent<HTMLButtonElement>, color: string, enter: boolean) => {
+    const b = e.currentTarget;
+    if (enter) {
+      b.style.background = `rgba(${color},0.12)`;
+      b.style.borderColor = `rgba(${color},0.6)`;
+      b.style.boxShadow = `0 0 20px rgba(${color},0.2)`;
+    } else {
+      b.style.background = `rgba(${color},0.06)`;
+      b.style.borderColor = `rgba(${color},0.3)`;
+      b.style.boxShadow = `0 0 12px rgba(${color},0.08)`;
+    }
+  };
+
+  return (
+    <div style={{
+      width: 280, flexShrink: 0,
+      display: 'flex', flexDirection: 'column',
+      justifyContent: 'flex-start', alignSelf: 'stretch',
+      paddingTop: 16, paddingBottom: 16, gap: 8,
+      paddingRight: 8,
+    }}>
+      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+        onClick={() => setOpenPanel('mission')}
+        style={btnStyle('204,136,255')}
+        onMouseEnter={e => onHover(e, '204,136,255', true)}
+        onMouseLeave={e => onHover(e, '204,136,255', false)}
+      >
+        ★ MISSION BRIEF
+      </motion.button>
+
+      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+        onClick={() => setOpenPanel('threat')}
+        style={btnStyle('204,136,255')}
+        onMouseEnter={e => onHover(e, '204,136,255', true)}
+        onMouseLeave={e => onHover(e, '204,136,255', false)}
+      >
+        ★ THREAT INTEL
+      </motion.button>
+
+      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+        onClick={() => setOpenPanel('ai')}
+        style={btnStyle('204,136,255')}
+        onMouseEnter={e => onHover(e, '204,136,255', true)}
+        onMouseLeave={e => onHover(e, '204,136,255', false)}
+      >
+        ★ AI ANALYSIS
+      </motion.button>
+
+      {/* Live Signal Feed */}
+      <div style={{
+        marginTop: 4,
+        background: 'rgba(204,136,255,0.04)',
+        border: '1px solid rgba(204,136,255,0.15)',
+        borderRadius: 5,
+        overflow: 'hidden',
+        flex: 1,
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{
+          fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 3,
+          color: 'rgba(204,136,255,0.55)',
+          padding: '8px 12px 6px',
+          borderBottom: '1px solid rgba(204,136,255,0.1)',
+          flexShrink: 0,
+        }}>
+          ★ SIGNAL FEED
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <AnimatePresence initial={false}>
+            {[...state.log].reverse().slice(0, 12).map((entry, i) => {
+              const color =
+                entry.kind === 'damage'  ? '#cc88ff' :
+                entry.kind === 'enemy'   ? '#ff8877' :
+                entry.kind === 'boss'    ? '#dd99ff' :
+                entry.kind === 'jackpot' ? '#ffd700' :
+                'rgba(200,185,230,0.45)';
+              return (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1 - i * 0.07, x: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    fontFamily: 'var(--px-body-font)', fontSize: 11, fontWeight: 500,
+                    color, lineHeight: 1.45,
+                  }}
+                >
+                  {entry.msg}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          {state.log.length === 0 && (
+            <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 11, color: 'rgba(204,136,255,0.25)', fontStyle: 'italic' }}>
+              Awaiting activity...
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Center: Active threat ── */}
-      <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        <div className="panel-header" style={{ color: '#f72585' }}>⚠ ACTIVE THREAT</div>
-        {activeThreat ? (
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 12,
-              }}
-            >
-              <div>
-                <div
-                  style={{ fontFamily: 'var(--fh)', fontSize: 16, color: '#f72585' }}
-                >
-                  {activeThreat.name}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 4 }}>
-                  {activeThreat.description}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                {activeThreat.cveTag && (
-                  <div
-                    style={{
-                      background: '#f7258511',
-                      border: '1px solid #f7258533',
-                      borderRadius: 4,
-                      padding: '2px 6px',
-                      fontSize: 9,
-                      color: '#f72585',
-                    }}
-                  >
-                    {activeThreat.cveTag}
-                  </div>
-                )}
-                {activeThreat.specialMechanic && (
-                  <div
-                    style={{
-                      background: '#ffd70011',
-                      border: '1px solid #ffd70033',
-                      borderRadius: 4,
-                      padding: '2px 6px',
-                      fontSize: 9,
-                      color: '#ffd700',
-                      marginTop: 4,
-                    }}
-                  >
-                    {activeThreat.specialMechanic.toUpperCase()}
-                  </div>
-                )}
-              </div>
-            </div>
+    </div>
+  );
+}
 
-            {/* HP bar */}
-            <div style={{ marginBottom: 12 }}>
-              <div
+// ── Boss intro overlay ─────────────────────────────────────
+function BossIntroOverlay() {
+  const { state, continueIntro } = useCampaignContext();
+  const [imgFallback, setImgFallback] = useState(false);
+  // AI Adapter transform states: 'idle' | 'transforming' | 'done'
+  const [adapterTransform, setAdapterTransform] = useState<'idle' | 'transforming' | 'done'>('idle');
+
+  // Reset fallback + transform state when boss changes
+  useEffect(() => {
+    setImgFallback(false);
+    setAdapterTransform('idle');
+  }, [state.bossIndex]);
+
+  if (state.phase !== 'boss-intro' || !state.dialogueText) return null;
+
+  const boss = state.boss;
+  const delay = boss.introText.length * 0.034 + 0.8;
+  const isAdapter = state.bossIndex === 2;
+
+  // When BATTLE START is clicked for AI Adapter: run transform, then continue
+  const handleBattleStart = () => {
+    if (isAdapter && adapterTransform === 'idle') {
+      setAdapterTransform('transforming');
+      // After 1.5s glitch effect → show final sprite briefly → start battle
+      setTimeout(() => setAdapterTransform('done'), 1500);
+      setTimeout(() => continueIntro(), 2200);
+    } else {
+      continueIntro();
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        background: isAdapter && adapterTransform === 'transforming'
+          ? 'rgba(0,0,0,0.97)'
+          : 'rgba(0,0,0,0.93)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 24,
+        transition: 'background 0.3s',
+      }}
+    >
+      {/* Cyan/purple radial overlay during transform */}
+      {isAdapter && adapterTransform === 'transforming' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.7, 0.4, 0.9, 0.3, 0.8, 0] }}
+          transition={{ duration: 1.5, times: [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1] }}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
+            background: 'radial-gradient(ellipse at center, rgba(0,255,220,0.22) 0%, rgba(120,0,255,0.18) 50%, transparent 80%)',
+          }}
+        />
+      )}
+
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 7,
+        color: 'rgba(255,200,40,0.45)', letterSpacing: 6,
+        opacity: adapterTransform !== 'idle' ? 0 : 1,
+        transition: 'opacity 0.3s',
+      }}>
+        — PHASE {state.bossIndex + 1} —
+      </div>
+
+      {/* Boss sprite area */}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <motion.div
+          animate={adapterTransform === 'idle' ? { scale: [1, 1.05, 1], y: [0, -7, 0] } : { scale: 1, y: 0 }}
+          transition={{ duration: 2.5, repeat: adapterTransform === 'idle' ? Infinity : 0 }}
+          style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}
+        >
+          {state.bossIndex === 0 ? (
+            <SystemPatchBoss />
+          ) : isAdapter ? (
+            <>
+              {/* Transform image — shown during idle + transforming */}
+              <motion.img
+                src={AI_ADAPTER_TRANSFORM_IMG}
+                onError={() => setImgFallback(true)}
+                animate={adapterTransform === 'transforming'
+                  ? { opacity: [1, 0.8, 1, 0.3, 0.9, 0], filter: [
+                      'brightness(1.2) hue-rotate(0deg)',
+                      'brightness(3) hue-rotate(90deg)',
+                      'brightness(1) hue-rotate(180deg)',
+                      'brightness(4) hue-rotate(270deg)',
+                      'brightness(2) hue-rotate(360deg)',
+                      'brightness(0)',
+                    ] }
+                  : adapterTransform === 'done'
+                    ? { opacity: 0 }
+                    : { opacity: 1 }
+                }
+                transition={{ duration: adapterTransform === 'transforming' ? 1.5 : 0.3 }}
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 10,
-                  marginBottom: 4,
+                  height: 280, width: 'auto',
+                  imageRendering: 'pixelated',
+                  mixBlendMode: 'screen',
+                  position: adapterTransform === 'done' ? 'absolute' : 'relative',
                 }}
-              >
-                <span style={{ color: 'var(--dim)' }}>THREAT HP</span>
-                <span style={{ color: '#f72585', fontFamily: 'var(--fh)' }}>
-                  {activeThreat.hp}/{activeThreat.maxHp}
-                </span>
-              </div>
-              <div style={{ height: 8, background: '#1a2332', borderRadius: 4 }}>
-                <div
+              />
+              {/* Final aiadapter.png — revealed after transform */}
+              {adapterTransform !== 'idle' && (
+                <motion.img
+                  src={imgFallback ? AI_ADAPTER_FALLBACK : AI_ADAPTER_IMG}
+                  onError={() => setImgFallback(true)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: adapterTransform === 'done' ? 1 : 0 }}
+                  transition={{ duration: 0.5 }}
                   style={{
-                    height: '100%',
-                    width: `${(activeThreat.hp / activeThreat.maxHp) * 100}%`,
-                    background: '#f72585',
-                    borderRadius: 4,
-                    transition: 'width 0.3s',
+                    height: 280, width: 'auto',
+                    imageRendering: 'pixelated',
+                    mixBlendMode: 'screen',
+                    filter: 'brightness(1.4) contrast(1.1) drop-shadow(0 0 40px rgba(0,220,255,0.7))',
                   }}
                 />
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div style={{ display: 'flex', gap: 12, fontSize: 10 }}>
-              <div>
-                <span style={{ color: 'var(--dim)' }}>ATK: </span>
-                <span style={{ color: '#ff9f1c', fontFamily: 'var(--fh)' }}>
-                  {activeThreat.attackPower}
-                </span>
-              </div>
-              <div>
-                <span style={{ color: 'var(--dim)' }}>EVA: </span>
-                <span style={{ color: '#ffd700', fontFamily: 'var(--fh)' }}>
-                  {Math.round(activeThreat.evasion * 100)}%
-                </span>
-              </div>
-              <div>
-                <span style={{ color: 'var(--dim)' }}>BEHAVIOR: </span>
-                <span style={{ color: '#00d4ff', fontFamily: 'var(--fh)' }}>
-                  {activeThreat.behavior}
-                </span>
-              </div>
-            </div>
-
-            {/* Rootkit diamond counter */}
-            {activeThreat.specialMechanic === 'rootkit-trojan' && (
-              <div
+              )}
+            </>
+          ) : (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Crimson radial aura */}
+              <div style={{
+                position: 'absolute',
+                width: 260, height: 260,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(220,30,30,0.22) 0%, rgba(180,10,10,0.12) 45%, transparent 70%)',
+                pointerEvents: 'none',
+              }} />
+              <img
+                key={state.bossIndex}
+                src={imgFallback ? WESKER_FALLBACK : WESKER_IMG}
+                onError={() => setImgFallback(true)}
                 style={{
-                  marginTop: 12,
-                  padding: '8px',
-                  background: '#ffd70011',
-                  border: '1px solid #ffd70033',
-                  borderRadius: 6,
-                  fontSize: 10,
-                  color: '#ffd700',
+                  height: 300,
+                  width: 'auto',
+                  imageRendering: 'pixelated',
+                  mixBlendMode: 'screen',
+                  clipPath: 'inset(65px 0 0 0)',
+                  filter: 'brightness(1.25) contrast(1.1)',
                 }}
-              >
-                💎 Diamonds to expose: {activeThreat.diamondsPlayed ?? 0}/7
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--dim)',
-              fontSize: 11,
-            }}
-          >
-            {phase === 'threat-appears' ? 'Scanning for threats...' : 'No active threat'}
+              />
+            </div>
+          )}
+        </motion.div>
+
+        {/* Glitch bars during transform */}
+        {isAdapter && adapterTransform === 'transforming' && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', overflow: 'hidden' }}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <motion.div
+                key={i}
+                animate={{ x: [0, i % 2 === 0 ? 40 : -40, 0, i % 2 === 0 ? -20 : 20, 0], opacity: [0, 1, 0.6, 1, 0] }}
+                transition={{ duration: 0.18, repeat: 8, delay: i * 0.06, repeatDelay: 0.1 }}
+                style={{
+                  position: 'absolute',
+                  top: `${12 + i * 18}%`, left: 0, right: 0,
+                  height: 6 + i * 2,
+                  background: i % 2 === 0 ? 'rgba(0,255,220,0.8)' : 'rgba(180,0,255,0.7)',
+                  mixBlendMode: 'screen',
+                  opacity: 0,
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
 
-      {/* ── Right: Combat log ── */}
-      <div
-        className="panel"
-        style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 22,
+        color: adapterTransform === 'transforming' ? '#00ffdd' : '#ffd700',
+        textShadow: adapterTransform === 'transforming'
+          ? '0 0 28px #00ffddaa, 3px 3px 0 #000'
+          : '0 0 28px #ffd70066, 3px 3px 0 #000',
+        letterSpacing: 6, textAlign: 'center',
+        transition: 'color 0.3s',
+        opacity: adapterTransform !== 'idle' ? 0 : 1,
+      }}>
+        {boss.name}
+      </div>
+
+      <div style={{
+        maxWidth: 540, padding: '16px 24px',
+        border: '2px solid rgba(255,200,40,0.35)',
+        background: 'rgba(8,5,0,0.75)',
+        borderRadius: 4,
+        fontFamily: 'var(--px-font)', fontSize: 9,
+        color: 'rgba(255,255,255,0.85)',
+        lineHeight: 1.9, letterSpacing: 0.8,
+        textAlign: 'center',
+        boxShadow: '0 0 24px rgba(255,200,40,0.08)',
+        opacity: adapterTransform !== 'idle' ? 0 : 1,
+        transition: 'opacity 0.3s',
+      }}>
+        "<Typewriter text={state.dialogueText} speed={34} />"
+      </div>
+
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: adapterTransform !== 'idle' ? 0 : 1 }}
+        transition={{ delay: adapterTransform === 'idle' ? delay : 0 }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
+        onClick={handleBattleStart}
+        disabled={adapterTransform !== 'idle'}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 4,
+          padding: '12px 40px', cursor: adapterTransform !== 'idle' ? 'default' : 'pointer',
+          background: 'rgba(255,200,40,0.08)',
+          border: '2px solid rgba(255,200,40,0.65)',
+          color: '#ffd700',
+          textShadow: '0 0 10px rgba(255,200,40,0.7)',
+          boxShadow: '4px 4px 0 #000',
+          borderRadius: 2,
+        }}
       >
-        <div className="panel-header">COMBAT LOG</div>
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column-reverse',
-          }}
-        >
-          {[...log]
-            .reverse()
-            .slice(0, 20)
-            .map(entry => (
-              <div
-                key={entry.id}
-                style={{
-                  fontSize: 10,
-                  padding: '3px 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  color:
-                    entry.severity === 'danger'  ? '#f72585'
-                    : entry.severity === 'success' ? '#39d353'
-                    : entry.severity === 'warning' ? '#ff9f1c'
-                    : '#00d4ff',
-                }}
-              >
-                <span style={{ color: 'rgba(205,217,229,0.3)', marginRight: 4 }}>
-                  [T{entry.turn}]
-                </span>
-                {entry.text}
-              </div>
+        [ BATTLE START ]
+      </motion.button>
+    </motion.div>
+  );
+}
+
+// ── Phase clear overlay ────────────────────────────────────
+function PhaseClearOverlay() {
+  const { state, advance } = useCampaignContext();
+  const [imgFallback, setImgFallback] = useState(false);
+
+  if (state.phase !== 'phase-clear') return null;
+
+  // Show the defeated boss
+  const defeatedBossSprite = state.bossIndex === 0
+    ? <SystemPatchBoss />
+    : (
+      <motion.img
+        key={state.bossIndex}
+        src={imgFallback
+          ? (state.bossIndex === 1 ? WESKER_FALLBACK : AI_ADAPTER_FALLBACK)
+          : (state.bossIndex === 1 ? WESKER_IMG     : AI_ADAPTER_IMG)}
+        onError={() => setImgFallback(true)}
+        animate={{ opacity: [0.6, 0.15, 0.6], filter: ['hue-rotate(0deg) brightness(1.2)', 'hue-rotate(120deg) brightness(0.7)', 'hue-rotate(0deg) brightness(1.2)'] }}
+        transition={{ duration: 1.8, repeat: Infinity }}
+        style={{
+          height: state.bossIndex === 1 ? 200 : 240,
+          width: 'auto',
+          imageRendering: 'pixelated',
+          mixBlendMode: 'screen',
+        }}
+      />
+    );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        background: 'rgba(0,8,0,0.93)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 20,
+      }}
+    >
+      {/* Defeated boss (flickering) */}
+      <div style={{ opacity: 0.65 }}>
+        {defeatedBossSprite}
+      </div>
+
+      <motion.div
+        animate={{ scale: [1, 1.08, 1] }}
+        transition={{ duration: 1.5, repeat: Infinity }}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 22,
+          color: '#33dd77',
+          textShadow: '0 0 28px #33dd7799, 3px 3px 0 #000',
+          letterSpacing: 5,
+        }}
+      >
+        BOSS DEFEATED
+      </motion.div>
+      <motion.button
+        whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
+        onClick={advance}
+        style={{
+          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 4,
+          padding: '12px 40px', cursor: 'pointer',
+          background: 'rgba(51,221,119,0.08)',
+          border: '2px solid rgba(51,221,119,0.65)',
+          color: '#33dd77',
+          boxShadow: '4px 4px 0 #000', borderRadius: 2,
+        }}
+      >
+        [ CONTINUE ]
+      </motion.button>
+    </motion.div>
+  );
+}
+
+// ── Battle Log Overlay ─────────────────────────────────────
+function BattleLogOverlay({ log, onClose }: { log: CampaignLogEntry[]; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 600,
+        background: 'rgba(0,0,0,0.96)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center',
+        padding: '40px 0 20px',
+      }}
+    >
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 14, color: '#ffd700', letterSpacing: 5, marginBottom: 24, textShadow: '0 0 20px #ffd70066' }}>
+        BATTLE LOG
+      </div>
+      <div style={{
+        flex: 1, overflowY: 'auto', width: '100%', maxWidth: 760,
+        padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 2,
+      }}>
+        {[...log].reverse().map(entry => {
+          const col = entry.kind === 'damage' ? '#ff4455' : entry.kind === 'boss' ? '#ffd700' : '#4da6ff';
+          return (
+            <div key={entry.id} style={{
+              fontFamily: 'var(--px-font)', fontSize: 12,
+              color: col, letterSpacing: 1, lineHeight: 1.7,
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              padding: '5px 0',
+              opacity: 0.9,
+            }}>
+              {entry.msg}
+            </div>
+          );
+        })}
+      </div>
+      <motion.button
+        whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose}
+        style={{
+          marginTop: 24, fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 3,
+          padding: '10px 32px', cursor: 'pointer',
+          background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.25)',
+          color: 'rgba(255,255,255,0.6)', boxShadow: '3px 3px 0 #000', borderRadius: 2,
+        }}
+      >
+        [ CLOSE ]
+      </motion.button>
+    </motion.div>
+  );
+}
+
+// ── Victory / Game-over overlays ───────────────────────────
+function VictoryOverlay() {
+  const { state, restart, onBack } = useCampaignContext();
+  const [showLog, setShowLog] = useState(false);
+  if (state.phase !== 'victory') return null;
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: 'rgba(0,8,0,0.95)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 28,
+        }}
+      >
+        <motion.div animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 1.4, repeat: Infinity }}>
+          <img src={JACKPOT_ICON} alt="" style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 0 20px #ffd700)' }} />
+        </motion.div>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 22, color: '#ffd700', textShadow: '0 0 28px #ffd70066, 3px 3px 0 #000', letterSpacing: 7 }}>VICTORY</div>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: 3, textAlign: 'center', lineHeight: 2 }}>
+          ALL THREE BOSSES DEFEATED.<br />THE SYSTEM IS SECURE.
+        </div>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={restart}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3, padding: '12px 36px', cursor: 'pointer', background: 'rgba(255,200,40,0.08)', border: '2px solid rgba(255,200,40,0.65)', color: '#ffd700', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ PLAY AGAIN ]
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowLog(true)}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(77,166,255,0.08)', border: '2px solid rgba(77,166,255,0.5)', color: '#4da6ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ REVIEW LOG ]
+          </motion.button>
+          {onBack && (
+            <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onBack}
+              style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(204,136,255,0.08)', border: '2px solid rgba(204,136,255,0.5)', color: '#cc88ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+              [ ANALYST MODE ]
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
+      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
+    </>
+  );
+}
+
+function GameOverOverlay() {
+  const { state, restart, onBack } = useCampaignContext();
+  const [showLog, setShowLog] = useState(false);
+  if (state.phase !== 'game-over') return null;
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: 'rgba(8,0,0,0.95)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 24,
+        }}
+      >
+        <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }}
+          style={{ fontFamily: 'var(--px-font)', fontSize: 22, color: '#ff4455', textShadow: '0 0 28px #ff445599, 3px 3px 0 #000', letterSpacing: 7 }}>
+          GAME OVER
+        </motion.div>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: 3 }}>PLAYER HP DEPLETED</div>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={restart}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3, padding: '12px 36px', cursor: 'pointer', background: 'rgba(255,68,85,0.08)', border: '2px solid rgba(255,68,85,0.65)', color: '#ff4455', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ TRY AGAIN ]
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowLog(true)}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(77,166,255,0.08)', border: '2px solid rgba(77,166,255,0.5)', color: '#4da6ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ REVIEW LOG ]
+          </motion.button>
+          {onBack && (
+            <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onBack}
+              style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(204,136,255,0.08)', border: '2px solid rgba(204,136,255,0.5)', color: '#cc88ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+              [ ANALYST MODE ]
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
+      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
+    </>
+  );
+}
+
+// ── Info overlay helpers ────────────────────────────────────
+const bodyText: import('react').CSSProperties = {
+  fontSize: 14, color: 'rgba(220,210,255,0.72)', lineHeight: 1.75, marginBottom: 6,
+};
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 7,
+        color: '#cc88ff', letterSpacing: 3,
+        borderBottom: '1px solid rgba(204,136,255,0.18)',
+        paddingBottom: 6, marginBottom: 12,
+      }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SuitRow({ color, sym, name, desc }: { color: string; sym: string; name: string; desc: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'flex-start' }}>
+      <span style={{ fontSize: 20, color, flexShrink: 0, lineHeight: 1.4 }}>{sym}</span>
+      <div>
+        <span style={{ fontFamily: 'var(--px-body-font)', fontWeight: 700, fontSize: 14, color, letterSpacing: 1 }}>{name}</span>
+        <span style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(220,210,255,0.62)', marginLeft: 8 }}>{desc}</span>
+      </div>
+    </div>
+  );
+}
+
+function BulletList({ items }: { items: string[] }) {
+  return (
+    <ul style={{ paddingLeft: 18, margin: 0 }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ fontFamily: 'var(--px-body-font)', fontSize: 14, color: 'rgba(220,210,255,0.72)', lineHeight: 1.75 }}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function BossRow({ name, color, desc }: { name: string; color: string; desc: string }) {
+  return (
+    <div style={{
+      marginBottom: 10, padding: '8px 12px',
+      background: `${color}0d`, borderLeft: `3px solid ${color}88`,
+    }}>
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color, letterSpacing: 2, marginBottom: 4 }}>{name}</div>
+      <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(220,210,255,0.65)', lineHeight: 1.6 }}>{desc}</div>
+    </div>
+  );
+}
+
+const WESKER_DURATION = 7 * 60; // 420 seconds
+
+// ── Tutorial Highlight Overlay ─────────────────────────────
+// Layout constants matching the HUD structure
+const HUD_H        = 300;   // bottom HUD height
+const LEFT_PANEL_W = 235;   // HandPhasePanel (200px) + left padding (20px) + button overhang buffer
+const RIGHT_PANEL_W = 300;  // HandDemoPanel (280px) + right padding + buffer to avoid overlap with right buttons
+
+const OV: React.CSSProperties = {
+  position: 'fixed',
+  background: 'rgba(0, 0, 10, 0.74)',
+  backdropFilter: 'blur(3px)',
+  pointerEvents: 'all',
+  zIndex: 36,
+};
+
+function HlBorder({ style }: { style: React.CSSProperties }) {
+  return (
+    <motion.div
+      animate={{ opacity: [0.45, 1, 0.45] }}
+      transition={{ duration: 1.4, repeat: Infinity }}
+      style={{
+        position: 'fixed', zIndex: 37, pointerEvents: 'none',
+        border: '2px solid rgba(204,136,255,0.8)',
+        borderRadius: 6,
+        boxShadow: '0 0 28px rgba(204,136,255,0.35), inset 0 0 20px rgba(204,136,255,0.07)',
+        ...style,
+      }}
+    />
+  );
+}
+
+function HighlightOverlay({ highlight }: { highlight: TutorialHighlight }) {
+  if (highlight === 'cards') {
+    return (
+      <>
+        {/* Darken everything above HUD */}
+        <div style={{ ...OV, top: 0, left: 0, right: 0, bottom: HUD_H }} />
+        {/* Darken left panel (HandPhasePanel) */}
+        <div style={{ ...OV, bottom: 0, left: 0, width: LEFT_PANEL_W, height: HUD_H }} />
+        {/* Darken right panel (HandDemoPanel) */}
+        <div style={{ ...OV, bottom: 0, right: 0, width: RIGHT_PANEL_W, height: HUD_H }} />
+        {/* Pulsing border around card zone */}
+        <HlBorder style={{ bottom: 0, left: LEFT_PANEL_W, right: RIGHT_PANEL_W, height: HUD_H }} />
+      </>
+    );
+  }
+
+  if (highlight === 'intel') {
+    const zW = 318, zR = 0;
+    return (
+      <>
+        {/* Above HUD */}
+        <div style={{ ...OV, top: 0, left: 0, right: 0, bottom: HUD_H }} />
+        {/* Left portion of HUD (everything except intel panel) */}
+        <div style={{ ...OV, bottom: 0, left: 0, right: zW + zR, height: HUD_H }} />
+        <HlBorder style={{ bottom: 0, right: zR, width: zW, height: HUD_H }} />
+      </>
+    );
+  }
+
+  // 'full' — full-screen overlay, no clear zone
+  if (highlight === 'full') return <div style={{ ...OV, top: 0, left: 0, right: 0, bottom: 0 }} />;
+
+  // null — no overlay at all (game stays fully visible)
+  return null;
+}
+
+// ── Tutorial Modal ──────────────────────────────────────────
+function TutorialModal({ step, onStepChange, onClose }: {
+  step: number;
+  onStepChange: (s: number) => void;
+  onClose: () => void;
+}) {
+  const current = TUTORIAL_STEPS[step];
+  const isLast = step === TUTORIAL_STEPS.length - 1;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed', zIndex: 400,
+        ...(step === 0
+          ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+          : step === 1
+            ? { bottom: HUD_H + 16, left: '50%', transform: 'translateX(-50%)' }
+            : step === 2
+              ? { top: 120, left: '50%', transform: 'translateX(-50%)' }
+              : step === 3
+                ? { top: '50%', left: 'calc(50% - 48px)', transform: 'translateY(-50%)' }
+                : step === 4
+                  ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+                  : step === 5
+                    ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+                    : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+        ),
+        pointerEvents: 'none',
+      }}
+    >
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, y: 10, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        style={{
+          width: step === 0 ? 580 : 460,
+          background: 'linear-gradient(160deg, #100020 0%, #0a0016 100%)',
+          border: '1px solid rgba(204,136,255,0.3)',
+          borderRadius: 10,
+          boxShadow: '0 0 40px rgba(204,136,255,0.15), 0 20px 60px rgba(0,0,0,0.8)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+          pointerEvents: 'auto',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px 12px',
+          borderBottom: '1px solid rgba(204,136,255,0.12)',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>{current.icon}</span>
+            <span style={{
+              fontFamily: 'var(--px-font)', fontSize: 8,
+              color: '#cc88ff', letterSpacing: 3,
+              textShadow: '0 0 10px rgba(204,136,255,0.5)',
+            }}>
+              {current.title}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--px-font)', fontSize: 14,
+              color: 'rgba(204,136,255,0.4)', lineHeight: 1,
+              padding: '2px 6px', transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.9)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.4)'; }}
+          >✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: 'auto', padding: '16px 20px', maxHeight: step === 0 ? 440 : 260 }}>
+          {'body' in current && current.body && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {current.body.split('\n\n').map((para, i) => (
+                <p key={i} style={{
+                  fontFamily: 'var(--px-body-font)', fontSize: step === 0 ? 14 : 13,
+                  lineHeight: 1.75, color: 'rgba(255,255,255,0.75)', margin: 0,
+                }}>
+                  {para}
+                </p>
+              ))}
+            </div>
+          )}
+          {'lines' in current && current.lines && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {current.lines.map((line, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{
+                    fontFamily: 'var(--px-font)', fontSize: 12, color: line.color,
+                    textShadow: `0 0 8px ${line.color}66`,
+                    flexShrink: 0, width: 18, textAlign: 'center', marginTop: 1,
+                  }}>{line.sym}</span>
+                  <div>
+                    <span style={{
+                      fontFamily: 'var(--px-font)', fontSize: 7,
+                      color: line.color, letterSpacing: 2,
+                      textShadow: `0 0 6px ${line.color}44`,
+                    }}>{line.label} </span>
+                    <span style={{
+                      fontFamily: 'var(--px-body-font)', fontSize: 12,
+                      color: 'rgba(255,255,255,0.6)', lineHeight: 1.6,
+                    }}>— {line.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {'tips' in current && current.tips && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {current.tips.map((tip, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ color: '#ffd700', fontFamily: 'var(--px-font)', fontSize: 8, flexShrink: 0, marginTop: 2 }}>►</span>
+                  <span style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(255,255,255,0.68)', lineHeight: 1.6 }}>{tip}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 18px',
+          borderTop: '1px solid rgba(204,136,255,0.1)',
+          flexShrink: 0,
+        }}>
+          {/* Step dots */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div key={i} style={{
+                width: i === step ? 14 : 6, height: 6, borderRadius: 3,
+                background: i === step ? '#cc88ff' : 'rgba(204,136,255,0.2)',
+                transition: 'all 0.2s',
+                boxShadow: i === step ? '0 0 6px #cc88ff88' : 'none',
+              }} />
             ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {step > 0 && (
+              <button
+                onClick={() => onStepChange(step - 1)}
+                style={{
+                  fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 2,
+                  padding: '7px 14px', cursor: 'pointer',
+                  background: 'none',
+                  border: '1px solid rgba(204,136,255,0.25)',
+                  color: 'rgba(204,136,255,0.5)', borderRadius: 4,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.color = '#cc88ff'; b.style.borderColor = 'rgba(204,136,255,0.6)'; }}
+                onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.color = 'rgba(204,136,255,0.5)'; b.style.borderColor = 'rgba(204,136,255,0.25)'; }}
+              >← BACK</button>
+            )}
+            {step === 2 ? null : !isLast ? (
+              <button
+                onClick={() => onStepChange(step + 1)}
+                style={{
+                  fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 2,
+                  padding: '7px 14px', cursor: 'pointer',
+                  background: 'rgba(204,136,255,0.1)',
+                  border: '1px solid rgba(204,136,255,0.4)',
+                  color: '#cc88ff', borderRadius: 4,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'rgba(204,136,255,0.2)'; b.style.borderColor = '#cc88ff'; }}
+                onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'rgba(204,136,255,0.1)'; b.style.borderColor = 'rgba(204,136,255,0.4)'; }}
+              >NEXT →</button>
+            ) : (
+              <button
+                onClick={onClose}
+                style={{
+                  fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 2,
+                  padding: '7px 18px', cursor: 'pointer',
+                  background: 'rgba(204,136,255,0.18)',
+                  border: '1px solid #cc88ff',
+                  color: '#cc88ff', borderRadius: 4,
+                  boxShadow: '0 0 12px rgba(204,136,255,0.25)',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'rgba(204,136,255,0.3)'; b.style.boxShadow = '0 0 20px rgba(204,136,255,0.45)'; }}
+                onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.background = 'rgba(204,136,255,0.18)'; b.style.boxShadow = '0 0 12px rgba(204,136,255,0.25)'; }}
+              >★ GOT IT — LET'S GO</button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Root component ─────────────────────────────────────────
+export default function SimulationTable({ initialRanks, onBack }: { initialRanks?: Record<string, number>; onBack?: () => void }) {
+  // Map SOC suit names (clover/spade/diamond/heart) → simulation suit names
+  const mappedRanks = initialRanks ? {
+    clubs:    initialRanks.clover   ?? 8,
+    spades:   initialRanks.spade    ?? 9,
+    diamonds: initialRanks.diamond  ?? 7,
+    hearts:   initialRanks.heart    ?? 10,
+  } : undefined;
+
+  const campaign = useCampaign(mappedRanks);
+  const { state } = campaign;
+
+  const [navVisible, setNavVisible] = useState(false);
+
+  // ── Wesker 7-minute countdown ──────────────────────────
+  const [weskerTimeLeft, setWeskerTimeLeft] = useState(WESKER_DURATION);
+  const weskerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const isWeskerBattle =
+      state.boss.id === 'wesker' &&
+      state.phase !== 'boss-intro' &&
+      state.phase !== 'phase-clear' &&
+      state.phase !== 'victory' &&
+      state.phase !== 'game-over';
+
+    if (!isWeskerBattle) {
+      // Clear timer when Wesker fight is over
+      if (weskerTimerRef.current) {
+        clearInterval(weskerTimerRef.current);
+        weskerTimerRef.current = null;
+      }
+      // Reset counter when entering a new fight
+      if (state.boss.id !== 'wesker') setWeskerTimeLeft(WESKER_DURATION);
+      return;
+    }
+
+    // Start countdown if not already running
+    if (weskerTimerRef.current) return;
+    weskerTimerRef.current = setInterval(() => {
+      setWeskerTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(weskerTimerRef.current!);
+          weskerTimerRef.current = null;
+          campaign.weskerTimeout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (weskerTimerRef.current) {
+        clearInterval(weskerTimerRef.current);
+        weskerTimerRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.boss.id, state.phase]);
+
+  const selectCardWithSfx = useCallback((id: string) => {
+    const card = state.cardOptions.find(c => c.id === id);
+    if (card) {
+      const sfxId = CARD_SFX[card.suit];
+      if (sfxId) SfxPlayer.playId(sfxId);
+    }
+    campaign.selectCard(id);
+  }, [campaign, state.cardOptions]);
+
+  const triggerJackpotWithSfx = useCallback(() => {
+    campaign.triggerJackpot();
+  }, [campaign]);
+
+  const ctx: CampaignCtxValue = {
+    state,
+    continueIntro:  campaign.continueIntro,
+    drawCard:       campaign.drawCard,
+    drawSuit:       campaign.drawSuit,
+    selectCard:     selectCardWithSfx,
+    advance:        campaign.advance,
+    triggerJackpot: triggerJackpotWithSfx,
+    restart:        campaign.restart,
+    weskerTimeLeft,
+    onBack,
+  };
+
+  // Tab hidden → mute
+  useEffect(() => {
+    const h = () => MusicManager.setMute(document.hidden);
+    document.addEventListener('visibilitychange', h);
+    return () => document.removeEventListener('visibilitychange', h);
+  }, []);
+
+  // main-ui theme is already playing from SimulationMode — let it run
+  // Boss-specific music takes over once the battle starts (see audio sync below)
+
+  // ── Audio sync per boss phase ─────────────────────────
+  const prevPhaseRef = useRef(state.phase);
+  const prevBossRef  = useRef(state.bossIndex);
+
+  useEffect(() => {
+    const { phase, bossIndex } = state;
+    const prevPhase = prevPhaseRef.current;
+
+    // ── Boss intro starts → silence music, fire intro SFX immediately ──
+    if (phase === 'boss-intro' && prevPhase !== 'boss-intro') {
+      MusicManager.stop(); // no music overlapping the dialogue textbox
+      if (bossIndex === 1) {
+        // Wesker: "7 minutes" plays the instant his textbox appears
+        SfxPlayer.playId('wesker7mins');
+      } else if (bossIndex === 2) {
+        // AI Adapter: transformation + roar plays when textbox appears
+        SfxPlayer.playSequence([SFX.aiAdapterTransform, SFX.aiAdapterBeginning]);
+      }
+    }
+
+    // ── Battle start → switch to boss battle music ──
+    if (phase === 'player-draw' && prevPhase === 'boss-intro') {
+      if (bossIndex === 0) MusicManager.setTrack('system-patch');
+      else if (bossIndex === 1) MusicManager.setTrack('wesker');
+      else if (bossIndex === 2) MusicManager.setTrack('ai-adapter');
+      if (bossIndex === 0 && !localStorage.getItem('cs_tutorial_done')) {
+        setTutorialOpen(true);
+        setTutorialStep(0);
+      }
+    }
+
+    // Enemy attacks SFX
+    if (phase === 'enemy-attack' && prevPhase === 'resolve') {
+      SfxPlayer.stopAll(); // clear any residual card SFX before enemy attack
+      if (bossIndex === 2 && state.adapterAdapting) {
+        // AI Adapter: adapting.mp3 for 1s, THEN attack SFX
+        SfxPlayer.playId('adapting');
+        setTimeout(() => SfxPlayer.play(SFX.virusAttack), 1000);
+      } else {
+        SfxPlayer.play(SFX.virusAttack);
+      }
+    }
+
+    // Boss defeated — stop music immediately
+    if (phase === 'phase-clear' && prevPhase !== 'phase-clear') {
+      MusicManager.stop();
+      SfxPlayer.stopAll(); // cut off any card SFX before defeat stinger
+      SfxPlayer.play(SFX.virusDefeat);
+    }
+
+    // Victory — stop all music + any in-flight card SFX, then play stinger
+    if (phase === 'victory') {
+      MusicManager.stop();
+      SfxPlayer.stopAll(); // cut off card SFX so it doesn't overlay victoryse
+      SfxPlayer.playId('victorySe');
+    }
+
+    // Game over — stop all music + any in-flight card SFX, then play stinger
+    if (phase === 'game-over' && prevPhase !== 'game-over') {
+      MusicManager.stop();
+      SfxPlayer.stopAll(); // cut off card SFX so it doesn't overlay defeat stinger
+      SfxPlayer.play(SFX.virusDefeat);
+    }
+
+    prevPhaseRef.current = phase;
+    prevBossRef.current  = bossIndex;
+  }, [state.phase, state.bossIndex, state.adapterAdapting]);
+
+  // Auto-advance non-interactive phases
+  useEffect(() => {
+    const { phase } = state;
+    if (phase === 'resolve') {
+      const t = setTimeout(() => campaign.advance(), 900);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'enemy-attack') {
+      // AI Adapter adapting: 1s "ADAPTING" + 1s attack animation = 2200ms before player can act
+      const delay = (state.boss.id === 'ai-adapter' && state.adapterAdapting) ? 2200 : 1200;
+      const t = setTimeout(() => campaign.advance(), delay);
+      return () => clearTimeout(t);
+    }
+  }, [state.phase]);
+
+  const [showInfo, setShowInfo] = useState(false);
+  const [openPanel, setOpenPanel] = useState<'threat' | 'ai' | 'mission' | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+
+  return (
+    <TutorialCtx.Provider value={{ step: tutorialStep, open: tutorialOpen, advance: () => setTutorialStep(s => Math.min(s + 1, TUTORIAL_STEPS.length - 1)) }}>
+    <CampaignCtx.Provider value={ctx}>
+      {/* Background */}
+      <CasinoBackground />
+
+      {/* CRT scanlines */}
+      <div className="px-scanlines" style={{ position: 'fixed', inset: 0, zIndex: 55, pointerEvents: 'none' }} />
+
+      {/* Invisible hover trigger zone at top of screen */}
+      <div
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 8, zIndex: 59, pointerEvents: 'auto' }}
+        onMouseEnter={() => setNavVisible(true)}
+      />
+
+      {/* Top bar — slides in on hover, matches analyze topbar style */}
+      <div
+        onMouseLeave={() => setNavVisible(false)}
+        className="topbar"
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 58,
+          borderRadius: 0,
+          justifyContent: 'center',
+          transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'transform 0.25s ease',
+        }}>
+        <div className="tb-mode-toggle">
+          <button className="tb-mode-btn" onClick={onBack}>● ANALYZE</button>
+          <button className="tb-mode-btn active">○ SIMULATE</button>
         </div>
       </div>
 
-      {/* ── Bottom: Player hand ── */}
-      <div className="panel" style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column' }}>
-        <div className="panel-header">
-          YOUR HAND
-          {phase === 'choose' && (
-            <span style={{ color: '#39d353', marginLeft: 8 }}>
-              — SELECT A CARD TO PLAY
-            </span>
-          )}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            justifyContent: 'center',
-            flex: 1,
-            alignItems: 'center',
-          }}
-        >
-          {hand.map((card: SimCard) => {
-            const color = SUIT_COLORS[card.suit] ?? '#00d4ff';
-            const suitLabel = SUITS[card.suit === 'club' ? 'clover' : card.suit]?.name ?? card.suit;
-            const canPlay = phase === 'choose';
-            return (
-              <button
-                key={card.id}
-                onClick={() => canPlay && playCard(card)}
-                style={{
-                  width: 90,
-                  height: 120,
-                  background: canPlay ? `${color}11` : '#0d1117',
-                  border: `1px solid ${canPlay ? `${color}66` : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 8,
-                  cursor: canPlay ? 'pointer' : 'default',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  transition: 'transform 0.1s, box-shadow 0.1s',
-                  boxShadow: canPlay ? `0 0 10px ${color}22` : undefined,
-                }}
-                onMouseEnter={e => {
-                  if (canPlay) (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.transform = 'none';
-                }}
-                title={suitLabel}
-              >
-                <div
-                  style={{
-                    fontSize: 20,
-                    fontFamily: 'var(--fh)',
-                    color,
-                    fontWeight: 700,
-                  }}
-                >
-                  {RANK_NAMES[card.rank]}
-                </div>
-                <div style={{ fontSize: 24, color }}>{SUIT_SYMS[card.suit]}</div>
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: 'var(--dim)',
-                    textAlign: 'center',
-                    padding: '0 4px',
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {card.actionName}
-                </div>
-                {card.manaCost > 0 && (
-                  <div style={{ fontSize: 8, color: '#a78bfa' }}>{card.manaCost} mana</div>
-                )}
-              </button>
-            );
-          })}
-          {hand.length === 0 && phase !== 'threat-appears' && (
-            <div style={{ color: 'var(--dim)', fontSize: 11 }}>Drawing cards...</div>
-          )}
-        </div>
+      {/* Phase prompt moved to bottom hand section */}
+
+      {/* Wesker 7-min countdown — centered top */}
+      <WeskerTimer />
+
+      {/* HP bars TOP RIGHT */}
+      <HpBars />
+
+      {/* Battle arena characters (background) */}
+      <BattleArena />
+
+      {/* Bottom hand — phase panel | D-pad | demo panel */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, height: 300, zIndex: 30,
+        background: 'linear-gradient(180deg, rgba(10,0,16,0) 0%, rgba(10,0,16,0.82) 28%, rgba(10,0,16,0.97) 100%)',
+        borderTop: '1px solid rgba(204,136,255,0.12)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 20px',
+      }}>
+        {/* HUD / character-display divider — Mad Hatter lavender */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(204,136,255,0.15) 20%, rgba(204,136,255,0.5) 50%, rgba(204,136,255,0.15) 80%, transparent 100%)',
+          pointerEvents: 'none',
+        }} />
+        <HandPhasePanel onShowInfo={() => setShowInfo(true)} />
+        <CardHand />
+        <HandDemoPanel openPanel={openPanel} setOpenPanel={setOpenPanel} />
       </div>
-    </div>
+
+      {/* System Compromised flash */}
+      <SystemCompromisedBanner />
+
+      {/* Wesker stunned banner */}
+      <WeskerStunnedBanner />
+
+      {/* Tutorial */}
+      <AnimatePresence>
+        {tutorialOpen && (
+          <>
+            <HighlightOverlay highlight={TUTORIAL_STEPS[tutorialStep].highlight} />
+            <TutorialModal
+              step={tutorialStep}
+              onStepChange={setTutorialStep}
+              onClose={() => { setTutorialOpen(false); setTutorialStep(0); localStorage.setItem('cs_tutorial_done', '1'); }}
+            />
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Overlays */}
+      <BossIntroOverlay />
+      <PhaseClearOverlay />
+      <VictoryOverlay />
+      <GameOverOverlay />
+
+      {/* Info overlay */}
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setShowInfo(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 900,
+              background: 'rgba(2,1,8,0.82)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {/* Panel — stop click-through */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'relative',
+                width: 680, maxHeight: '82vh',
+                background: 'linear-gradient(160deg, #0c0720 0%, #080514 100%)',
+                border: '1px solid rgba(204,136,255,0.35)',
+                boxShadow: '0 0 60px rgba(160,80,255,0.2), 0 24px 80px rgba(0,0,0,0.8)',
+                borderRadius: 6,
+                display: 'flex', flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Header bar */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 22px',
+                borderBottom: '1px solid rgba(204,136,255,0.18)',
+                background: 'rgba(150,80,255,0.07)',
+                flexShrink: 0,
+              }}>
+                <div style={{
+                  fontFamily: 'var(--px-font)', fontSize: 9,
+                  color: '#ffd700', letterSpacing: 4,
+                  textShadow: '0 0 12px rgba(255,210,40,0.5)',
+                }}>
+                  ★ SIMULATION — FIELD GUIDE
+                </div>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  style={{
+                    fontFamily: 'var(--px-body-font)', fontWeight: 700,
+                    fontSize: 20, lineHeight: 1,
+                    color: 'rgba(200,180,255,0.6)',
+                    background: 'none', border: 'none',
+                    cursor: 'pointer', padding: '2px 6px',
+                    transition: 'color 0.1s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(200,180,255,0.6)'; }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Scrollable content */}
+              <div style={{
+                flex: 1, overflowY: 'auto', padding: '24px 28px',
+                fontFamily: 'var(--px-body-font)',
+              }}>
+
+                <Section title="WHAT IS SIMULATION MODE?">
+                  <p style={bodyText}>A poker-themed cybersecurity posture battle. You play as a security analyst using playing cards to defend against escalating threat scenarios. Each suit maps to a real cyber defense strategy.</p>
+                </Section>
+
+                <Section title="THE FOUR SUITS">
+                  <SuitRow color="#4da6ff"  sym="♠" name="SPADES — OFFENSIVE"  desc="Deal direct damage to the active threat. High-rank Spades cost mana." />
+                  <SuitRow color="#33dd77"  sym="♣" name="CLUBS — RESOURCE"   desc="Restore your mana pool. Always free to play. Fuel your bigger attacks." />
+                  <SuitRow color="#ff4455"  sym="♥" name="HEARTS — RESILIENCE" desc="Recover HP. Higher ranks restore more health." />
+                  <SuitRow color="#cc88ff"  sym="♦" name="DIAMONDS — HARDEN"  desc="Build armor stacks that absorb incoming damage. Costs mana." />
+                </Section>
+
+                <Section title="HOW TO WIN">
+                  <BulletList items={[
+                    'Reduce boss HP to zero before your own HP hits zero.',
+                    'Manage mana — Spades and Diamonds drain it fast.',
+                    'Use Clubs to refuel when low, then strike hard.',
+                    'The 🎩 Jackpot unlocks at Turn 13 — save it for the right moment.',
+                  ]} />
+                </Section>
+
+                <Section title="BOSS MECHANICS">
+                  <BossRow name="UNPATCHED VULNERABILITY" color="#33dd77"
+                    desc="Knowledge test. Only ♠ Spades deal damage. Any other suit triggers SYSTEM COMPROMISED — a penalty hit." />
+                  <BossRow name="WESKER" color="#ffd700"
+                    desc="Play 7× ♦ Diamonds to expose him. Once exposed, Spades deal 3× damage. 7-minute countdown active." />
+                  <BossRow name="AI ADAPTER" color="#4da6ff"
+                    desc="Immune to Spades entirely. The only way to defeat it is the 🎩 Jackpot ability." />
+                </Section>
+
+                <div style={{
+                  marginTop: 28, padding: '10px 14px',
+                  background: 'rgba(255,136,68,0.07)',
+                  borderLeft: '3px solid #ff8844',
+                  fontFamily: 'var(--px-body-font)', fontSize: 13,
+                  color: 'rgba(255,180,100,0.75)', lineHeight: 1.6,
+                }}>
+                  ⚠ This guide is a work in progress and will change as the simulation evolves.
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mission brief / threat intel / AI popups — rendered at root level so they stack above WeskerTimer */}
+      <AnimatePresence>
+        {openPanel === 'threat'  && <ThreatIntelPopup   onClose={() => setOpenPanel(null)} />}
+        {openPanel === 'ai'      && <AiAnalysisPopup    onClose={() => setOpenPanel(null)} />}
+        {openPanel === 'mission' && <MissionBriefPopup  onClose={() => setOpenPanel(null)} />}
+      </AnimatePresence>
+    </CampaignCtx.Provider>
+    </TutorialCtx.Provider>
   );
 }

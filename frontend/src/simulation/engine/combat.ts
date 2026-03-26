@@ -1,54 +1,256 @@
-import type { SimulationState, SimCard, SimLogEntry } from './types';
-import { applyClubCard, applyHeartCard, applyDiamondCard } from './resources';
+// ============================================================
+// simulation/engine/combat.ts
+// Card play resolution — maps each suit to its resource effect
+// and threat interaction. Pure functions, no React.
+// ============================================================
 
-function makeLog(text: string, severity: SimLogEntry['severity'], turn: number): SimLogEntry {
-  return { id: `log-${Date.now()}-${Math.random()}`, text, severity, turn };
+import type {
+  SimulationState,
+  SimCard,
+  CardPlayResult,
+  SimLogEntry,
+} from './types';
+import {
+  applySpadeCardCost,
+  applyClubCard,
+  applyHeartCard,
+  applyDiamondCard,
+} from './resources';
+import { applySpadeAttack } from './threats';
+import {
+  resolveSystemPatch,
+  resolveRootkit,
+  resolveAiAdapter,
+} from './specialThreats';
+
+export { resolveSystemPatch };   // re-export so useSimulation can inspect compromised flag
+
+function logId(state: SimulationState, suffix: string): string {
+  return `t${state.turn}-${suffix}-${Date.now()}`;
 }
 
-export function resolveCardPlay(state: SimulationState, card: SimCard): SimulationState {
-  let { resources, activeThreat, log, discardPile, hand, attackBlocked, extraTurnAvailable } = state;
+// ----------------------------
+// Primary card play resolver
+// Checks for special mechanics first, then dispatches by suit.
+// ----------------------------
 
-  if (!activeThreat) return state;
+export function resolveCardPlay(
+  state: SimulationState,
+  card: SimCard,
+): CardPlayResult {
+  const ts = new Date().toISOString();
+  const log: SimLogEntry[] = [];
+  const mechanic = state.activeThreat?.specialMechanic;
 
-  const newHand = hand.filter(c => c.id !== card.id);
-  const newDiscard = [...discardPile, card];
-  const newLog = [...log];
-
-  if (card.suit === 'spade') {
-    const damage = Math.round(card.power * (1 - activeThreat.evasion));
-    const newHp = Math.max(0, activeThreat.hp - damage);
-    newLog.push(makeLog(`▶ ${card.actionName} deals ${damage} damage to ${activeThreat.name}`, 'danger', state.turn));
-    activeThreat = { ...activeThreat, hp: newHp };
-    resources = { ...resources, mana: Math.max(0, resources.mana - card.manaCost) };
-  } else if (card.suit === 'club') {
-    resources = applyClubCard(resources, card);
-    newLog.push(makeLog(`▶ ${card.actionName} restores ${Math.round(card.power * 0.8)} mana`, 'info', state.turn));
-  } else if (card.suit === 'heart') {
-    resources = applyHeartCard(resources, card);
-    newLog.push(makeLog(`▶ ${card.actionName} restores ${Math.round(card.power * 1.5)} health`, 'success', state.turn));
-  } else if (card.suit === 'diamond') {
-    const result = applyDiamondCard(resources, card);
-    resources = result.resources;
-    attackBlocked = result.attackBlocked;
-    extraTurnAvailable = result.extraTurn;
-    newLog.push(makeLog(
-      `▶ ${card.actionName} adds ${Math.round(card.power / 4)} strength${result.extraTurn ? ' (EXTRA TURN!)' : ''}`,
-      'info',
-      state.turn
-    ));
+  // ── Special mechanics override normal resolution ────────
+  if (mechanic === 'system-patch') {
+    // resolveSystemPatch returns { compromised, cardPlayResult }
+    // The compromised flag is handled in useSimulation — here we just
+    // return the cardPlayResult; the caller checks compromised separately.
+    return resolveSystemPatch(state, card).cardPlayResult;
   }
 
-  const nextPhase = extraTurnAvailable ? 'choose' : 'enemy-respond';
+  if (mechanic === 'rootkit-trojan') {
+    return resolveRootkit(state, card);
+  }
+
+  if (mechanic === 'ai-adapter') {
+    return resolveAiAdapter(state, card);
+  }
+
+  // ── Normal suit dispatch ────────────────────────────────
+  switch (card.suit) {
+    case 'spades':
+      return resolveSpade(state, card, ts, log);
+    case 'clubs':
+      return resolveClub(state, card, ts, log);
+    case 'hearts':
+      return resolveHeart(state, card, ts, log);
+    case 'diamonds':
+      return resolveDiamond(state, card, ts, log);
+  }
+}
+
+// ----------------------------
+// Spades — Attack the threat
+// ----------------------------
+
+function resolveSpade(
+  state: SimulationState,
+  card: SimCard,
+  ts: string,
+  log: SimLogEntry[],
+): CardPlayResult {
+  if (state.resources.mana < card.manaCost) {
+    log.push({
+      id: logId(state, 'spade-fizzle'),
+      turn: state.turn,
+      phase: 'resolve',
+      timestamp: ts,
+      message: `[FIZZLE] Not enough mana to play ${card.label}. Need ${card.manaCost}, have ${state.resources.mana}.`,
+      severity: 'warning',
+    });
+    return {
+      updatedResources: state.resources,
+      updatedThreat: state.activeThreat,
+      logEntries: log,
+      extraTurn: false,
+    };
+  }
+
+  const updatedResources = applySpadeCardCost(state.resources, card);
+  const threat = state.activeThreat;
+
+  if (!threat) {
+    log.push({
+      id: logId(state, 'spade-no-target'),
+      turn: state.turn,
+      phase: 'resolve',
+      timestamp: ts,
+      message: `[ATTACK] ${card.label} played — no active threat to hit.`,
+      severity: 'info',
+    });
+    return { updatedResources, updatedThreat: null, logEntries: log, extraTurn: false };
+  }
+
+  const updatedThreat = applySpadeAttack(threat, card.power);
+  const dmgDealt = threat.hp - updatedThreat.hp;
+  const neutralized = updatedThreat.hp === 0;
+
+  log.push({
+    id: logId(state, 'spade'),
+    turn: state.turn,
+    phase: 'resolve',
+    timestamp: ts,
+    message: neutralized
+      ? `[NEUTRALIZED] ${card.label} destroyed ${threat.name}! Threat eliminated.`
+      : `[ATTACK] ${card.label} dealt ${dmgDealt} damage to ${threat.name}. ${updatedThreat.hp}/${threat.maxHp} HP remaining.`,
+    severity: neutralized ? 'success' : 'info',
+  });
 
   return {
-    ...state,
-    resources,
-    activeThreat,
-    hand: newHand,
-    discardPile: newDiscard,
-    log: newLog,
-    attackBlocked,
-    extraTurnAvailable: false,
-    phase: nextPhase,
+    updatedResources,
+    updatedThreat: neutralized ? null : updatedThreat,
+    logEntries: log,
+    extraTurn: false,
   };
+}
+
+// ----------------------------
+// Clubs — Mana Recovery
+// ----------------------------
+
+function resolveClub(
+  state: SimulationState,
+  card: SimCard,
+  ts: string,
+  log: SimLogEntry[],
+): CardPlayResult {
+  const updatedResources = applyClubCard(state.resources, card);
+  const gained = updatedResources.mana - state.resources.mana;
+
+  log.push({
+    id: logId(state, 'club'),
+    turn: state.turn,
+    phase: 'resolve',
+    timestamp: ts,
+    message: `[PATCH] ${card.label} restored ${gained} mana. Operational capacity: ${updatedResources.mana}/100.`,
+    severity: 'info',
+  });
+
+  return {
+    updatedResources,
+    updatedThreat: state.activeThreat,
+    logEntries: log,
+    extraTurn: false,
+  };
+}
+
+// ----------------------------
+// Hearts — Health Recovery
+// ----------------------------
+
+function resolveHeart(
+  state: SimulationState,
+  card: SimCard,
+  ts: string,
+  log: SimLogEntry[],
+): CardPlayResult {
+  const updatedResources = applyHeartCard(state.resources, card);
+  const healthGained = updatedResources.health - state.resources.health;
+  const manaGained   = updatedResources.mana   - state.resources.mana;
+
+  log.push({
+    id: logId(state, 'heart'),
+    turn: state.turn,
+    phase: 'resolve',
+    timestamp: ts,
+    message: `[RECOVERY] ${card.label} restored ${healthGained} HP (+${manaGained} mana). Health: ${updatedResources.health}/100.`,
+    severity: 'success',
+  });
+
+  return {
+    updatedResources,
+    updatedThreat: state.activeThreat,
+    logEntries: log,
+    extraTurn: false,
+  };
+}
+
+// ----------------------------
+// Diamonds — Reinforce
+// ----------------------------
+
+function resolveDiamond(
+  state: SimulationState,
+  card: SimCard,
+  ts: string,
+  log: SimLogEntry[],
+): CardPlayResult {
+  const { resources: updatedResources, roll } = applyDiamondCard(state.resources, card);
+
+  if (roll.strengthGained === 0 && !roll.blockedAttack && !roll.extraTurn) {
+    log.push({
+      id: logId(state, 'diamond-fizzle'),
+      turn: state.turn,
+      phase: 'resolve',
+      timestamp: ts,
+      message: `[FIZZLE] ${card.label} failed — insufficient mana (need ${card.manaCost}).`,
+      severity: 'warning',
+    });
+  } else {
+    const extras: string[] = [];
+    if (roll.blockedAttack) extras.push('NEXT ATTACK BLOCKED');
+    if (roll.extraTurn)     extras.push('EXTRA ACTION');
+    const suffix = extras.length ? ` ★ ${extras.join(' + ')}` : '';
+
+    log.push({
+      id: logId(state, 'diamond'),
+      turn: state.turn,
+      phase: 'resolve',
+      timestamp: ts,
+      message: `[REINFORCE] ${card.label} +${roll.strengthGained} strength. Defenses hardened.${suffix}`,
+      severity: roll.blockedAttack || roll.extraTurn ? 'success' : 'info',
+    });
+  }
+
+  return {
+    updatedResources,
+    updatedThreat: state.activeThreat,
+    logEntries: log,
+    diamondRoll: roll,
+    extraTurn: roll.extraTurn,
+  };
+}
+
+// ----------------------------
+// Win/loss condition checks
+// ----------------------------
+
+export function isDefeat(resources: { health: number }): boolean {
+  return resources.health <= 0;
+}
+
+export function isVictory(threat: { hp: number } | null): boolean {
+  return threat === null || threat.hp <= 0;
 }

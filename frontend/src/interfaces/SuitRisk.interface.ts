@@ -1,4 +1,4 @@
 export interface SuitRisk {
-  label: string;
-  severity: 'high' | 'medium' | 'low';
+  n: string;
+  lvl: string;
 }

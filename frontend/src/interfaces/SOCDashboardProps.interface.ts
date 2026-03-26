@@ -2,10 +2,9 @@ import type { AccountData } from './AccountData.interface';
 
 export interface SOCDashboardProps {
   onboarded: boolean;
-  onOnboarded: (ranks: Record<string, number>, profile: Record<string, unknown> | null, account: AccountData | null) => void;
+  onOnboarded: (initialRanks: Record<string, number>, orgProfile?: Record<string, unknown>, accountData?: AccountData) => void;
+  mode: 'soc' | 'simulation';
+  onModeChange: (mode: 'soc' | 'simulation') => void;
   orgProfile: Record<string, unknown> | null;
   accountData: AccountData | null;
-  initialRanks: Record<string, number>;
-  onModeChange: (mode: 'soc' | 'simulation') => void;
-  isTutorial: boolean;
 }

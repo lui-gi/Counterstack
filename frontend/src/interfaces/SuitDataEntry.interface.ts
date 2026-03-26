@@ -5,7 +5,7 @@ export interface SuitDataEntry {
   metrics: SuitMetric[];
   risks: SuitRisk[];
   capabilities: string[];
-  upgradePath: string[];
+  upgrade: string[];
   aiRecs: string[];
   baseScore: number;
 }

@@ -1,121 +1,186 @@
-import { XIcon } from './Icons';
+import { useState, useEffect } from 'react';
+import { SUITS, RANK_NAMES } from '../../data/gameData';
+import { analyzeMagicianReading } from '../../services/geminiPosture';
+import type { MagicianReadingProps } from '../../interfaces/MagicianReadingProps.interface';
 
-interface MagicianReadingProps {
+interface MagicianReadingResult {
   summary: string;
   strengths: string[];
   weaknesses: string[];
-  loading: boolean;
-  onClose: () => void;
-  onRequest: () => void;
-  hasOrgProfile: boolean;
 }
 
-export function MagicianReading({
-  summary,
-  strengths,
-  weaknesses,
-  loading,
-  onClose,
-  onRequest,
-  hasOrgProfile,
-}: MagicianReadingProps) {
-  return (
-    <div className="panel fade-in" style={{ borderColor: '#a78bfa33' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <div className="panel-header" style={{ color: '#a78bfa', marginBottom: 0 }}>
-          ✨ MAGICIAN'S READING
-        </div>
-        <button
-          onClick={onClose}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim)' }}
-        >
-          <XIcon size={12} />
-        </button>
-      </div>
+export default function MagicianReading({ orgProfile, ranks, accountData, posture, onClose }: MagicianReadingProps) {
+  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<MagicianReadingResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-      {loading ? (
-        <div
-          style={{
-            fontSize: 11,
-            color: '#a78bfa',
-            padding: '12px 0',
-            textAlign: 'center',
-          }}
-        >
-          ⟳ The Magician reads your posture...
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    analyzeMagicianReading(orgProfile, {
+      clover: ranks.clover,
+      spade: ranks.spade,
+      diamond: ranks.diamond,
+      heart: ranks.heart,
+    })
+      .then((data) => {
+        if (!mounted) return;
+        setResult(data);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : 'Analysis failed');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
+
+  const totalSections = Object.keys(orgProfile).length;
+
+  return (
+    <div className="modal-ov" onClick={onClose}>
+      <div
+        className="modal-box"
+        style={{ width: 680, maxWidth: '95vw' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="modal-h">
+          <div className="modal-t" style={{display:'flex',alignItems:'center',gap:6}}><img src="/magician-icon.png" style={{height:18,objectFit:'contain',flexShrink:0}} />🔮 MAGICIAN'S FULL READING</div>
+          <button className="modal-x" onClick={onClose}>✕</button>
         </div>
-      ) : !summary && hasOrgProfile ? (
-        <button
-          onClick={onRequest}
-          style={{
-            width: '100%',
-            background: '#a78bfa11',
-            border: '1px solid #a78bfa44',
-            color: '#a78bfa',
-            fontFamily: 'var(--fh)',
-            fontSize: 11,
-            padding: '8px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            letterSpacing: '0.08em',
-          }}
-        >
-          OPEN MAGICIAN'S READING
-        </button>
-      ) : !hasOrgProfile ? (
-        <div style={{ fontSize: 11, color: 'var(--dim)', fontStyle: 'italic' }}>
-          Connect org profile to unlock Magician's Reading
+
+        {/* Organization */}
+        <div className="modal-sect-t">Organization</div>
+        <div className="modal-grid">
+          {accountData?.orgName && (
+            <>
+              <span className="mc-l">Org</span>
+              <span className="mc-v">{accountData.orgName}</span>
+            </>
+          )}
+          {accountData?.industry && (
+            <>
+              <span className="mc-l">Industry</span>
+              <span className="mc-v">{accountData.industry}</span>
+            </>
+          )}
+          {accountData?.employeeCount && (
+            <>
+              <span className="mc-l">Size</span>
+              <span className="mc-v">{accountData.employeeCount}</span>
+            </>
+          )}
+          {accountData?.infraType && (
+            <>
+              <span className="mc-l">Infra</span>
+              <span className="mc-v">{accountData.infraType}</span>
+            </>
+          )}
+          <>
+            <span className="mc-l">Posture Hand</span>
+            <span className="mc-v" style={{ color: posture.royal ? 'var(--gold)' : 'var(--cyan)' }}>{posture.hand}</span>
+          </>
+          <>
+            <span className="mc-l">Score</span>
+            <span className="mc-v">{posture.score}/100</span>
+          </>
         </div>
-      ) : (
-        <div>
-          <p style={{ fontSize: 11, color: '#cdd9e5', marginBottom: 12, lineHeight: 1.6 }}>
-            {summary}
-          </p>
-          <div style={{ marginBottom: 8 }}>
-            <div
-              style={{
-                fontSize: 9,
-                color: '#39d353',
-                letterSpacing: '0.1em',
-                marginBottom: 4,
-              }}
-            >
-              STRENGTHS
+        <div style={{ fontSize: 12, color: 'var(--dim)', marginBottom: 4, marginTop: 4 }}>
+          {totalSections} profile sections loaded
+        </div>
+
+        {/* Domain Posture */}
+        <div className="modal-sect-t">Domain Posture</div>
+        {Object.entries(SUITS).map(([key, cfg]) => {
+          const rank = ranks[key] ?? 1;
+          const rankName = RANK_NAMES[rank] ?? String(rank);
+          const pct = Math.round((rank / 13) * 100);
+          return (
+            <div key={key} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ color: cfg.color, fontSize: 15 }}>{cfg.sym}</span>
+                <span style={{ fontFamily: 'var(--fm)', fontSize: 12, letterSpacing: 1, color: cfg.color }}>
+                  {cfg.name}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--dim)', marginLeft: 2 }}>{cfg.sub}</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--fm)', fontSize: 12, color: cfg.color }}>
+                  {rankName} · {rank}/13
+                </span>
+              </div>
+              <div className="ptrack">
+                <div
+                  className="pfill"
+                  style={{
+                    width: `${pct}%`,
+                    background: `linear-gradient(90deg, ${cfg.color}, ${cfg.color}88)`,
+                    boxShadow: `0 0 6px ${cfg.glow}`,
+                  }}
+                />
+              </div>
             </div>
-            {strengths.map((s, i) => (
-              <div key={i} style={{ fontSize: 10, padding: '3px 0', display: 'flex', gap: 6 }}>
-                <span style={{ color: '#39d353' }}>▸</span>
-                <span style={{ color: 'var(--dim)' }}>{s}</span>
+          );
+        })}
+
+        {/* Magician's Analysis */}
+        <div className="modal-sect-t" style={{display:'flex',alignItems:'center',gap:5}}><img src="/magician-icon.png" style={{height:14,objectFit:'contain',flexShrink:0}} />Magician's Analysis</div>
+
+        {loading && (
+          <div className="ai-scan">
+            <div className="ai-ldot" />
+            <span style={{display:'inline-flex',alignItems:'center',gap:4}}><img src="/magician-icon.png" style={{height:12,objectFit:'contain',flexShrink:0}} />THE MAGICIAN IS READING...</span>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div style={{ fontSize: 12, color: 'var(--dim)', fontStyle: 'italic' }}>
+            Analysis unavailable: {error}
+          </div>
+        )}
+
+        {!loading && result && (
+          <>
+            {/* Summary */}
+            <div style={{
+              background: 'rgba(0,212,255,.04)',
+              border: '1px solid rgba(0,212,255,.15)',
+              borderRadius: 6,
+              padding: '10px 12px',
+              marginBottom: 14,
+              display: 'flex',
+              gap: 8,
+              alignItems: 'flex-start',
+            }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>🔮</span>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
+                {result.summary}
+              </p>
+            </div>
+
+            {/* Strengths */}
+            <div className="mr-subsect-label" style={{ color: '#39d353' }}>▲ STRENGTHS</div>
+            {result.strengths.map((s, i) => (
+              <div key={i} className="mr-reading-item mr-strength">
+                <span className="mr-item-bullet" style={{ color: '#39d353' }}>✓</span>
+                {s}
               </div>
             ))}
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: 9,
-                color: '#f72585',
-                letterSpacing: '0.1em',
-                marginBottom: 4,
-              }}
-            >
-              WEAKNESSES
-            </div>
-            {weaknesses.map((w, i) => (
-              <div key={i} style={{ fontSize: 10, padding: '3px 0', display: 'flex', gap: 6 }}>
-                <span style={{ color: '#f72585' }}>▸</span>
-                <span style={{ color: 'var(--dim)' }}>{w}</span>
+
+            {/* Weaknesses */}
+            <div className="mr-subsect-label" style={{ color: 'var(--pink)', marginTop: 10 }}>▼ WEAKNESSES</div>
+            {result.weaknesses.map((w, i) => (
+              <div key={i} className="mr-reading-item mr-weakness">
+                <span className="mr-item-bullet" style={{ color: 'var(--pink)' }}>!</span>
+                {w}
               </div>
             ))}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,65 +1,52 @@
-import { HISTORY, SUITS } from '../data/gameData';
+import { SUITS, HISTORY } from '../data/gameData';
+import type { SuitConfig } from '../interfaces/SuitConfig.interface';
+import type { PostureChartProps } from '../interfaces/PostureChartProps.interface';
 
-interface PostureChartProps {
-  allRanks: Record<string, number>;
-}
+export default function PostureChart({ ranks, history, showPostureLine = true }: PostureChartProps) {
+  const W = 500, H = 96, pad = 8;
 
-export function PostureChart({ allRanks }: PostureChartProps) {
-  const width = 260;
-  const height = 60;
-  const padding = 8;
+  // Build series from dynamic history or static fallback
+  const series = (Object.entries(SUITS) as [string, SuitConfig][]).map(([k, cfg]) => {
+    let pts: number[];
 
-  function rankToY(rank: number): number {
-    return height - padding - ((rank - 1) / 12) * (height - padding * 2);
+    if (history && history.length > 0) {
+      pts = history.map(entry => entry.ranks[k]);
+      if (pts.length === 1) pts = [pts[0], pts[0]];
+    } else {
+      pts = [...HISTORY[k].slice(0, 11), ranks[k]];
+    }
+
+    return { color: cfg.color, pts };
+  });
+
+  // Build posture score line (normalized 0-100 to 1-13 scale)
+  let posturePts: number[] = [];
+  if (history && history.length > 0 && showPostureLine) {
+    posturePts = history.map(entry => 1 + (entry.postureScore / 100) * 12);
+    if (posturePts.length === 1) posturePts = [posturePts[0], posturePts[0]];
   }
 
-  function buildPath(history: number[], currentRank: number): string {
-    const points = [...history, currentRank];
-    const step = (width - padding * 2) / (points.length - 1);
-    return points
-      .map((r, i) => `${i === 0 ? 'M' : 'L'}${padding + i * step},${rankToY(r)}`)
-      .join(' ');
-  }
+  const toD = (pts: number[]) => pts.map((v, i) => {
+    const x = pad + (i / (pts.length - 1)) * (W - 2 * pad);
+    const y = pad + ((13 - v) / 12) * (H - 2 * pad);
+    return `${i === 0 ? "M" : "L"}${x},${y}`;
+  }).join(" ");
 
   return (
-    <div>
-      <div
-        style={{
-          fontSize: 9,
-          color: 'rgba(205,217,229,0.5)',
-          letterSpacing: '0.1em',
-          marginBottom: 4,
-        }}
-      >
-        POSTURE HISTORY
-      </div>
-      <svg width={width} height={height} style={{ overflow: 'visible' }}>
-        {Object.entries(SUITS).map(([key, cfg]) => (
-          <path
-            key={key}
-            d={buildPath(HISTORY[key] ?? [], allRanks[key] ?? 7)}
-            fill="none"
-            stroke={cfg.color}
-            strokeWidth="1.5"
-            opacity="0.7"
-          />
-        ))}
-        {/* Legend */}
-        {Object.entries(SUITS).map(([key, cfg], i) => (
-          <g key={key} transform={`translate(${i * 65}, ${height - 2})`}>
-            <line x1="0" y1="0" x2="12" y2="0" stroke={cfg.color} strokeWidth="2" />
-            <text
-              x="15"
-              y="4"
-              fill={cfg.color}
-              fontSize="7"
-              fontFamily="'JetBrains Mono'"
-            >
-              {cfg.sym}
-            </text>
-          </g>
-        ))}
-      </svg>
-    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H - 10 }} preserveAspectRatio="none">
+      {[0.25, 0.5, 0.75].map(p => (
+        <line key={p} x1={pad} y1={p * H} x2={W - pad} y2={p * H}
+          stroke="rgba(0,212,255,.05)" strokeWidth="1" />
+      ))}
+      {series.map(({ color, pts }) => (
+        <path key={color} d={toD(pts)} fill="none" stroke={color} strokeWidth="1.5"
+          strokeLinejoin="round" style={{ filter: `drop-shadow(0 0 3px ${color})` }} />
+      ))}
+      {showPostureLine && posturePts.length > 1 && (
+        <path d={toD(posturePts)} fill="none" stroke="#ffd700" strokeWidth="2"
+          strokeLinejoin="round" strokeDasharray="4,2"
+          style={{ filter: 'drop-shadow(0 0 4px #ffd700)' }} />
+      )}
+    </svg>
   );
 }

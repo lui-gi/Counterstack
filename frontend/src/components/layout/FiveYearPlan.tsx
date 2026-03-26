@@ -1,124 +1,122 @@
-import { useState } from 'react';
-import { XIcon } from './Icons';
+import { useState, useEffect } from 'react';
 import { analyzeFiveYearPlan } from '../../services/geminiPosture';
+import type { AccountData } from '../../interfaces';
 
 interface FiveYearPlanProps {
   ranks: Record<string, number>;
   targetRanks: Record<string, number>;
-  currentHand: string;
+  posture: { hand: string; score: number };
   targetHand: string;
-  currentScore: number;
   targetScore: number;
-  orgName?: string;
-  industry?: string;
+  accountData?: AccountData | null;
   onClose: () => void;
 }
 
-export function FiveYearPlan({
-  ranks,
-  targetRanks,
-  currentHand,
-  targetHand,
-  currentScore,
-  targetScore,
-  orgName,
-  industry,
-  onClose,
-}: FiveYearPlanProps) {
-  const [timeline, setTimeline] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+export default function FiveYearPlan({ ranks, targetRanks, posture, targetHand, targetScore, accountData, onClose }: FiveYearPlanProps) {
+  const [loading, setLoading] = useState(true);
+  const [timeline, setTimeline] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const result = await analyzeFiveYearPlan({
-        ranks,
-        targetRanks,
-        currentHand,
-        targetHand,
-        currentScore,
-        targetScore,
-        orgName,
-        industry,
+  useEffect(() => {
+    let mounted = true;
+
+    analyzeFiveYearPlan({
+      ranks,
+      targetRanks,
+      currentHand: posture.hand,
+      targetHand,
+      currentScore: posture.score,
+      targetScore,
+      orgName: accountData?.orgName,
+      industry: accountData?.industry,
+    })
+      .then((data) => {
+        if (!mounted) return;
+        setTimeline(data.timeline);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : 'Analysis failed');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
-      setTimeline(result.timeline);
-    } catch {
-      setTimeline('Failed to generate roadmap. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    return () => { mounted = false; };
+  }, []);
 
   return (
-    <div className="panel fade-in" style={{ borderColor: '#ffd70033' }}>
+    <div className="modal-ov" onClick={onClose}>
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
+        className="modal-box"
+        style={{ width: 720, maxWidth: '95vw' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="panel-header" style={{ color: '#ffd700', marginBottom: 0 }}>
-          📅 5-YEAR SECURITY ROADMAP
+        {/* Header */}
+        <div className="modal-h">
+          <div className="modal-t">🗺 5-YEAR ROADMAP</div>
+          <button className="modal-x" onClick={onClose}>✕</button>
         </div>
-        <button
-          onClick={onClose}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim)' }}
-        >
-          <XIcon size={12} />
-        </button>
-      </div>
 
-      <div style={{ fontSize: 10, color: 'var(--dim)', marginBottom: 12 }}>
-        <span style={{ color: '#ffd700' }}>{currentHand}</span>
-        {' → '}
-        <span style={{ color: '#39d353' }}>{targetHand}</span>
-        {'  '}({currentScore} → {targetScore} pts)
-      </div>
-
-      {!timeline && !loading && (
-        <button
-          onClick={generate}
-          style={{
-            width: '100%',
-            background: '#ffd70011',
-            border: '1px solid #ffd70033',
-            color: '#ffd700',
-            fontFamily: 'var(--fh)',
-            fontSize: 11,
-            padding: '8px',
-            borderRadius: 6,
-            cursor: 'pointer',
-            letterSpacing: '0.08em',
-          }}
-        >
-          GENERATE ROADMAP
-        </button>
-      )}
-
-      {loading && (
-        <div
-          style={{ fontSize: 11, color: '#ffd700', textAlign: 'center', padding: '12px 0' }}
-        >
-          ⟳ Generating roadmap...
+        {/* Summary row */}
+        <div style={{
+          display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+          marginBottom: 14, padding: '8px 10px',
+          background: 'rgba(0,212,255,.04)', border: '1px solid rgba(0,212,255,.12)',
+          borderRadius: 6, fontSize: 12, fontFamily: 'var(--fm)',
+        }}>
+          {accountData?.orgName && (
+            <span style={{ color: 'var(--text)' }}><span style={{ color: 'var(--dim)' }}>ORG</span> {accountData.orgName}</span>
+          )}
+          <span style={{ color: 'var(--text)' }}>
+            <span style={{ color: 'var(--dim)' }}>FROM</span>{' '}
+            <span style={{ color: 'var(--cyan)' }}>{posture.hand}</span>{' '}
+            <span style={{ color: 'var(--dim)' }}>({posture.score}/100)</span>
+          </span>
+          <span style={{ color: 'var(--dim)' }}>→</span>
+          <span style={{ color: 'var(--text)' }}>
+            <span style={{ color: 'var(--dim)' }}>TO</span>{' '}
+            <span style={{ color: '#39d353' }}>{targetHand}</span>{' '}
+            <span style={{ color: 'var(--dim)' }}>({targetScore}/100)</span>
+          </span>
         </div>
-      )}
 
-      {timeline && (
-        <pre
-          style={{
-            fontSize: 10,
-            color: '#cdd9e5',
-            fontFamily: 'var(--fm)',
-            whiteSpace: 'pre-wrap',
-            lineHeight: 1.6,
-            margin: 0,
-          }}
-        >
-          {timeline}
-        </pre>
-      )}
+        {/* Loading */}
+        {loading && (
+          <div className="ai-scan">
+            <div className="ai-ldot" />
+            THE MAGICIAN IS DRAWING YOUR FUTURE...
+          </div>
+        )}
+
+        {/* Error */}
+        {!loading && error && (
+          <div style={{ fontSize: 12, color: 'var(--dim)', fontStyle: 'italic' }}>
+            Analysis unavailable: {error}
+          </div>
+        )}
+
+        {/* Timeline */}
+        {!loading && timeline && (
+          <div style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+            <pre style={{
+              fontFamily: 'var(--fm)',
+              fontSize: 12,
+              lineHeight: 1.7,
+              whiteSpace: 'pre',
+              overflowX: 'auto',
+              color: 'var(--text)',
+              background: 'rgba(0,212,255,.03)',
+              border: '1px solid rgba(0,212,255,.12)',
+              borderRadius: 6,
+              padding: '12px 14px',
+              margin: 0,
+            }}>
+              {timeline}
+            </pre>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,877 @@
+/* ============================================================
+   pixel.css — 8-bit pixel style design system
+   Used exclusively by the Simulation / Tabletop UI layer.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600&display=swap');
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --px-font:      'Press Start 2P', monospace;
+  --px-body-font: 'Rajdhani', sans-serif;
+
+  --px-bg:      #080810;
+  --px-panel:   #0d0d1a;
+  --px-panel2:  #12122a;
+
+  /* Suit colors (bright, flat, 8-bit) */
+  --px-spades:   #4da6ff;
+  --px-clubs:    #33dd77;
+  --px-hearts:   #ff4455;
+  --px-diamonds: #cc88ff;
+
+  /* Resource bar colors */
+  --px-hp:       #22ee44;
+  --px-mana:     #3388ff;
+  --px-shield:   #ffdd00;
+
+  /* Enemy HP */
+  --px-enemy-hp:  #ff2233;
+  --px-enemy-bg:  #220000;
+
+  /* UI chrome */
+  --px-border:    #2a2a4a;
+  --px-shadow:    4px 4px 0px #000;
+  --px-white:     #ffffff;
+  --px-dim:       #556677;
+  --px-warn:      #ffaa00;
+  --px-critical:  #ff2233;
+  --px-success:   #22ee44;
+}
+
+/* ── Global pixel resets for simulation layer ──────────────── */
+.px-root * {
+  font-family: var(--px-font);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  text-rendering: optimizeSpeed;
+}
+
+/* ── Pixel border box ──────────────────────────────────────── */
+.px-box {
+  border: 3px solid var(--px-border);
+  box-shadow: var(--px-shadow);
+}
+
+.px-box-spades   { border-color: var(--px-spades);   box-shadow: 4px 4px 0 #001833; }
+.px-box-clubs    { border-color: var(--px-clubs);    box-shadow: 4px 4px 0 #001a0a; }
+.px-box-hearts   { border-color: var(--px-hearts);   box-shadow: 4px 4px 0 #1a0003; }
+.px-box-diamonds { border-color: var(--px-diamonds); box-shadow: 4px 4px 0 #110022; }
+
+/* ── Pixel button ──────────────────────────────────────────── */
+.px-btn {
+  font-family: var(--px-font);
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 3px solid var(--px-border);
+  background: var(--px-panel2);
+  color: var(--px-white);
+  cursor: pointer;
+  padding: 8px 14px;
+  box-shadow: 3px 3px 0 #000;
+  transition: transform 0.05s, box-shadow 0.05s;
+  border-radius: 0;
+}
+
+.px-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #000;
+}
+
+.px-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.px-btn-red {
+  border-color: var(--px-hearts);
+  color: var(--px-hearts);
+  box-shadow: 3px 3px 0 #1a0003;
+}
+
+.px-btn-green {
+  border-color: var(--px-clubs);
+  color: var(--px-clubs);
+  box-shadow: 3px 3px 0 #001a0a;
+}
+
+/* ── Segmented resource bar ────────────────────────────────── */
+.px-bar {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.px-seg {
+  width: 11px;
+  height: 20px;
+  border: 2px solid rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.px-seg-hp     { background: var(--px-hp);     }
+.px-seg-mana   { background: var(--px-mana);   }
+.px-seg-shield { background: var(--px-shield); }
+.px-seg-enemy  { background: var(--px-enemy-hp); }
+.px-seg-off    { background: rgba(255,255,255,0.07); }
+
+/* ── Enemy HP bar — wider segments, full width ─────────────── */
+.px-enemy-bar {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
+.px-enemy-seg {
+  flex: 1;
+  height: 24px;
+  border: 2px solid rgba(0, 0, 0, 0.7);
+}
+
+/* ── Card base ─────────────────────────────────────────────── */
+.px-card {
+  width: 144px;
+  height: 210px;
+  background: var(--px-panel);
+  border: 4px solid var(--px-border);
+  box-shadow: 5px 5px 0 #000;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 8px;
+  transition: transform 0.06s, box-shadow 0.06s;
+  border-radius: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.px-card:hover:not(.px-card-disabled) {
+  transform: translate(-3px, -8px);
+  box-shadow: 8px 13px 0 #000;
+}
+
+.px-card:active:not(.px-card-disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 3px 3px 0 #000;
+}
+
+.px-card-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+}
+
+.px-card-spades   { border-color: var(--px-spades);   box-shadow: 5px 5px 0 #001833; }
+.px-card-clubs    { border-color: var(--px-clubs);    box-shadow: 5px 5px 0 #001a0a; }
+.px-card-hearts   { border-color: var(--px-hearts);   box-shadow: 5px 5px 0 #1a0003; }
+.px-card-diamonds { border-color: var(--px-diamonds); box-shadow: 5px 5px 0 #110022; }
+
+/* ── Card rank text ────────────────────────────────────────── */
+.px-card-rank {
+  font-family: var(--px-font);
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: -1px;
+}
+
+.px-card-symbol {
+  font-size: 52px;
+  line-height: 1;
+  text-align: center;
+}
+
+.px-card-corner {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-family: var(--px-font);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.px-card-corner-br {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  transform: rotate(180deg);
+  font-family: var(--px-font);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.px-card-label {
+  font-family: var(--px-body-font);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  line-height: 1.4;
+  opacity: 0.8;
+  padding: 0 4px;
+  word-break: break-word;
+}
+
+.px-card-mana-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: var(--px-font);
+  font-size: 7px;
+  border: 2px solid var(--px-mana);
+  color: var(--px-mana);
+  padding: 2px 4px;
+  background: rgba(0, 0, 30, 0.8);
+  box-shadow: 2px 2px 0 #000;
+}
+
+/* ── Threat display ────────────────────────────────────────── */
+.px-threat-name {
+  font-family: var(--px-font);
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.px-threat-sprite {
+  font-size: 96px;
+  line-height: 1;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 0 transparent);
+}
+
+.px-tag {
+  font-family: var(--px-font);
+  font-size: 6px;
+  border: 2px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.5);
+  padding: 3px 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.px-tag-boss {
+  border-color: var(--px-warn);
+  color: var(--px-warn);
+}
+
+.px-behavior-tag {
+  font-family: var(--px-font);
+  font-size: 7px;
+  border: 3px solid;
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 3px 3px 0 #000;
+}
+
+/* ── Resource row ──────────────────────────────────────────── */
+.px-resource-label {
+  font-family: var(--px-font);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+/* ── Flicker / scanlines ───────────────────────────────────── */
+.px-scanlines {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.08) 3px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  z-index: 100;
+}
+
+/* ── Terminal overlay (compromised / defeat) ───────────────── */
+.px-terminal {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 0, 0, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.px-terminal-text {
+  font-family: var(--px-font);
+  font-size: 24px;
+  color: var(--px-critical);
+  text-align: center;
+  line-height: 2;
+  letter-spacing: 2px;
+  animation: px-blink 0.8s step-start infinite;
+}
+
+.px-terminal-sub {
+  font-family: var(--px-font);
+  font-size: 9px;
+  color: rgba(255, 34, 51, 0.6);
+  text-align: center;
+  margin-top: 24px;
+  line-height: 2.5;
+  letter-spacing: 2px;
+}
+
+/* ── Phase banner ──────────────────────────────────────────── */
+.px-phase-banner {
+  font-family: var(--px-font);
+  font-size: 7px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+}
+
+/* ── Jackpot hat button ────────────────────────────────────── */
+.px-hat {
+  font-size: 42px;
+  cursor: default;
+  opacity: 0.4;
+  transition: all 0.1s;
+}
+
+.px-hat-ready {
+  opacity: 1;
+  cursor: pointer;
+  animation: px-hat-pulse 1s step-start infinite;
+  filter: drop-shadow(0 0 12px #aa44ff);
+}
+
+.px-hat-ready:hover {
+  transform: scale(1.15) translateY(-4px);
+}
+
+/* ── Rainbow hue-rotate for AI Adapter adapting ──────────── */
+@keyframes rainbowHue {
+  0%   { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(0deg); }
+  16%  { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(60deg); }
+  33%  { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(120deg); }
+  50%  { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(180deg); }
+  66%  { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(240deg); }
+  83%  { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(300deg); }
+  100% { filter: brightness(1.6) saturate(4) contrast(1.2) hue-rotate(360deg); }
+}
+
+/* ── Pixel animations ──────────────────────────────────────── */
+@keyframes px-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes px-hat-pulse {
+  0%        { filter: drop-shadow(0 0 6px #aa44ff);  }
+  50%       { filter: drop-shadow(0 0 18px #cc66ff) drop-shadow(0 0 32px #8800ff); }
+  100%      { filter: drop-shadow(0 0 6px #aa44ff);  }
+}
+
+@keyframes px-damage-flash {
+  0%   { background-color: rgba(255, 34, 51, 0.4); }
+  100% { background-color: transparent; }
+}
+
+@keyframes px-heal-flash {
+  0%   { background-color: rgba(34, 238, 68, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes px-float {
+  0%, 100% { transform: translateY(0px);  }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes px-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+/* ── Magician sprite animations ───────────────────────────── */
+
+/*
+ * 4-frame idle bob at ~4 fps via steps(4, end) on 1.6s.
+ * Each frame holds exactly 400ms — pixel-perfect snap, zero interpolation.
+ *
+ * Frame map (translateY):
+ *   Frame 1 ( 0%)  → Y =  0px  (neutral)
+ *   Frame 2 (25%)  → Y = -2px  (rise)
+ *   Frame 3 (50%)  → Y = -4px  (peak)
+ *   Frame 4 (75%)  → Y = -2px  (fall)
+ */
+@keyframes mg-idle-bob {
+  0%   { transform: translateY(0px); }
+  25%  { transform: translateY(-2px); }
+  50%  { transform: translateY(-4px); }
+  75%  { transform: translateY(-2px); }
+  100% { transform: translateY(0px); }
+}
+
+.mg-idle {
+  animation: mg-idle-bob 1.6s steps(4, end) infinite;
+  transform-origin: bottom center;
+}
+
+/* Eye-glow blink — snaps off for 1 frame every ~3 s */
+@keyframes mg-eye-blink {
+  0%, 88%  { opacity: 1; }
+  90%, 93% { opacity: 0; }
+  95%, 100%{ opacity: 1; }
+}
+
+.mg-eyes {
+  animation: mg-eye-blink 3.2s steps(1, end) infinite;
+}
+
+/* Wand-tip sparkle — flickers on/off every 0.8 s */
+@keyframes mg-sparkle {
+  0%, 49%  { opacity: 1; }
+  50%, 100%{ opacity: 0; }
+}
+
+.mg-sparkle {
+  animation: mg-sparkle 0.8s steps(1, end) infinite;
+}
+
+/* Robe hem flap — 2px offset alternating every 0.8 s */
+@keyframes mg-hem-flap {
+  0%, 49%  { transform: translateX(0); }
+  50%, 100%{ transform: translateX(2px); }
+}
+
+.mg-hem {
+  animation: mg-hem-flap 0.8s steps(1, end) infinite;
+}
+
+/* ── Rootkit progress bar ──────────────────────────────────── */
+.px-rootkit-progress {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.px-rootkit-seg {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+
+.px-rootkit-seg-done    { background: var(--px-diamonds); box-shadow: 2px 2px 0 #000; }
+.px-rootkit-seg-pending { background: rgba(255,255,255,0.05); }
+
+/* ── Boss intro dialogue ───────────────────────────────────── */
+
+/*
+ * Dialogue bubble that slides up from below the sprite when a
+ * boss threat first appears.  Typewriter text is rendered inside.
+ */
+@keyframes px-dialogue-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.px-dialogue-box {
+  font-family:     var(--px-font);
+  font-size:       7px;
+  line-height:     2;
+  letter-spacing:  2px;
+  text-align:      center;
+  padding:         10px 18px;
+  border:          2px solid var(--px-warn);
+  background:      rgba(4, 4, 8, 0.92);
+  box-shadow:      4px 4px 0 #000, 0 0 12px rgba(255,170,0,0.25);
+  max-width:       320px;
+  color:           var(--px-warn);
+  animation:       px-dialogue-in 0.2s steps(1, end) forwards;
+  position:        relative;
+}
+
+/* Corner pip markers — retro speech-bubble feel */
+.px-dialogue-box::before,
+.px-dialogue-box::after {
+  content:    '';
+  position:   absolute;
+  width:      6px;
+  height:     6px;
+  background: var(--px-warn);
+}
+.px-dialogue-box::before { top: -3px;    left: -3px; }
+.px-dialogue-box::after  { bottom: -3px; right: -3px; }
+
+/* Blinking cursor at the end of typewriter text */
+.px-dialogue-cursor {
+  display:          inline-block;
+  width:            6px;
+  height:           10px;
+  background:       var(--px-warn);
+  margin-left:      2px;
+  vertical-align:   middle;
+  animation:        px-blink 0.6s step-start infinite;
+}
+
+/* Colour variants for different boss types */
+.px-dialogue-box.rootkit {
+  border-color: var(--px-diamonds);
+  color:        var(--px-diamonds);
+  box-shadow:   4px 4px 0 #000, 0 0 12px rgba(204,136,255,0.3);
+}
+.px-dialogue-box.rootkit::before,
+.px-dialogue-box.rootkit::after { background: var(--px-diamonds); }
+
+.px-dialogue-box.ai-adapter {
+  border-color: var(--px-spades);
+  color:        var(--px-spades);
+  box-shadow:   4px 4px 0 #000, 0 0 16px rgba(77,166,255,0.35);
+}
+.px-dialogue-box.ai-adapter::before,
+.px-dialogue-box.ai-adapter::after { background: var(--px-spades); }
+
+/* ── PNG sprite overrides inside .px-root ─────────────────── */
+
+/*
+ * Force stepped (pixel-perfect) timing on SpriteAnimator idle
+ * when rendered inside the simulation table.
+ * attack / damage are already one-shot forward-fill — leave as is.
+ */
+.px-root .sprite-idle {
+  animation-timing-function: steps(4, end) !important;
+}
+
+/* Screen-flash when phase becomes 'compromised' */
+@keyframes px-compromise-flash {
+  0%,  100% { background: transparent; }
+  10%, 30%  { background: rgba(239, 68, 68, 0.18); }
+  20%       { background: rgba(239, 68, 68, 0.35); }
+}
+
+.px-compromise-flash {
+  animation: px-compromise-flash 0.7s steps(1, end) forwards;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════
+   CASINO / FINAL FANTASY BATTLE THEME
+   ══════════════════════════════════════════════════ */
+
+:root {
+  --px-felt:         #082b12;   /* dark casino green */
+  --px-felt-bright:  #0a3b18;   /* table surface */
+  --px-felt-dim:     #051a0b;   /* felt shadow */
+  --px-gold:         #c9a227;
+  --px-gold-dim:     rgba(201,162,39,0.25);
+  --px-divider:      rgba(201,162,39,0.22);
+  --px-panel-ff:     rgba(0, 8, 4, 0.80);
+}
+
+/* ── Casino felt background ────────────────────────────── */
+.px-casino-bg {
+  background-color: var(--px-felt);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 1px,
+      transparent 1px, transparent 10px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(0,0,0,0.04) 0, rgba(0,0,0,0.04) 1px,
+      transparent 1px, transparent 10px
+    );
+}
+
+/* ── Gold divider lines ────────────────────────────────── */
+.px-divider-h {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--px-gold-dim) 20%, var(--px-gold) 50%, var(--px-gold-dim) 80%, transparent);
+  flex-shrink: 0;
+}
+
+.px-divider-v {
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--px-gold-dim) 10%, var(--px-gold) 50%, var(--px-gold-dim) 90%, transparent);
+  flex-shrink: 0;
+}
+
+/* ── Panel (FF-style dark overlay on felt) ─────────────── */
+.px-ff-panel {
+  background: var(--px-panel-ff);
+  border: 1px solid var(--px-divider);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+}
+
+/* ── Top strip card (deal row) ─────────────────────────── */
+.px-strip-card {
+  width: 44px;
+  height: 62px;
+  border: 2px solid var(--px-border);
+  background: var(--px-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--px-font);
+  flex-shrink: 0;
+  box-shadow: 3px 3px 0 #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.px-strip-card-sym  { font-size: 18px; line-height: 1; }
+.px-strip-card-rank { font-size: 7px;  line-height: 1; opacity: 0.7; }
+
+/* ── D-pad card (compact playable card) ────────────────── */
+.px-dpad-card {
+  width: 84px;
+  height: 116px;
+  background: var(--px-panel);
+  border: 3px solid var(--px-border);
+  box-shadow: 4px 4px 0 #000;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
+  flex-shrink: 0;
+  transition: transform 0.06s, box-shadow 0.06s;
+  overflow: hidden;
+}
+
+.px-dpad-card:hover:not(.px-card-disabled) {
+  transform: translate(-2px, -4px);
+  box-shadow: 6px 8px 0 #000;
+}
+.px-dpad-card:active:not(.px-card-disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.px-dpad-card-spades   { border-color: var(--px-spades);   box-shadow: 4px 4px 0 #001833; }
+.px-dpad-card-clubs    { border-color: var(--px-clubs);    box-shadow: 4px 4px 0 #001a0a; }
+.px-dpad-card-hearts   { border-color: var(--px-hearts);   box-shadow: 4px 4px 0 #1a0003; }
+.px-dpad-card-diamonds { border-color: var(--px-diamonds); box-shadow: 4px 4px 0 #110022; }
+
+.px-dpad-sym   { font-size: 28px; line-height: 1; }
+.px-dpad-rank  { font-family: var(--px-font); font-size: 10px; line-height: 1; }
+.px-dpad-role  { font-family: var(--px-body-font); font-weight: 500; font-size: 12px; letter-spacing: 1.5px; opacity: 0.75; text-align: center; }
+
+/* D-pad center cell */
+.px-dpad-center {
+  width: 72px;
+  height: 72px;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid var(--px-divider);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--px-font);
+}
+
+/* ── Prompt panel (TL) ─────────────────────────────────── */
+.px-prompt-phase {
+  font-family: var(--px-font);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--px-white);
+  margin-bottom: 4px;
+}
+
+.px-prompt-warn {
+  font-family: var(--px-font);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--px-warn);
+  line-height: 1.8;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--px-warn);
+  padding-left: 8px;
+}
+
+.px-log-entry {
+  font-family: var(--px-body-font);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* btn-cyan variant used by intro */
+.px-btn-cyan {
+  border-color: var(--px-spades);
+  color: var(--px-spades);
+  box-shadow: 3px 3px 0 #001833;
+}
+
+/* ══════════════════════════════════════════════════
+   CIRCUS TENT + CASINO ENVIRONMENT
+   ══════════════════════════════════════════════════ */
+
+/* Circus tent stripe banner — fixed at viewport top */
+.px-circus-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    #cc0000 0px,  #cc0000 24px,
+    #ffd700 24px, #ffd700 48px
+  );
+  box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+}
+
+/* ── Horizontal hand cards ──────────────────────── */
+.px-hand-card {
+  width: 108px;
+  height: 156px;
+  background: linear-gradient(160deg, rgba(10,5,22,0.97) 0%, rgba(5,3,14,0.99) 100%);
+  border: 2px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 8px 8px;
+  cursor: pointer;
+  font-family: var(--px-font);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.px-hand-card-spades   { border-color: rgba(77,166,255,0.38);  }
+.px-hand-card-clubs    { border-color: rgba(51,221,119,0.38);  }
+.px-hand-card-hearts   { border-color: rgba(255,68,85,0.38);   }
+.px-hand-card-diamonds { border-color: rgba(204,136,255,0.38); }
+
+.px-hand-sym {
+  font-family: var(--px-font);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.px-hand-rank {
+  font-family: var(--px-font);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.px-hand-action {
+  font-family: var(--px-body-font);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 1px;
+  line-height: 1.5;
+  max-width: 92px;
+  text-transform: uppercase;
+}
+
+.px-hand-label {
+  font-family: var(--px-body-font);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+/* ── Action confirmation panel ──────────────────── */
+.px-action-confirm {
+  background: rgba(3, 1, 10, 0.97);
+  border: 2px solid var(--px-gold);
+  padding: 14px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 0 32px rgba(201,162,39,0.38), 5px 5px 0 #000;
+  min-width: 230px;
+  max-width: 270px;
+}
+
+.px-action-confirm-header {
+  font-family: var(--px-font);
+  font-size: 5px;
+  letter-spacing: 3px;
+  color: rgba(201,162,39,0.55);
+  text-transform: uppercase;
+}
+
+.px-action-confirm-card {
+  font-family: var(--px-font);
+  font-size: 22px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 14px currentColor;
+}
+
+.px-action-confirm-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201,162,39,0.4), transparent);
+  margin: 2px 0;
+}
+
+.px-action-confirm-label {
+  font-family: var(--px-font);
+  font-size: 5px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.24);
+  text-transform: uppercase;
+}
+
+.px-action-confirm-name {
+  font-family: var(--px-font);
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-align: center;
+  line-height: 1.9;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.px-action-confirm-cost {
+  font-family: var(--px-font);
+  font-size: 6px;
+  color: var(--px-mana);
+  letter-spacing: 2px;
+}
+
+/* Execute button — suit color injected via style prop */
+.px-btn-execute {
+  margin-top: 6px;
+  font-size: 8px !important;
+  padding: 9px 24px !important;
+  letter-spacing: 2px;
+  background: rgba(255,255,255,0.03) !important;
+  transition: background 0.1s, box-shadow 0.1s !important;
+}
+
+.px-btn-execute:hover {
+  background: rgba(255,255,255,0.09) !important;
+}

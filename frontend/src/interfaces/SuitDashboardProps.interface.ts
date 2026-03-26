@@ -1,13 +1,10 @@
 import type { SuitConfig } from './SuitConfig.interface';
 
-export interface AiAnalysis {
+export interface SuitAnalysisCache {
+  recommendations: string[];
+  reasoning: string;
   loading: boolean;
-  recommendations?: string[];
-  reasoning?: string;
 }
-
-/** Per-suit AI analysis cache used by SOCDashboard */
-export type SuitAnalysisCache = Record<string, AiAnalysis>;
 
 export interface SuitDashboardProps {
   suitKey: string;
@@ -15,7 +12,7 @@ export interface SuitDashboardProps {
   rank: number;
   onClose: () => void;
   allRanks: Record<string, number>;
-  aiAnalysis?: AiAnalysis | null;
-  onRequestAnalysis: () => void;
-  hasOrgProfile: boolean;
+  aiAnalysis?: SuitAnalysisCache | null;
+  onRequestAnalysis?: () => void;
+  hasOrgProfile?: boolean;
 }

@@ -1,6 +1,6 @@
 export interface SuitMetric {
-  key: string;
-  value: string;
-  rawPct: number;
-  trend: 'up' | 'down' | 'flat';
+  k: string;
+  v: string;
+  raw: number;
+  trend: number;
 }

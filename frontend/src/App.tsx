@@ -1,60 +1,52 @@
 import { useState } from 'react';
-import { SOCDashboard } from './pages/SOCDashboard';
-import { SimulationMode } from './app/SimulationMode';
-import type { AccountData } from './interfaces/AccountData.interface';
-import { INIT_RANKS } from './data/gameData';
-
-type AppMode = 'soc' | 'simulation';
+import SOCDashboard from './pages/SOCDashboard';
+import SimulationMode from './app/SimulationMode';
+import type { AccountData } from './interfaces';
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(false);
-  const [mode, setMode] = useState<AppMode>('soc');
+  const [mode, setMode] = useState<'soc' | 'simulation'>('soc');
   const [orgProfile, setOrgProfile] = useState<Record<string, unknown> | null>(null);
   const [accountData, setAccountData] = useState<AccountData | null>(null);
-  const [socRanks, setSocRanks] = useState<Record<string, number>>(INIT_RANKS);
+  const [socRanks, setSocRanks] = useState<Record<string, number>>({});
   const [isTutorial, setIsTutorial] = useState(false);
 
   const handleOnboarded = (
-    ranks: Record<string, number>,
-    profile: Record<string, unknown> | null,
-    account: AccountData | null
+    initialRanks: Record<string, number>,
+    profile?: Record<string, unknown>,
+    account?: AccountData,
+    tutorial?: boolean
   ) => {
-    setSocRanks(ranks);
-    setOrgProfile(profile);
-    setAccountData(account);
     setOnboarded(true);
-
-    // Guest mode → go straight to simulation with tutorial
-    if (!account) {
-      setMode('simulation');
-      setIsTutorial(true);
+    setSocRanks(initialRanks);
+    if (profile) setOrgProfile(profile);
+    if (tutorial) setIsTutorial(true);
+    if (account) {
+      setAccountData(account);
     } else {
-      setMode('soc');
+      setMode('simulation');
     }
   };
 
-  const handleModeChange = (newMode: AppMode) => {
-    setMode(newMode);
-  };
-
-  if (mode === 'simulation' && onboarded) {
+  if (!onboarded || mode === 'soc') {
     return (
-      <SimulationMode
-        initialRanks={socRanks}
-        isTutorial={isTutorial}
-        onModeChange={handleModeChange}
+      <SOCDashboard
+        onboarded={onboarded}
+        onOnboarded={handleOnboarded}
+        mode={mode}
+        onModeChange={setMode}
+        orgProfile={orgProfile}
+        accountData={accountData}
       />
     );
   }
 
   return (
-    <SOCDashboard
-      onboarded={onboarded}
-      onOnboarded={handleOnboarded}
-      orgProfile={orgProfile}
-      accountData={accountData}
+    <SimulationMode
+      mode={mode}
+      onModeChange={setMode}
       initialRanks={socRanks}
-      onModeChange={handleModeChange}
+      isGuest={!accountData}
       isTutorial={isTutorial}
     />
   );

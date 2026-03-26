@@ -1,49 +1,30 @@
-import { CardArt } from './CardArt';
-import type { SuitConfig } from '../interfaces/SuitConfig.interface';
+import type { SuitCardProps } from '../interfaces/SuitCardProps.interface';
+import CardArt from './CardArt';
 
-const RANK_NAMES = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+export default function SuitCard({ suitKey, cfg, rank, active, dimmed, onClick, flipping }: SuitCardProps) {
+  const color = cfg.color;
 
-interface SuitCardProps {
-  suitKey: string;
-  cfg: SuitConfig;
-  rank: number;
-  active: boolean;
-  dimmed: boolean;
-  flipping: boolean;
-  onClick: () => void;
-}
-
-export function SuitCard({ suitKey, cfg, rank, active, dimmed, flipping, onClick }: SuitCardProps) {
   return (
     <div
-      className={`suit-card${active ? ' active' : ''}${dimmed ? ' dimmed' : ''}`}
+      className={`suit-card ${active?"active":""} ${dimmed?"dimmed":""} ${flipping?"flipping":""}`}
       style={{
-        borderColor: active ? cfg.color : `${cfg.color}33`,
-        boxShadow: active ? `0 0 20px ${cfg.glow ?? cfg.color}66` : undefined,
-        transition: flipping ? 'transform 0.3s' : undefined,
-        transform: flipping ? 'rotateY(90deg)' : undefined,
+        borderColor: `${color}${active?"bb":"44"}`,
+        background: '#050a10',
+        boxShadow: active
+          ? `0 0 28px ${color}55, 0 0 56px ${color}22, inset 0 0 24px ${color}08`
+          : `0 0 10px ${color}22`,
+        color,
+        position: 'relative',
+        overflow: 'hidden',
       }}
       onClick={onClick}
     >
-      <CardArt suit={suitKey} rank={rank} color={cfg.color} />
-      {/* Hologram shimmer */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: 8,
-          background: `linear-gradient(135deg, ${cfg.color}08 0%, transparent 50%, ${cfg.color}05 100%)`,
-          pointerEvents: 'none',
-        }}
-      />
-      <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
-        <div className="rank" style={{ color: cfg.color }}>
-          {RANK_NAMES[rank]}
-        </div>
-        <div className="sym" style={{ color: cfg.color }}>
-          {cfg.sym}
-        </div>
+      {/* SVG card art — full bleed */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+        <CardArt suitKey={suitKey} color={color} rank={rank} />
       </div>
+      {/* Holo shimmer on top */}
+      <div className="card-holo" style={{zIndex: 1}}/>
     </div>
   );
 }

@@ -3,7 +3,7 @@ export interface SuitConfig {
   name: string;
   sub: string;
   color: string;
-  dark?: string;
-  glow?: string;
-  pos?: string;
+  dark: string;
+  glow: string;
+  pos: string;
 }
