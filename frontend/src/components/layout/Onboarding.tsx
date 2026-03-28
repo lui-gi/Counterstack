@@ -444,6 +444,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
         <>
           {/* Title appears after cards land */}
           <div className={`landing-title ${showTitle ? "visible" : ""}`}>
+            <img src="/counterstack.ico" alt="" style={{ height: "52px", width: "auto", verticalAlign: "middle", marginRight: "0.35em" }} />
             <span className="landing-title-logo-text">CounterStack</span>
           </div>
 
