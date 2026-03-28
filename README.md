@@ -1,383 +1,137 @@
-# 🎰 Counterstack
+# � Counterstack
 
-> **A cybersecurity defense simulation battle arena. Train security teams through tactical card-based combat scenarios.**
+<div align="center">
+
+**A cybersecurity defense simulation battle arena masquerading as a casino card game.**
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Built for Hacklanta](https://img.shields.io/badge/built%20for-Hacklanta%202025-darkred)
+![Duration](https://img.shields.io/badge/duration-12%20hours-blueviolet)
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Built for](https://img.shields.io/badge/built%20for-Hacklanta%202025-darkred)
-![Hackathon](https://img.shields.io/badge/hackathon-12%20hours-blueviolet)
 
-> **🏆 Built in 12 hours at Hacklanta 2025 - Georgia State University Cybersecurity Hackathon**
+*Train security teams through tactical card-based combat scenarios.*
 
----
-
-## Overview
-
-<<<<<<< HEAD
-Counterstack transforms security training into an interactive tactical battle arena. Instead of reading about threat scenarios, security teams *play through them*.
-
-Defend your systems against simulated cyber threats by deploying security controls (represented as playing cards from the NIST Cybersecurity Framework). Manage resources, respond to escalating threats, and watch your decisions play out in real-time with dynamic visual feedback.
-
-**This hybrid card game + security simulator helps teams:**
-- 🎯 Learn security decision-making under time pressure
-- 🛡️ Practice incident response in a low-stakes environment
-- 📊 Understand trade-offs between different security controls
-- 🧠 Build threat modeling intuition through gameplay
-- 👥 Create shared security awareness across technical and non-technical team members
-=======
-Counterstack is a cybersecurity posture dashboard for security teams who need consolidated situational awareness without switching between tools.
-
-Security teams manage threats across many dashboards and feeds. Switching between them costs time and forces analysts to mentally reassemble their posture from siloed views — adding cognitive load when accuracy matters most.
-
-**Counterstack addresses this by consolidating your security posture into a single, unified screen.**
-
-It functions as both a working dashboard and an interactive simulation environment. The design prioritizes visibility: what's exposed, what's at risk, and what the likely downstream effects of a threat are.
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
+</div>
 
 ---
 
-## Core Game Features
+## What is Counterstack?
 
-### 🃏 Battle Arena
+Counterstack transforms security training into an **interactive battle arena**. Instead of reading threat scenarios, security teams *play through them*.
 
-<<<<<<< HEAD
-Face off against computerized threat actors that evolve with each turn:
+Deploy NIST security controls (as playing cards) to defend against simulated cyber threats. Manage resources, respond to escalating attacks, and watch your decisions play out in real-time with character animations and dynamic visual feedback.
 
-- **System Patch** — The foundational threat every organization faces
-- **Wesker** — A red-team adversary with exposé mechanics and tactical stuns
-- **AI Adapter** — An intelligent opponent that learns from your defense strategies
-=======
-Analyze Mode is the main SOC dashboard — always-on, passively monitoring and assessing your security posture in real time.
+**Who it's for:**
+- 🎯 Security teams learning decision-making under pressure
+- 🛡️ Incident responders practicing response procedures
+- 📊 Organizations building threat modeling intuition
+- 👥 Anyone wanting to understand security trade-offs through gameplay
 
-**What it surfaces:**
-- Live CISA Known Exploited Vulnerabilities (KEV) feed with AI-scored threat assessments
-- Security posture scoring across four domains (Resources, OffSec, Harden, Resilience)
-- Overall posture hand — derived from domain scores using poker hand ranking (High Card → Royal Flush)
-- AI-generated suit-level recommendations with benchmarks and upgrade paths
-- Executive "Magician" advisor for conversational security questions
-- 5-year strategic roadmap with timeline visualization
-- Incident Room triage context view
-- Mock integrations: Splunk dashboards, CrowdStrike identity signals
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
+---
 
-Each boss has unique attack patterns, animation sequences, and adaptive tactics that force players to think strategically.
+## 🎮 Game Features
 
-<<<<<<< HEAD
-### 💳 NIST Card System
+### Battle Modes
+- **Simulate Mode** — Face off against adaptive threat actors with unique mechanics
+- **Dashboard Mode** — Analyze your organization's security posture
 
-Deploy security controls using playing cards mapped to the NIST Cybersecurity Framework:
+### Boss Types
+- **System Patch** — The foundational threat every org faces
+- **Wesker** — Red-team adversary with tactical stuns and exposure mechanics
+- **AI Adapter** — Intelligent opponent that learns from your defense strategies
 
-- **Spades ♠️** — Threat Detection & Response
-- **Clubs ♣️** — Security Operations
-- **Diamonds ♦️** — Infrastructure Hardening
-- **Hearts ❤️** — Recovery & Health
+### NIST Card System
+Deploy security controls using playing cards:
+- **Spades ♠️** — Detect & Respond
+- **Clubs ♣️** — Operate & Investigate
+- **Diamonds ♦️** — Harden & Protect
+- **Hearts ❤️** — Recover & Respond
 
-Cards have different ranks, costs, and effects. High-value cards (face cards and aces) pack more punch but drain your mana faster.
+Higher-value cards pack more effect but drain resources faster.
 
-### 📈 Posture Visualization
-
-Real-time dashboards show:
-- Your organization's security posture across NIST domains
-- Vulnerability severity and exposure context
-- Attack surface mapping
-- Threat intel scoring powered by Google Gemini AI
-
-### 🎮 Two Game Modes
-
-**Simulate Mode** — Battle individual threat actors in tactical scenarios
-**Dashboard Mode** — Analyze your organization's real security posture (with mock integration data)
+### Additional Features
+✅ Real-time animations with sprite-based characters  
+✅ User authentication with JWT tokens  
+✅ Cloud database persistence (Render PostgreSQL)  
+✅ AI-powered threat analysis (Google Gemini)  
+✅ CISA KEV vulnerability scoring  
+✅ Responsive design (desktop & tablet)
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - **Node.js** v18+
 - **npm** or **yarn**
-- A Render PostgreSQL database (free tier available at [render.com](https://render.com))
-=======
----
+- Render PostgreSQL database (free tier at [render.com](https://render.com))
 
-### Simulate Mode
+### Setup
 
-Simulate Mode lets security teams engage with hypothetical attack scenarios before those scenarios become reality — as an interactive card-based simulation.
-
-**How it works:**
-- Players use action cards (patches, detections, access controls, backups) to defeat incoming cyber threats
-- Threats are drawn from the same posture model, mapped to your actual security domains
-- A real-time posture dial tracks your security health throughout the battle
-- Post-game debrief is generated by AI, analyzing simulation decisions and outcomes
-- Guest access is available — no account required
-
-**Practical value:**
-- **Red Teams** — model attacker paths and identify realistic intrusion routes
-- **Blue Teams** — validate detection coverage and refine response procedures
-- **Tabletop Exercises** — give facilitators a live, interactive scenario canvas
-- **Security Architects** — test structural integrity of designs before implementation
-
----
-
-## Posture Modeling
-
-Counterstack models your security posture across four domains (suits), each mapped to NIST CSF functions:
-
-| Suit | Domain | Coverage |
-|------|--------|----------|
-| ♣ Resources | Asset visibility, patching, hygiene | NIST Identify + Detect |
-| ♠ OffSec | Detection maturity, SOC operations, response | NIST Respond |
-| ♦ Harden | Access control, hardening, zero trust | NIST Protect |
-| ♥ Resilience | Backup, disaster recovery, continuity | NIST Recover |
-
-Each domain is scored 1–13 (Ace → King). The four domain scores are combined using poker hand evaluation to produce an overall posture hand — a single, intuitive read of your organization's security strength.
-
-AI analysis (Google Gemini) is used throughout: scoring organization profiles, assessing CVE impact, generating recommendations, and producing executive summaries.
-
----
-
-## Tech Stack
-
-**Backend**
-- Node.js 20+ (ESM) with Express 5
-- TypeScript
-- PostgreSQL 16 (via `pg`)
-- JWT authentication (7-day tokens) + bcrypt password hashing
-- Google Gemini API (`gemini-2.0-flash-lite`) for AI analysis
-
-**Frontend**
-- React 19 + Vite 6
-- TypeScript
-- Tailwind CSS 4 with custom cyberpunk theme (glassmorphism, neon, scanlines)
-- Framer Motion for animations
-- FontAwesome icons
-
-**Infrastructure**
-- Docker + docker-compose (PostgreSQL service)
-- Backend: port 4000 | Frontend: port 5173
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Docker (for PostgreSQL)
-- Google Gemini API key — [get one free at Google AI Studio](https://aistudio.google.com)
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
-
-### Installation
-
+**1. Clone & Install**
 ```bash
-# Clone the repository
 git clone https://github.com/abrar-sarwar/Counterstack.git
 cd Counterstack
 
-<<<<<<< HEAD
-# Install dependencies (frontend)
 cd frontend && npm install
-
-# Install dependencies (backend)
 cd ../backend && npm install
-=======
-# Install all dependencies (root, frontend, backend)
-npm run install:all
-
-# Configure environment
-cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env`:
-
+**2. Configure Backend** — Create `backend/.env`:
 ```env
-DATABASE_URL=postgres://counterstack:counterstack_dev@localhost:5432/counterstack
-GEMINI_API_KEY=your_gemini_api_key
-JWT_SECRET=your_jwt_secret
-FRONTEND_URL=http://localhost:5173
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
-```
-
-### Environment Setup
-
-#### Backend Configuration
-
-Create `backend/.env`:
-
-```env
-# Render PostgreSQL Database (free at render.com)
-DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[dbname]?sslmode=require
-
-# JWT Secret (generate a random string for production)
-JWT_SECRET=your-secure-random-string-here
-
-# Google Gemini API (for AI threat analysis)
-GEMINI_API_KEY=your-gemini-api-key
-
-# Server configuration
+DATABASE_URL=postgresql://[user]:[pass]@[host]:[port]/[db]?sslmode=require
+JWT_SECRET=your-random-secret-here
+GEMINI_API_KEY=your-gemini-key
 PORT=4000
 FRONTEND_URL=http://localhost:5173
 ```
 
-#### Frontend Configuration (Optional)
-
-Frontend uses Vite and automatically connects to the backend.
-
----
-
-## 🏃 Running the Application
-
-### Development Mode
-
-**Terminal 1 — Backend:**
+**3. Run Database Migration**
 ```bash
 cd backend
-npm run dev
-# Server runs on http://localhost:4000
+npm run db:migrate
 ```
 
-**Terminal 2 — Frontend:**
+**4. Start Development Servers**
+
+Terminal 1:
 ```bash
-cd frontend
-npm run dev
-# Application runs on http://localhost:5173
+cd backend && npm run dev
+# Runs on http://localhost:4000
 ```
 
-Once both are running, open your browser to:
+Terminal 2:
+```bash
+cd frontend && npm run dev
+# Runs on http://localhost:5173
+```
+
+**5. Open Browser**
 ```
 http://localhost:5173
 ```
 
-### Database Setup
-
-The database migrations run automatically on first connection. To manually run migrations:
-
-```bash
-<<<<<<< HEAD
-cd backend
-npm run db:migrate
-# Creates users, organizations, and org_profiles tables
-```
-
-### Verify Database Connection
-
-```bash
-psql "YOUR_DATABASE_URL" -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
-```
-
-You should see:
-- ✅ `users`
-- ✅ `organizations`
-- ✅ `org_profiles`
-
-=======
-# Start PostgreSQL
-docker-compose up -d
-
-# Run database migration (first time only)
-npm run db:migrate --prefix backend
-
-# Start frontend + backend dev servers
-npm run dev
-```
-
-Open **http://localhost:5173** in your browser.
-
-### Production
-
-```bash
-npm run build && npm run start
-```
-
----
-
-## Project Structure
-
-```
-CounterStack/
-├── backend/
-│   └── src/
-│       ├── controllers/     # Auth, org, profile, posture route handlers
-│       ├── db/              # PostgreSQL pool, migration scripts
-│       ├── middleware/      # JWT auth middleware
-│       ├── routes/          # Express route definitions
-│       └── services/        # Gemini AI integration
-│
-├── frontend/
-│   └── src/
-│       ├── pages/           # SOCDashboard.tsx (Analyze Mode)
-│       ├── app/             # SimulationMode.tsx (Simulate Mode)
-│       ├── components/      # UI components (layout, shared, SVG)
-│       ├── simulation/      # Game engine (threats, cards, combat, audio)
-│       ├── engine/          # Posture computation + poker hand ranking
-│       ├── services/        # Gemini API client
-│       ├── data/            # CISA KEV fetcher, mock integration data
-│       └── App.tsx          # Root state machine (no external router)
-│
-├── docker-compose.yaml
-└── package.json             # Monorepo scripts (concurrently)
-```
-
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
 ---
 
 ## 🎮 How to Play
 
-<<<<<<< HEAD
-### Landing Screen
-
-1. **Log In** — Use existing account credentials
-2. **Create Account** — Set up a new account (requires email, password, and organization tier)
-3. **Simulate as Guest** — Play without authentication (no progress saved)
-4. **Joker Card** — Load pre-configured security posture for Grayson and Co. (demo organization)
-
-### Game Flow
-
-1. **Onboarding** — Answer 4 quick security questions to calibrate your starting posture
-2. **Dashboard** — View your organization's security posture across NIST domains
-3. **Battle Selection** — Choose a threat actor to face
-4. **Combat** — Deploy cards to defend against incoming attacks
-   - Spades = Detect threats
-   - Clubs = Respond and operate
-   - Diamonds = Harden infrastructure
-   - Hearts = Recover from damage
-5. **Debrief** — Get AI-powered analysis of your defense strategy
+1. **Create Account** or **Log In**
+2. **Answer 4 Security Questions** to calibrate your starting posture
+3. **Choose a Battle** (System Patch, Wesker, or AI Adapter)
+4. **Deploy Cards** from your hand to defend against incoming attacks
+5. **Get AI Debrief** analyzing your defense strategy
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Tech Stack
 
-### Frontend
-- **React 18** + TypeScript
-- **Vite** — Lightning-fast build tooling
-- **Framer Motion** — Smooth character and card animations
-- **TailwindCSS** — Utility-first styling
-- **Gemini AI API** — Threat analysis and recommendations
-
-### Backend
-- **Node.js** + Express
-- **TypeScript**
-- **PostgreSQL** — Render-hosted relational database
-- **JWT** — Session authentication
-- **Bcrypt** — Password hashing
-
-### Infrastructure
-- **Render.com** — PostgreSQL database hosting
-- **Vite Dev Server** — Hot module reloading
-- **CORS** — Secure cross-origin requests
-
----
-
-## 🎯 Key Features Implemented
-
-✅ **User Authentication** — Login and account creation with JWT tokens
-✅ **Persistent Sessions** — Auth tokens stored in localStorage
-✅ **Cloud Database** — Render PostgreSQL for reliable data persistence
-✅ **Real-time Animations** — Sprite-based character combat with Framer Motion
-✅ **Floating Damage Indicators** — Visual feedback for game events (damage, healing, mana)
-✅ **Adaptive AI Opponents** — Each boss has unique mechanics and learning behavior
-✅ **NIST Framework Integration** — Security controls mapped to official framework
-✅ **AI Threat Analysis** — Gemini-powered debrief and recommendations
-✅ **Responsive Design** — Works on desktop and tablet devices
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18 + TypeScript + Vite + Framer Motion |
+| **Backend** | Node.js + Express + TypeScript |
+| **Database** | PostgreSQL (Render) |
+| **Auth** | JWT + Bcrypt |
+| **AI** | Google Gemini API |
 
 ---
 
@@ -385,128 +139,50 @@ CounterStack/
 
 ```
 Counterstack/
-├── frontend/                    # React/Vite web application
-│   ├── src/
-│   │   ├── app/                # Game simulation logic
-│   │   ├── components/         # React components
-│   │   ├── pages/              # Application pages
-│   │   ├── services/           # API and external service integrations
-│   │   ├── engine/             # Game engine (posture scoring, combat)
-│   │   ├── interfaces/         # TypeScript interfaces
-│   │   ├── styles/             # Global CSS
-│   │   └── App.tsx             # Root component
-│   └── public/                 # Static assets (images, data files)
+├── frontend/           # React + Vite SPA
+│   └── src/
+│       ├── app/       # Game simulation logic
+│       ├── components/ # React components
+│       ├── engine/    # Combat & posture scoring
+│       └── services/  # API integrations
 │
-├── backend/                     # Express.js API server
-│   ├── src/
-│   │   ├── controllers/        # Request handlers
-│   │   ├── routes/             # API route definitions
-│   │   ├── db/                 # Database connection and migrations
-│   │   ├── middleware/         # Authentication and middleware
-│   │   └── index.ts            # Server entry point
-│   ├── .env                    # Environment variables
-│   └── package.json
+├── backend/           # Express API server
+│   └── src/
+│       ├── controllers/ # Route handlers
+│       ├── routes/      # API endpoints
+│       ├── db/          # Migrations & connection
+│       └── middleware/  # Auth & utilities
 │
-└── README.md                    # This file
+└── README.md          # This file
 ```
 
 ---
 
-## 🔐 Authentication Flow
+## 🚢 Deploy to Production
 
-1. **User Registration** — POST `/api/auth/register` with email, password, name
-2. **Password Hashing** — Bcrypt with 12 salt rounds
-3. **JWT Token Generation** — 7-day expiring tokens
-4. **Session Persistence** — Token stored in browser localStorage
-5. **Auto-Login** — App checks localStorage on load and validates token with backend
-6. **Protected Routes** — `/api/auth/me` verifies token on sensitive operations
-
----
-
-## 🚢 Deployment
-
-### Deploy to Production
-
-#### Backend (Render)
-1. Connect your GitHub repo to Render
-2. Create a new Web Service pointing to `backend/` directory
-3. Set environment variables (`DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`)
-4. Deploy
-
-#### Frontend (Vercel or Render)
-1. Connect your GitHub repo
-2. Set build command: `cd frontend && npm run build`
-3. Set output directory: `frontend/dist`
-4. Deploy
-
-#### Database (Render)
-Render PostgreSQL database is already running. Ensure migrations have been run:
-```bash
-cd backend && npm run db:migrate
-```
-
----
-
-## 📊 Current Limitations & Future Work
-
-### Known Limitations
-- Single-player only (no multiplayer battles yet)
-- Mock integration data for SIEM/EDR (Splunk, CrowdStrike)
-- No persistent battle history across sessions
-- Threat actors don't learn across multiple games
-
-### Planned Features
-🔜 Multiplayer co-op battles
-🔜 Leaderboards and skill ranking
-🔜 Real SIEM/EDR integrations
-🔜 Campaign mode with story progression
-🔜 Mobile app version
-🔜 Real vulnerability data feeds
-
----
-
-## 🤝 Contributing
-
-Counterstack is open to community contributions!
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes with clear, descriptive commits
-4. Push and open a Pull Request against `main`
-
-All contributions should align with the core principle: **make security training engaging and intuitive for defenders**.
-=======
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature-name`
-3. Commit your changes with clear, descriptive messages
-4. Push to your fork and open a Pull Request against `main`
-
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/abrar-sarwar/Counterstack/issues).
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
+**Backend** → Render Web Service  
+**Frontend** → Vercel or Render  
+**Database** → Render PostgreSQL (already set up)
 
 ---
 
 ## 📝 License
 
-<<<<<<< HEAD
-This project is licensed under the **MIT License**. See [`LICENSE`](./LICENSE) for details.
+MIT License — See [`LICENSE`](./LICENSE) for details.
 
 ---
 
-## 🏆 Credits
+## 🏆 About
 
-**Built at Hacklanta 2025** — A 12-hour cybersecurity hackathon hosted by Georgia State University.
+Built at **Hacklanta 2025** — a 12-hour cybersecurity hackathon at Georgia State University.
 
-*Thank you to the security community for inspiration, feedback, and mission alignment.*
+**Mission:** Make security training engaging, intuitive, and fun for defenders.
 
 ---
 
-## 🎯 Questions or Feedback?
+## ❓ Questions?
 
-Open an issue or reach out to the team. We'd love to hear how you use Counterstack and what scenarios you'd like to see next.
+Open an issue on GitHub or reach out to the team. We'd love to hear how you use Counterstack!
 
-**Let's make security training fun and effective.** 🛡️🎮
+**Let's make security training awesome.** 🛡️🎮
 
-=======
-This project is licensed under the **MIT License**. See [`LICENSE`](./LICENSE) for full terms.
->>>>>>> d98a92e768ae2b0e3efd165850197094968d6d1b
