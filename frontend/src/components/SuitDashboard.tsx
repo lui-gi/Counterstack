@@ -359,7 +359,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
   // Use Gemini recommendations if available, otherwise fall back to static
   const displayRecs = aiAnalysis?.recommendations?.length ? aiAnalysis.recommendations : data.aiRecs;
   const isAiLoading = aiAnalysis?.loading ?? false;
-  const hasAiRecs = !!(aiAnalysis?.recommendations?.length);
   const topAction = displayRecs[0];
   const restRecs = displayRecs.slice(1);
 
@@ -438,11 +437,7 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
           {/* AI Recommendations */}
           <div className="ai-block" style={{borderColor:`${color}22`}}>
             <div className="ai-block-h">
-              <div className="ai-live">
-                <div className="ai-ldot" style={isAiLoading ? {animation:"tdot 1s ease-in-out infinite"} : undefined}/>
-                {isAiLoading ? "THE MAGICIAN ANALYZING..." : hasAiRecs ? "THE MAGICIAN LIVE" : "AI ANALYSIS"}
-              </div>
-              <div className="ai-t" style={{color}}>Recommendations — {cfg.name}</div>
+              <div className="ai-t" style={{color}}>The Magician's Reading: {cfg.name}</div>
             </div>
             {isAiLoading ? (
               <div style={{padding:"12px",textAlign:"center",color:"var(--dim)",fontSize:14}}>
