@@ -299,26 +299,24 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
 
   return (
     <div className="sd-overlay" onClick={onClose}>
+
+      {/* Floating card — left of panel */}
+      <div className="sd-floating-card" onClick={e=>e.stopPropagation()}>
+        <div className="sd-panel-card">
+          <SuitCard
+            suitKey={suitKey}
+            cfg={cfg}
+            rank={rank}
+            active={false}
+            dimmed={false}
+            flipping={false}
+            onClick={()=>{}}
+          />
+        </div>
+      </div>
+
       <div className="sd-panel slide-in" style={{border:`1px solid ${color}33`}} onClick={e=>e.stopPropagation()}>
         <button className="sd-close" onClick={onClose}>✕</button>
-
-        {/* Left: playing card column */}
-        <div className="sd-card-col" style={{boxShadow:`inset -2px 0 8px ${color}12`}}>
-          <div className="sd-panel-card">
-            <SuitCard
-              suitKey={suitKey}
-              cfg={cfg}
-              rank={rank}
-              active={false}
-              dimmed={false}
-              flipping={false}
-              onClick={()=>{}}
-            />
-          </div>
-        </div>
-
-        {/* Right: content column */}
-        <div className="sd-content-col">
 
         {/* Header */}
         <div className="sd-header">
@@ -446,7 +444,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
           </div>
         </div>
 
-        </div>{/* end sd-content-col */}
       </div>
     </div>
   );
