@@ -603,7 +603,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 
 /* The actual playing card */
 .suit-card{
-  width:88px;height:124px;border-radius:9px;position:relative;
+  width:112px;height:157px;border-radius:9px;position:relative;
   border:1.5px solid;cursor:pointer;overflow:hidden;
   transition:box-shadow .3s, filter .3s, transform .3s;
   perspective:600px;
@@ -630,21 +630,21 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 /* Card corner rank */
 .card-corner{position:absolute;display:flex;flex-direction:column;align-items:center;
   font-family:var(--fh);font-weight:900;line-height:1}
-.card-corner.tl{top:5px;left:6px;font-size:11px}
-.card-corner.br{bottom:5px;right:6px;font-size:11px;transform:rotate(180deg)}
-.card-corner-sym{font-size:10px;line-height:1}
+.card-corner.tl{top:5px;left:6px;font-size:14px}
+.card-corner.br{bottom:5px;right:6px;font-size:14px;transform:rotate(180deg)}
+.card-corner-sym{font-size:13px;line-height:1}
 
 /* Card center rank (large) */
-.card-rank{font-family:var(--fh);font-size:34px;font-weight:900;line-height:1;
+.card-rank{font-family:var(--fh);font-size:43px;font-weight:900;line-height:1;
   text-shadow:0 0 15px currentColor;z-index:2;position:relative}
-.card-sym-center{font-size:26px;line-height:1;z-index:2;position:relative;filter:drop-shadow(0 0 6px currentColor)}
-.card-name{font-family:var(--fh);font-size:6px;letter-spacing:1.5px;
+.card-sym-center{font-size:33px;line-height:1;z-index:2;position:relative;filter:drop-shadow(0 0 6px currentColor)}
+.card-name{font-family:var(--fh);font-size:8px;letter-spacing:1.5px;
   z-index:2;position:relative;margin-top:3px;opacity:.8}
 
 /* ── JOKER card ── */
 .joker-container{display:flex;flex-direction:column;align-items:center;z-index:12;position:relative}
 .joker-row{display:flex;align-items:center;gap:12px;position:relative}
-.joker-card-wrapper{width:110px;height:154px;cursor:pointer;z-index:15;transition:all 1.4s cubic-bezier(.15,.58,.35,.97)}
+.joker-card-wrapper{width:140px;height:196px;cursor:pointer;z-index:15;transition:all 1.4s cubic-bezier(.15,.58,.35,.97)}
 .joker-card-inner{position:relative;width:100%;height:100%;
   transition:transform .2s}
 .joker-card-wrapper:hover .joker-card-inner:not(.expanded){
