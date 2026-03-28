@@ -2,7 +2,7 @@ import type { SuitMetric } from './SuitMetric.interface';
 import type { SuitRisk } from './SuitRisk.interface';
 
 export interface SuitDataEntry {
-  metrics: SuitMetric[];
+  metrics?: SuitMetric[];
   risks: SuitRisk[];
   capabilities: string[];
   upgrade: string[];

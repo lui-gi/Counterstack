@@ -342,8 +342,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
   const sevColor = { high:"#f72585", medium:"#ff9f1c", low:"#39d353" };
 
   const derivedMetrics = orgProfile ? deriveMetrics(suitKey, orgProfile) : null;
-  const displayMetrics = derivedMetrics ?? data.metrics;
-  const metricsFromProfile = !!derivedMetrics;
 
   const derivedRisks = orgProfile ? deriveRisks(suitKey, orgProfile) : null;
   const displayRisks = (derivedRisks && derivedRisks.length > 0) ? derivedRisks : data.risks;
@@ -412,27 +410,30 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
 
         <div className="sd-body">
           {/* Metrics */}
+          {(derivedMetrics && derivedMetrics.length > 0) || !orgProfile ? (
           <div className="sd-metrics">
-            {displayMetrics.map((m: SuitMetric)=>{
-              const benchmark = aiAnalysis?.benchmarks?.[m.k];
-              return (
-                <div key={m.k} className="sm-card" style={{borderColor:`${color}18`}}>
-                  <div className="sm-lbl">{m.k}</div>
-                  <div className="sm-val" style={{color}}>{m.v}</div>
-                  {benchmark && (
-                    <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fm)",marginTop:2}}>
-                      target: <span style={{color:`${color}bb`}}>{benchmark}</span>
-                    </div>
-                  )}
-                  {!metricsFromProfile && (
-                    <div className="sm-trend" style={{color:m.trend>0?"var(--green)":m.trend<0?"var(--pink)":"var(--dim)"}}>
-                      {m.trend>0?"▲":m.trend<0?"▼":"─"} {Math.abs(m.trend)}% vs prev week
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {!orgProfile ? (
+              <div style={{gridColumn:"1/-1",padding:"14px 16px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:6,fontSize:13,color:"var(--dim)",fontFamily:"var(--fm)"}}>
+                Complete your org profile to see real metrics here.
+              </div>
+            ) : (
+              derivedMetrics!.map((m: SuitMetric)=>{
+                const benchmark = aiAnalysis?.benchmarks?.[m.k];
+                return (
+                  <div key={m.k} className="sm-card" style={{borderColor:`${color}18`}}>
+                    <div className="sm-lbl">{m.k}</div>
+                    <div className="sm-val" style={{color}}>{m.v}</div>
+                    {benchmark && (
+                      <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fm)",marginTop:2}}>
+                        target: <span style={{color:`${color}bb`}}>{benchmark}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
+          ) : null}
 
           {/* AI Recommendations */}
           <div className="ai-block" style={{borderColor:`${color}22`}}>

@@ -22,12 +22,6 @@ export const SUITS: Record<string, SuitConfig> = {
 
 export const SUIT_DATA: Record<string, SuitDataEntry> = {
   clover: {
-    metrics: [
-      { k:"Patch Compliance",     v:"87%",   raw:87,  trend:+3 },
-      { k:"Asset Visibility",     v:"2,419", raw:91,  trend:+14},
-      { k:"Vuln Scan Coverage",   v:"91%",   raw:91,  trend:+2 },
-      { k:"Config Drift",         v:"6%",    raw:6,   trend:-4 },
-    ],
     risks:[
       { n:"Legacy OS endpoints (47)",      lvl:"high"   },
       { n:"Unpatched critical CVEs (12)",  lvl:"high"   },
@@ -40,12 +34,6 @@ export const SUIT_DATA: Record<string, SuitDataEntry> = {
     baseScore: 72,
   },
   spade: {
-    metrics:[
-      { k:"Mean Time to Detect", v:"4.2m",  raw:58, trend:-12 },
-      { k:"SOC Analysts Online",  v:"7",    raw:70, trend:0   },
-      { k:"Containment Rate",     v:"94%",  raw:94, trend:+5  },
-      { k:"Alert Fatigue",        v:"23%",  raw:77, trend:-8  },
-    ],
     risks:[
       { n:"No 24/7 SOC coverage",             lvl:"high"   },
       { n:"Unmonitored endpoint segment",     lvl:"medium" },
@@ -57,12 +45,6 @@ export const SUIT_DATA: Record<string, SuitDataEntry> = {
     baseScore: 81,
   },
   diamond: {
-    metrics:[
-      { k:"Zero Trust Coverage", v:"68%", raw:68, trend:+12 },
-      { k:"MFA Enforcement",     v:"96%", raw:96, trend:+4  },
-      { k:"Privileged Accts OK", v:"78%", raw:78, trend:+8  },
-      { k:"Attack Surface",      v:"34",  raw:66, trend:-9  },
-    ],
     risks:[
       { n:"15 over-privileged service accounts", lvl:"high"   },
       { n:"WAF bypass attempt detected",         lvl:"high"   },
@@ -74,12 +56,6 @@ export const SUIT_DATA: Record<string, SuitDataEntry> = {
     baseScore: 74,
   },
   heart: {
-    metrics:[
-      { k:"RTO Achieved",        v:"99m",   raw:67, trend:-18 },
-      { k:"Backup Success Rate", v:"99.4%", raw:99, trend:+1  },
-      { k:"DR Test Score",       v:"B+",    raw:75, trend:0   },
-      { k:"MTTR",                v:"2.1hrs",raw:71, trend:-22 },
-    ],
     risks:[
       { n:"DR plan untested (6 months)", lvl:"high"   },
       { n:"Offsite backup latency",      lvl:"medium" },
