@@ -464,6 +464,18 @@ const ROW_H      = 64;  // px per reel row — 3 rows visible = 192px window
 // Symbols shown above/below the center 7 when a reel stops (gives a realistic 3-row look)
 const REEL_ABOVE = ['♣', '★', '♠'];
 const REEL_BELOW = ['♦', '♥', '♣'];
+// Pre-computed flame wisp positions for the Getsuga beam (avoids Math.random in JSX)
+const GETSUGA_FLAMES: Array<{ x: string; h: number; d: number; dl: number }> = [
+  { x: '2%',  h: 13, d: 0.30, dl: 0.00 }, { x: '7%',  h: 22, d: 0.25, dl: 0.06 },
+  { x: '13%', h: 15, d: 0.35, dl: 0.03 }, { x: '19%', h: 28, d: 0.22, dl: 0.09 },
+  { x: '25%', h: 17, d: 0.32, dl: 0.01 }, { x: '31%', h: 24, d: 0.28, dl: 0.07 },
+  { x: '37%', h: 19, d: 0.38, dl: 0.04 }, { x: '43%', h: 32, d: 0.20, dl: 0.02 },
+  { x: '49%', h: 14, d: 0.33, dl: 0.08 }, { x: '55%', h: 26, d: 0.26, dl: 0.05 },
+  { x: '61%', h: 18, d: 0.29, dl: 0.03 }, { x: '67%', h: 22, d: 0.36, dl: 0.07 },
+  { x: '73%', h: 16, d: 0.31, dl: 0.01 }, { x: '79%', h: 30, d: 0.24, dl: 0.06 },
+  { x: '85%', h: 14, d: 0.34, dl: 0.04 }, { x: '91%', h: 20, d: 0.27, dl: 0.09 },
+  { x: '97%', h: 16, d: 0.32, dl: 0.02 },
+];
 
 type WebAudioContext = AudioContext;
 const mkACtx = (): WebAudioContext =>
@@ -658,20 +670,22 @@ function SlotReel({ stopped, jackpotFlash, reelIndex }: { stopped: boolean; jack
           {/* Row above — dim warm gold */}
           <div style={{
             height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, fontFamily: "'Courier New', monospace",
-            color: '#c09040', opacity: 0.32, letterSpacing: 1,
+            fontSize: 26, fontFamily: "'Playfair Display', Georgia, serif",
+            fontStyle: 'italic', fontWeight: 900,
+            color: '#c09040', opacity: 0.30,
           }}>
             {REEL_ABOVE[reelIndex]}
           </div>
-          {/* Center win-line row — blazing 7 */}
+          {/* Center win-line row — blazing 7 in jackpot font */}
           <div style={{
             height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 58, fontWeight: 900, fontFamily: "'Courier New', monospace",
+            fontSize: 56, fontWeight: 900,
+            fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif",
+            fontStyle: 'italic',
             color: jackpotFlash ? '#fff9e0' : '#e8c060',
             textShadow: jackpotFlash
               ? '0 0 6px #fff, 0 0 20px #ffd700, 0 0 50px #d4a843, 0 0 90px #d4a84366'
               : '0 0 10px #d4a84366',
-            letterSpacing: -1,
             transition: 'all 0.3s ease',
           }}>
             7
@@ -679,8 +693,9 @@ function SlotReel({ stopped, jackpotFlash, reelIndex }: { stopped: boolean; jack
           {/* Row below — dim */}
           <div style={{
             height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, fontFamily: "'Courier New', monospace",
-            color: '#c09040', opacity: 0.32, letterSpacing: 1,
+            fontSize: 26, fontFamily: "'Playfair Display', Georgia, serif",
+            fontStyle: 'italic', fontWeight: 900,
+            color: '#c09040', opacity: 0.30,
           }}>
             {REEL_BELOW[reelIndex]}
           </div>
@@ -694,7 +709,9 @@ function SlotReel({ stopped, jackpotFlash, reelIndex }: { stopped: boolean; jack
           {[...REEL_SYMS, ...REEL_SYMS].map((s, i) => (
             <div key={i} style={{
               height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 34, fontFamily: "'Courier New', monospace",
+              fontSize: 30,
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontStyle: 'italic', fontWeight: 900,
               color: '#c09040', opacity: 0.7,
             }}>
               {s}
@@ -732,33 +749,33 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 950,
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 26,
-        background: 'radial-gradient(ellipse 75% 65% at 50% 52%, #160900 0%, #080400 55%, #000 100%)',
+        alignItems: 'center', justifyContent: 'center', gap: 18,
+        background: 'radial-gradient(ellipse 80% 70% at 50% 50%, #120700 0%, #060300 60%, #000 100%)',
         pointerEvents: 'none',
       }}
     >
-      {/* Fonts + shimmer keyframe */}
+      {/* Font imports + shimmer keyframe */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,900&family=Oswald:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,900&family=Oswald:wght@700&display=swap');
         @keyframes jp-shimmer {
           0%   { background-position: -250% center; }
           100% { background-position: 250% center; }
         }
       `}</style>
 
-      {/* Fine scanlines */}
+      {/* CRT scanlines */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
-        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.10) 3px, rgba(0,0,0,0.10) 4px)',
+        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.09) 3px, rgba(0,0,0,0.09) 4px)',
       }} />
 
-      {/* Ambient gold bloom — fades in on jackpot */}
+      {/* Ambient gold bloom on jackpot */}
       <motion.div
         animate={{ opacity: isJackpot ? 1 : 0 }}
-        transition={{ duration: 0.9 }}
+        transition={{ duration: 1.0 }}
         style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-          background: 'radial-gradient(ellipse 55% 45% at 50% 54%, rgba(212,168,67,0.11) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 60% 50% at 50% 46%, rgba(212,168,67,0.09) 0%, transparent 70%)',
         }}
       />
 
@@ -768,220 +785,338 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
           <motion.div
             key="hat-throw"
             initial={{ x: -320, y: 180, rotate: -180, scale: 0.4, opacity: 0 }}
-            animate={{ x: 0, y: -50, rotate: 720, scale: 2.0, opacity: 1 }}
+            animate={{ x: 0, y: -40, rotate: 720, scale: 2.0, opacity: 1 }}
             exit={{ y: -180, opacity: 0, scale: 0.5, rotate: 900 }}
             transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            style={{
-              filter: 'drop-shadow(0 0 28px #d4a843) drop-shadow(0 0 56px #d4a84355)',
-              position: 'absolute', zIndex: 10,
-            }}
+            style={{ filter: 'drop-shadow(0 0 28px #d4a843) drop-shadow(0 0 56px #d4a84355)', position: 'absolute', zIndex: 10 }}
           >
             <img src={JACKPOT_ICON} alt="" style={{ width: 88, height: 88, objectFit: 'contain' }} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Slot machine cabinet ── */}
+      {/* ── Everything revealed after hat throw ── */}
       {stage !== 'throw' && (
         <>
-          {/* Slowly rotating starburst behind the cabinet — art deco style */}
+          {/* Rotating starburst — art deco behind cabinet */}
           {isJackpot && (
             <motion.div
-              initial={{ opacity: 0, rotate: 0 }}
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1, rotate: 360 }}
-              transition={{ opacity: { duration: 0.6 }, rotate: { duration: 28, repeat: Infinity, ease: 'linear' } }}
-              style={{
-                position: 'absolute', zIndex: 2,
-                width: 760, height: 760,
-                pointerEvents: 'none',
-              }}
+              transition={{ opacity: { duration: 0.7 }, rotate: { duration: 32, repeat: Infinity, ease: 'linear' } }}
+              style={{ position: 'absolute', zIndex: 2, width: 820, height: 820, pointerEvents: 'none' }}
             >
-              {Array.from({ length: 18 }, (_, i) => (
+              {Array.from({ length: 20 }, (_, i) => (
                 <div key={i} style={{
-                  position: 'absolute',
-                  top: '50%', left: '50%',
-                  width: 2, height: 380,
-                  marginLeft: -1, marginTop: -190,
-                  background: 'linear-gradient(to top, transparent 0%, rgba(212,168,67,0.18) 50%, transparent 100%)',
-                  transform: `rotate(${i * 20}deg)`,
-                  transformOrigin: 'center center',
+                  position: 'absolute', top: '50%', left: '50%',
+                  width: 1.5, height: 410, marginLeft: -1, marginTop: -205,
+                  background: 'linear-gradient(to top, transparent 0%, rgba(212,168,67,0.14) 50%, transparent 100%)',
+                  transform: `rotate(${i * 18}deg)`, transformOrigin: 'center center',
                 }} />
               ))}
             </motion.div>
           )}
 
-          {/* Cabinet outer shell */}
+          {/* ════════════════════════════════════════════
+              SLOT MACHINE CABINET — realistic physical look
+              ════════════════════════════════════════════ */}
           <motion.div
-            initial={{ y: 30, scale: 0.9, opacity: 0 }}
+            initial={{ y: 24, scale: 0.88, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
               position: 'relative', zIndex: 5,
-              display: 'flex', flexDirection: 'column', alignItems: 'stretch',
-              borderRadius: 14,
+              display: 'flex', alignItems: 'stretch',
+              // Arched top silhouette
+              borderRadius: '40px 40px 10px 10px',
               overflow: 'hidden',
-              // Outer chrome frame
               boxShadow: isJackpot
-                ? '0 0 0 1px #5a3a00, 0 0 0 3px #d4a843, 0 0 0 5px #8B6914, 0 0 60px #d4a84388, 0 0 120px #d4a84333'
-                : '0 0 0 1px #1e1200, 0 0 0 3px #5a3a00, 0 0 0 5px #3a2500, 0 0 30px rgba(90,58,0,0.4)',
+                ? '0 0 0 2px #5a3a00, 0 0 0 5px #d4a843, 0 0 0 7px #4a3000, 0 0 70px #d4a84388, 0 0 140px #d4a84322'
+                : '0 0 0 2px #1e1200, 0 0 0 4px #4a2e00, 0 0 0 6px #2a1c00, 0 0 30px rgba(50,32,0,0.6)',
               transition: 'box-shadow 0.6s ease',
-              // Body
-              background: 'linear-gradient(175deg, #1a0d00 0%, #0f0700 40%, #0a0400 100%)',
             }}
           >
-            {/* ── Marquee header ── */}
+            {/* Left chrome rail */}
             <div style={{
-              background: isJackpot
-                ? 'linear-gradient(90deg, #6a0000 0%, #3d1500 30%, #d4a84322 50%, #3d1500 70%, #6a0000 100%)'
-                : 'linear-gradient(90deg, #280000 0%, #1a0a00 50%, #280000 100%)',
-              padding: '11px 36px 10px',
-              textAlign: 'center',
-              letterSpacing: 7,
-              fontSize: 10,
-              fontFamily: "'Oswald', 'Impact', 'Arial Narrow', sans-serif",
-              fontWeight: 700,
-              color: isJackpot ? '#f5e0a0' : 'rgba(180,120,40,0.5)',
-              textShadow: isJackpot ? '0 0 10px #d4a84388, 0 1px 0 rgba(0,0,0,0.8)' : 'none',
-              textTransform: 'uppercase',
-              borderBottom: `1px solid ${isJackpot ? '#d4a84366' : '#2e1c00'}`,
-              transition: 'all 0.5s ease',
+              width: 11, flexShrink: 0,
+              background: `linear-gradient(180deg, ${isJackpot ? '#f0c860' : '#5a3a00'} 0%, #2e1c00 25%, ${isJackpot ? '#d4a843' : '#4a2e00'} 50%, #2e1c00 75%, ${isJackpot ? '#f0c860' : '#5a3a00'} 100%)`,
+              transition: 'background 0.6s ease',
+            }} />
+
+            {/* Cabinet body */}
+            <div style={{
+              flex: 1,
+              background: 'linear-gradient(180deg, #1e1000 0%, #100800 35%, #090400 100%)',
+              display: 'flex', flexDirection: 'column',
             }}>
-              ✦ TRIPLE SEVENS ✦
-            </div>
 
-            {/* ── Reel bay ── */}
-            <div style={{ padding: '22px 28px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-
-              {/* Payline row — arrows flanking the reels */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {/* Left payline pointer */}
-                <motion.div
-                  animate={{ opacity: isJackpot ? [0.5, 1, 0.5] : 0.22 }}
-                  transition={{ duration: 0.9, repeat: isJackpot ? Infinity : 0, ease: 'easeInOut' }}
-                  style={{
-                    fontSize: 14, color: '#d4a843',
-                    textShadow: isJackpot ? '0 0 8px #d4a843' : 'none',
-                    lineHeight: 1,
-                  }}
-                >▶</motion.div>
-
-                {/* The three reels */}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {[0, 1, 2].map(i => (
-                    <motion.div
-                      key={i}
-                      initial={{ y: -60, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.1, duration: 0.38, ease: 'backOut' }}
-                    >
-                      <SlotReel stopped={stopped[i]} jackpotFlash={isJackpot} reelIndex={i} />
-                    </motion.div>
-                  ))}
-                </div>
-
-                {/* Right payline pointer */}
-                <motion.div
-                  animate={{ opacity: isJackpot ? [0.5, 1, 0.5] : 0.22 }}
-                  transition={{ duration: 0.9, repeat: isJackpot ? Infinity : 0, ease: 'easeInOut' }}
-                  style={{
-                    fontSize: 14, color: '#d4a843',
-                    textShadow: isJackpot ? '0 0 8px #d4a843' : 'none',
-                    lineHeight: 1,
-                  }}
-                >◀</motion.div>
-              </div>
-
-              {/* Payline label */}
+              {/* ── Crown / marquee panel ── */}
               <div style={{
-                fontSize: 7, letterSpacing: 6, textTransform: 'uppercase',
-                fontFamily: "'Oswald', monospace",
-                color: isJackpot ? '#d4a843' : 'rgba(180,120,40,0.25)',
-                textShadow: isJackpot ? '0 0 6px #d4a84388' : 'none',
+                background: isJackpot
+                  ? 'linear-gradient(90deg, #600000 0%, #300f00 35%, #d4a84314 50%, #300f00 65%, #600000 100%)'
+                  : 'linear-gradient(90deg, #200000 0%, #120800 50%, #200000 100%)',
+                padding: '8px 28px 7px',
+                borderBottom: `2px solid ${isJackpot ? '#d4a84344' : '#2a1800'}`,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
                 transition: 'all 0.5s',
               }}>
-                payline
+                {/* LED marquee dots */}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={isJackpot ? {
+                        background: ['#cc0000', '#ff6600', '#ffaa00', '#ff6600', '#cc0000'],
+                        boxShadow: ['0 0 3px #cc0000', '0 0 7px #ff6600', '0 0 10px #ffaa00', '0 0 7px #ff6600', '0 0 3px #cc0000'],
+                      } : { background: '#1a0900', boxShadow: 'none' }}
+                      transition={isJackpot ? { duration: 0.7, repeat: Infinity, delay: i * 0.065, ease: 'easeInOut' } : {}}
+                      style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a0900' }}
+                    />
+                  ))}
+                </div>
+                {/* Marquee text */}
+                <div style={{
+                  letterSpacing: 6, fontSize: 9,
+                  fontFamily: "'Oswald', 'Impact', sans-serif", fontWeight: 700,
+                  color: isJackpot ? '#f0d890' : 'rgba(160,100,30,0.45)',
+                  textShadow: isJackpot ? '0 0 8px #d4a84366' : 'none',
+                  textTransform: 'uppercase', transition: 'all 0.5s',
+                }}>
+                  ✦ TRIPLE SEVENS ✦
+                </div>
+              </div>
+
+              {/* ── Horizontal chrome strip ── */}
+              <div style={{
+                height: 4,
+                background: `linear-gradient(90deg, #0a0500, ${isJackpot ? '#d4a843' : '#5a3a00'}, #d4a84311, ${isJackpot ? '#d4a843' : '#5a3a00'}, #0a0500)`,
+                transition: 'background 0.5s',
+              }} />
+
+              {/* ── Reel window — recessed glass panel ── */}
+              <div style={{
+                margin: '12px 14px 10px',
+                background: '#040100',
+                borderRadius: 6,
+                // Inset shadow = recessed panel
+                boxShadow: `inset 0 3px 10px rgba(0,0,0,0.95), inset 0 0 0 2px ${isJackpot ? '#d4a84333' : '#1e1200'}`,
+                padding: '12px 14px 10px',
+                position: 'relative',
+                transition: 'box-shadow 0.5s',
+              }}>
+                {/* Corner rivets */}
+                {([{ top: 4, left: 4 }, { top: 4, right: 4 }, { bottom: 4, left: 4 }, { bottom: 4, right: 4 }] as React.CSSProperties[]).map((pos, i) => (
+                  <div key={i} style={{
+                    position: 'absolute', ...pos,
+                    width: 5, height: 5, borderRadius: '50%',
+                    background: isJackpot ? '#d4a843' : '#4a2e00',
+                    boxShadow: isJackpot ? '0 0 4px #d4a84388' : 'none',
+                    transition: 'all 0.5s',
+                  }} />
+                ))}
+
+                {/* Payline arrows + reels */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <motion.div
+                    animate={{ opacity: isJackpot ? [0.35, 1, 0.35] : 0.15 }}
+                    transition={{ duration: 0.85, repeat: isJackpot ? Infinity : 0 }}
+                    style={{ fontSize: 11, color: '#d4a843', textShadow: isJackpot ? '0 0 6px #d4a843' : 'none' }}
+                  >▶</motion.div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[0, 1, 2].map(i => (
+                      <motion.div
+                        key={i}
+                        initial={{ y: -55, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: i * 0.1, duration: 0.38, ease: 'backOut' }}
+                      >
+                        <SlotReel stopped={stopped[i]} jackpotFlash={isJackpot} reelIndex={i} />
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <motion.div
+                    animate={{ opacity: isJackpot ? [0.35, 1, 0.35] : 0.15 }}
+                    transition={{ duration: 0.85, repeat: isJackpot ? Infinity : 0 }}
+                    style={{ fontSize: 11, color: '#d4a843', textShadow: isJackpot ? '0 0 6px #d4a843' : 'none' }}
+                  >◀</motion.div>
+                </div>
+
+                {/* Payline label */}
+                <div style={{
+                  textAlign: 'center', fontSize: 7, letterSpacing: 5, marginTop: 7,
+                  fontFamily: "'Oswald', sans-serif", textTransform: 'uppercase',
+                  color: isJackpot ? '#d4a843' : 'rgba(160,100,30,0.2)',
+                  textShadow: isJackpot ? '0 0 5px #d4a84355' : 'none',
+                  transition: 'all 0.5s',
+                }}>payline</div>
+              </div>
+
+              {/* ── Lower chrome strip ── */}
+              <div style={{
+                height: 4,
+                background: `linear-gradient(90deg, #0a0500, ${isJackpot ? '#d4a843' : '#5a3a00'}, #d4a84311, ${isJackpot ? '#d4a843' : '#5a3a00'}, #0a0500)`,
+                transition: 'background 0.5s',
+              }} />
+
+              {/* ── Controls section ── */}
+              <div style={{
+                padding: '9px 16px 12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+              }}>
+                {/* Credit display */}
+                <div style={{
+                  flex: 1, height: 22,
+                  background: '#020100',
+                  border: `1px solid ${isJackpot ? '#d4a84333' : '#180e00'}`,
+                  borderRadius: 2,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Courier New', monospace", fontSize: 7, letterSpacing: 2,
+                  color: isJackpot ? '#d4a843' : '#2a1a00',
+                  textShadow: isJackpot ? '0 0 5px #d4a84366' : 'none',
+                  transition: 'all 0.5s',
+                }}>
+                  {isJackpot ? 'MAX PAYOUT' : 'CREDIT 000'}
+                </div>
+                {/* Spin button (decorative circle) */}
+                <motion.div
+                  animate={isJackpot ? {
+                    boxShadow: ['0 0 6px #d4a84355', '0 0 18px #d4a84399', '0 0 6px #d4a84355'],
+                  } : { boxShadow: '0 0 3px rgba(50,32,0,0.5)' }}
+                  transition={{ duration: 0.85, repeat: isJackpot ? Infinity : 0 }}
+                  style={{
+                    width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                    background: isJackpot ? 'radial-gradient(circle, #3c1400, #180800)' : 'radial-gradient(circle, #150a00, #080400)',
+                    border: `2px solid ${isJackpot ? '#d4a843' : '#3a2200'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.5s',
+                  }}
+                >
+                  <div style={{
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: isJackpot ? '#d4a84318' : '#120800',
+                    border: `1px solid ${isJackpot ? '#d4a84344' : '#240f00'}`,
+                  }} />
+                </motion.div>
               </div>
             </div>
 
-            {/* ── Credit / status strip ── */}
+            {/* Right chrome rail */}
             <div style={{
-              margin: '0 20px 18px',
-              height: 26,
-              background: '#040200',
-              border: `1px solid ${isJackpot ? '#d4a84355' : '#1e1200'}`,
-              borderRadius: 3,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: "'Courier New', monospace",
-              fontSize: 8, letterSpacing: 3,
-              color: isJackpot ? '#d4a843' : '#2e1e00',
-              textShadow: isJackpot ? '0 0 6px #d4a84388' : 'none',
-              transition: 'all 0.5s',
-            }}>
-              {isJackpot ? 'SYSTEM OVERRIDE  —  MAX PAYOUT' : 'CREDIT : 000'}
-            </div>
+              width: 11, flexShrink: 0,
+              background: `linear-gradient(180deg, ${isJackpot ? '#f0c860' : '#5a3a00'} 0%, #2e1c00 25%, ${isJackpot ? '#d4a843' : '#4a2e00'} 50%, #2e1c00 75%, ${isJackpot ? '#f0c860' : '#5a3a00'} 100%)`,
+              transition: 'background 0.6s ease',
+            }} />
           </motion.div>
 
-          {/* ── JACKPOT! headline — Playfair Display italic, gold shimmer ── */}
+          {/* ════════════════════════════════════════════
+              JACKPOT ANNOUNCEMENT — appears on win
+              ════════════════════════════════════════════ */}
           <AnimatePresence>
             {isJackpot && (
               <motion.div
-                key="jp-headline"
-                initial={{ scale: 0.25, opacity: 0, y: 16 }}
-                animate={{ scale: [0.25, 1.18, 0.93, 1.06, 1], opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.65, ease: 'easeOut' }}
-                style={{
-                  fontFamily: "'Playfair Display', 'Georgia', 'Times New Roman', serif",
-                  fontWeight: 900, fontStyle: 'italic',
-                  fontSize: 76, letterSpacing: 2, lineHeight: 1,
-                  // Shimmering gold gradient text
-                  background: 'linear-gradient(90deg, #7a5200 0%, #d4a843 20%, #fff8c0 38%, #ffd700 50%, #fff8c0 62%, #d4a843 80%, #7a5200 100%)',
-                  backgroundSize: '200% auto',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  animation: 'jp-shimmer 2.2s linear infinite',
-                  // Subtle depth shadow (rendered on the element, not the text)
-                  filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.9)) drop-shadow(0 0 30px #d4a84344)',
-                  zIndex: 10, userSelect: 'none',
-                }}
-              >
-                Jackpot!
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ── Jackpot icon ── */}
-          <AnimatePresence>
-            {isJackpot && (
-              <motion.div
-                key="jp-icon"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [0, 1.35, 0.92], opacity: 1 }}
+                key="jp-announcement"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: 'backOut', delay: 0.1 }}
-                style={{
-                  filter: 'drop-shadow(0 0 24px #d4a843) drop-shadow(0 0 56px #d4a84344)',
-                  zIndex: 10,
-                }}
+                transition={{ duration: 0.35 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, zIndex: 10 }}
               >
-                <img src={JACKPOT_ICON} alt="" style={{ width: 100, height: 100, objectFit: 'contain' }} />
+                {/* JACKPOT headline */}
+                <motion.div
+                  initial={{ scale: 0.2, opacity: 0 }}
+                  animate={{ scale: [0.2, 1.22, 0.92, 1.08, 1], opacity: 1 }}
+                  transition={{ duration: 0.62, ease: 'easeOut' }}
+                  style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontWeight: 900, fontStyle: 'italic',
+                    fontSize: 68, letterSpacing: 4, lineHeight: 1,
+                    background: 'linear-gradient(90deg, #7a5200 0%, #d4a843 18%, #fff8c0 36%, #ffd700 50%, #fff8c0 64%, #d4a843 82%, #7a5200 100%)',
+                    backgroundSize: '200% auto',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                    animation: 'jp-shimmer 2s linear infinite',
+                    filter: 'drop-shadow(0 3px 0 rgba(0,0,0,1)) drop-shadow(0 0 28px #d4a84333)',
+                    userSelect: 'none',
+                  }}
+                >
+                  JACKPOT
+                </motion.div>
+
+                {/* ── Getsuga energy beam ── */}
+                <motion.div
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  animate={{ scaleX: 1, opacity: 1 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1], delay: 0.38 }}
+                  style={{
+                    position: 'relative', width: 400, height: 32,
+                    display: 'flex', alignItems: 'center',
+                    transformOrigin: 'left center',
+                    overflow: 'visible',
+                  }}
+                >
+                  {/* Main energy line — black with white-hot rim */}
+                  <motion.div
+                    animate={{ scaleY: [1, 1.5, 1], opacity: [0.9, 1, 0.9] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                      width: '100%', height: 3,
+                      background: 'linear-gradient(90deg, transparent 0%, #000 4%, #050505 50%, #000 96%, transparent 100%)',
+                      boxShadow: '0 0 3px rgba(255,255,255,1), 0 0 8px rgba(255,255,255,0.7), 0 0 18px rgba(255,255,255,0.25)',
+                      position: 'relative', zIndex: 2,
+                    }}
+                  />
+                  {/* White flame wisps rising from the beam */}
+                  {GETSUGA_FLAMES.map((f, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{
+                        height: [f.h * 0.25, f.h, f.h * 0.15],
+                        opacity: [0.2, 0.95, 0],
+                        y: [0, -(f.h * 0.9), -(f.h * 1.2)],
+                      }}
+                      transition={{ duration: f.d, repeat: Infinity, delay: f.dl, ease: 'easeOut', repeatType: 'loop' }}
+                      style={{
+                        position: 'absolute', left: f.x, bottom: 2,
+                        width: 2, height: f.h,
+                        background: 'linear-gradient(to top, rgba(255,255,255,0.9), rgba(200,200,255,0.4), transparent)',
+                        boxShadow: '0 0 3px rgba(255,255,255,0.8)',
+                        zIndex: 3,
+                      }}
+                    />
+                  ))}
+                </motion.div>
+
+                {/* EXECUTING FINAL GETSUGA */}
+                <motion.div
+                  initial={{ opacity: 0, letterSpacing: 14 }}
+                  animate={{ opacity: 1, letterSpacing: 6 }}
+                  transition={{ duration: 0.55, delay: 0.55, ease: 'easeOut' }}
+                  style={{
+                    fontFamily: "'Oswald', 'Impact', sans-serif",
+                    fontWeight: 700, fontSize: 12,
+                    letterSpacing: 6, textTransform: 'uppercase',
+                    color: '#e5e5e5',
+                    textShadow: '0 0 6px rgba(255,255,255,0.35), 0 1px 0 rgba(0,0,0,1)',
+                    userSelect: 'none',
+                  }}
+                >
+                  EXECUTING FINAL GETSUGA
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ── Coin/confetti burst — 42 pieces, mostly gold tones ── */}
+          {/* Confetti burst — 42 pieces */}
           {isJackpot && (
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
               {Array.from({ length: 42 }, (_, i) => {
                 const angle = (i / 42) * 360;
-                const dist  = 140 + Math.random() * 300;
+                const dist  = 130 + (i * 17 % 280);
                 const x = Math.cos((angle * Math.PI) / 180) * dist;
                 const y = Math.sin((angle * Math.PI) / 180) * dist;
-                const size = 5 + Math.floor(Math.random() * 11);
-                // Predominantly gold, rare accents
+                const size = 5 + (i * 3 % 11);
                 const color = i % 6 === 0 ? '#cc88ff' : i % 9 === 0 ? '#55aaff' : i % 4 === 0 ? '#fff8d0' : '#d4a843';
-                const isCircle = i % 5 !== 0;
                 return (
                   <motion.div
                     key={i}
@@ -990,10 +1125,9 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
                     transition={{ duration: 1.6, delay: i * 0.016, ease: 'easeOut' }}
                     style={{
                       position: 'absolute', top: '50%', left: '50%',
-                      width: size, height: isCircle ? size : Math.max(2, size * 0.35),
-                      borderRadius: isCircle ? '50%' : 1,
-                      background: color,
-                      boxShadow: `0 0 ${size + 2}px ${color}77`,
+                      width: size, height: i % 5 !== 0 ? size : Math.max(2, size * 0.35),
+                      borderRadius: i % 5 !== 0 ? '50%' : 1,
+                      background: color, boxShadow: `0 0 ${size + 2}px ${color}77`,
                     }}
                   />
                 );
