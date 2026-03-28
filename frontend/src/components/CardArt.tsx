@@ -58,7 +58,7 @@ function CloverArt({ c }: { c: string }) {
 
       {/* Main suit symbol */}
       <text x="44" y="74" textAnchor="middle" fontSize="50"
-        fill={c} fontFamily="serif" filter="url(#cl-glow)" opacity="0.97">♣</text>
+        fill={c} fontFamily="'DM Mono', monospace" filter="url(#cl-glow)" opacity="0.97">♣</text>
 
       {/* Bottom bar */}
       <rect x="22" y="104" width="44" height="1" fill={c} opacity="0.2" rx="0.5"/>
@@ -103,7 +103,7 @@ function SpadeArt({ c }: { c: string }) {
 
       {/* Main suit symbol */}
       <text x="44" y="73" textAnchor="middle" fontSize="50"
-        fill={c} fontFamily="serif" filter="url(#sp-glow)" opacity="0.97">♠</text>
+        fill={c} fontFamily="'DM Mono', monospace" filter="url(#sp-glow)" opacity="0.97">♠</text>
 
       {/* Bottom bar */}
       <rect x="22" y="104" width="44" height="1" fill={c} opacity="0.2" rx="0.5"/>
@@ -147,7 +147,7 @@ function DiamondArt({ c }: { c: string }) {
 
       {/* Main suit symbol */}
       <text x="44" y="73" textAnchor="middle" fontSize="50"
-        fill={c} fontFamily="serif" filter="url(#dm-glow)" opacity="0.97">♦</text>
+        fill={c} fontFamily="'DM Mono', monospace" filter="url(#dm-glow)" opacity="0.97">♦</text>
 
       {/* Inner diamond facet lines */}
       <line x1="44" y1="37" x2="44" y2="71" stroke={c} strokeWidth="0.5" opacity="0.18"/>
@@ -205,7 +205,7 @@ function HeartArt({ c }: { c: string }) {
 
       {/* Main suit symbol */}
       <text x="44" y="74" textAnchor="middle" fontSize="50"
-        fill={c} fontFamily="serif" filter="url(#ht-glow)" opacity="0.97">♥</text>
+        fill={c} fontFamily="'DM Mono', monospace" filter="url(#ht-glow)" opacity="0.97">♥</text>
 
       {/* Bottom bar */}
       <rect x="22" y="104" width="44" height="1" fill={c} opacity="0.2" rx="0.5"/>
