@@ -565,13 +565,17 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>
                 Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}
-                              </div>
-              {displayUpgradePath.map((u: string,i: number)=>(
-                <div key={i} className="upg-step">
-                  <div className="upg-n" style={{background:`${color}18`,border:`1px solid ${color}30`,color}}>{i+1}</div>
-                  <div className="upg-t">{u}</div>
-                </div>
-              ))}
+              </div>
+              {isAiLoading ? (
+                <div style={{fontSize:13,color:"var(--dim)",padding:"6px 0"}}>Analyzing...</div>
+              ) : (
+                displayUpgradePath.map((u: string,i: number)=>(
+                  <div key={i} className="upg-step">
+                    <div className="upg-n" style={{background:`${color}18`,border:`1px solid ${color}30`,color}}>{i+1}</div>
+                    <div className="upg-t">{u}</div>
+                  </div>
+                ))
+              )}
             </div>
 
           </div>
