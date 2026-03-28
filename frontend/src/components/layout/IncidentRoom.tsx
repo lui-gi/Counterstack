@@ -1,5 +1,3 @@
-import { SUITS, RANK_NAMES } from '../../data/gameData';
-import type { SuitConfig } from '../../interfaces/SuitConfig.interface';
 import type { IncidentRoomProps } from '../../interfaces/IncidentRoomProps.interface';
 
 const ANALYSIS_ROWS: { key: 'geminiExposure' | 'geminiControls' | 'geminiVerdict'; label: string }[] = [
@@ -8,7 +6,7 @@ const ANALYSIS_ROWS: { key: 'geminiExposure' | 'geminiControls' | 'geminiVerdict
   { key: 'geminiVerdict',  label: 'Verdict'  },
 ];
 
-export default function IncidentRoom({ ranks, posture, activeCve, geminiThreatPct, geminiExposure, geminiControls, geminiVerdict, geminiAnalyzing, geminiAttackVectors, geminiRemediationSteps, onClose }: IncidentRoomProps) {
+export default function IncidentRoom({ posture, activeCve, geminiThreatPct, geminiSummary, geminiExposure, geminiControls, geminiVerdict, geminiAnalyzing, geminiAttackVectors, geminiRemediationSteps, onClose }: IncidentRoomProps) {
   const incidentTitle = activeCve ? `${activeCve.cveId} — ${activeCve.name}` : "ZERO-DAY API";
   const hasAnalysis = !!(geminiExposure || geminiControls || geminiVerdict);
   const analysisValues: Record<string, string> = { geminiExposure: geminiExposure ?? '', geminiControls: geminiControls ?? '', geminiVerdict: geminiVerdict ?? '' };
@@ -57,8 +55,13 @@ export default function IncidentRoom({ ranks, posture, activeCve, geminiThreatPc
               </div>
               <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,color:"var(--pink)"}}>{geminiThreatPct}%</div>
             </div>
-            {/* Labeled analysis rows */}
+            {/* Summary + labeled analysis rows */}
             <div style={{borderTop:"1px solid rgba(0,212,255,.12)",paddingTop:10,display:"flex",flexDirection:"column",gap:12}}>
+              {geminiSummary && (
+                <div style={{fontSize:14,color:"var(--text)",lineHeight:1.6,paddingBottom:4,borderBottom:"1px solid rgba(0,212,255,.08)"}}>
+                  {geminiSummary}
+                </div>
+              )}
               {ANALYSIS_ROWS.map(({key, label})=>(
                 <div key={key}>
                   <div style={{fontFamily:"var(--fm)",fontSize:11,letterSpacing:1.5,color:"var(--dim)",textTransform:"uppercase",marginBottom:4}}>{label}</div>
@@ -137,22 +140,6 @@ export default function IncidentRoom({ ranks, posture, activeCve, geminiThreatPc
           <div style={{fontSize:12,color:"var(--dim)"}}>Score: <span style={{color:"#fff",fontWeight:700}}>{posture.score}/100</span></div>
         </div>
 
-        {/* Pillar Response Levels */}
-        <div className="modal-sect-t">Pillar Response Levels</div>
-        {(Object.entries(SUITS) as [string, SuitConfig][]).map(([k,cfg])=>(
-          <div key={k} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",
-            borderBottom:"1px solid rgba(0,212,255,.05)"}}>
-            <span style={{color:cfg.color,fontSize:15,width:22}}>{cfg.sym}</span>
-            <span style={{fontFamily:"var(--fb)",fontSize:14,fontWeight:600,width:76}}>{cfg.name}</span>
-            <div style={{flex:1}} className="ptrack">
-              <div className="pfill" style={{width:`${(ranks[k]/13)*100}%`,
-                background:`linear-gradient(90deg,${cfg.color},${cfg.color}88)`}}/>
-            </div>
-            <span style={{fontFamily:"var(--fh)",fontSize:14,fontWeight:900,color:cfg.color,width:26,textAlign:"right"}}>
-              {RANK_NAMES[ranks[k]]}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );

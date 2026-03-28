@@ -18,6 +18,7 @@ interface CveThreatInput {
 
 interface CveThreatResult {
   threatPct: number;
+  summary: string;
   exposure: string;
   controls: string;
   verdict: string;

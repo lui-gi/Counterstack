@@ -86,6 +86,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
 
   // Gemini threat analysis state
   const [geminiThreatPct, setGeminiThreatPct] = useState<number | null>(null);
+  const [geminiSummary, setGeminiSummary] = useState<string>('');
   const [geminiExposure, setGeminiExposure] = useState<string>('');
   const [geminiControls, setGeminiControls] = useState<string>('');
   const [geminiVerdict, setGeminiVerdict] = useState<string>('');
@@ -159,6 +160,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
   useEffect(() => {
     if (!activeCve) {
       setGeminiThreatPct(null);
+      setGeminiSummary('');
       setGeminiExposure('');
       setGeminiControls('');
       setGeminiVerdict('');
@@ -185,6 +187,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
       .then((result) => {
         if (!mounted) return;
         setGeminiThreatPct(result.threatPct);
+        setGeminiSummary(result.summary ?? '');
         setGeminiExposure(result.exposure ?? '');
         setGeminiControls(result.controls ?? '');
         setGeminiVerdict(result.verdict ?? '');
@@ -195,6 +198,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
         console.error('Gemini CVE analysis failed:', err);
         if (mounted) {
           setGeminiThreatPct(null);
+          setGeminiSummary('');
           setGeminiExposure('');
           setGeminiControls('');
           setGeminiVerdict('');
@@ -954,11 +958,10 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
           {/* ── INCIDENT ROOM ── */}
           {showIR && (
             <IncidentRoom
-              ranks={ranks}
               posture={posture}
-              threatPressure={animPressure}
               activeCve={activeCve}
               geminiThreatPct={geminiThreatPct}
+              geminiSummary={geminiSummary}
               geminiExposure={geminiExposure}
               geminiControls={geminiControls}
               geminiVerdict={geminiVerdict}

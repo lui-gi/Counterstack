@@ -59,7 +59,7 @@ ${JSON.stringify(json, null, 2)}`;
 export async function analyzeCveThreat(
   cve: Record<string, unknown>,
   orgProfile: unknown
-): Promise<{ threatPct: number; exposure: string; controls: string; verdict: string; attackVectors: string[]; remediationSteps: string[] }> {
+): Promise<{ threatPct: number; summary: string; exposure: string; controls: string; verdict: string; attackVectors: string[]; remediationSteps: string[] }> {
   const prompt = `You are a cybersecurity threat analyst. Given a specific CVE and an organization's security profile, calculate how vulnerable this organization is to this specific CVE.
 
 CVE Details:
@@ -77,6 +77,7 @@ ${JSON.stringify(orgProfile, null, 2)}
 Respond ONLY with a JSON object:
 {
   "threatPct": <0-100>,
+  "summary": "<1-2 sentences briefly describing what this CVE does and why it matters>",
   "exposure": "<1 sentence: does this org use the affected vendor/product and to what extent?>",
   "controls": "<1 sentence: how well do their specific security controls mitigate this vulnerability?>",
   "verdict": "<1 sentence: why was this exact threat percentage assigned, tying exposure and controls together?>",
@@ -98,6 +99,7 @@ For remediationSteps: provide 3-5 concise, org-specific containment and remediat
   const parsed = parseJsonFromText(raw) as Record<string, unknown>;
   return {
     threatPct: Math.max(0, Math.min(100, Math.round(Number(parsed.threatPct)))),
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
     exposure: typeof parsed.exposure === 'string' ? parsed.exposure : '',
     controls: typeof parsed.controls === 'string' ? parsed.controls : '',
     verdict: typeof parsed.verdict === 'string' ? parsed.verdict : '',
