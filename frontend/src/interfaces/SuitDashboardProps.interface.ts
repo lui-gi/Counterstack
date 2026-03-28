@@ -15,4 +15,5 @@ export interface SuitDashboardProps {
   aiAnalysis?: SuitAnalysisCache | null;
   onRequestAnalysis?: () => void;
   hasOrgProfile?: boolean;
+  orgProfile?: Record<string, unknown> | null;
 }

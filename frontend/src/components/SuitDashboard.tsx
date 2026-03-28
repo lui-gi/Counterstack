@@ -6,11 +6,148 @@ import type { SuitRisk } from '../interfaces/SuitRisk.interface';
 import type { SuitDashboardProps } from '../interfaces/SuitDashboardProps.interface';
 import PostureChart from './PostureChart';
 
-export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, aiAnalysis, onRequestAnalysis, hasOrgProfile }: SuitDashboardProps) {
+function deriveMetrics(suitKey: string, profile: Record<string, unknown>): SuitMetric[] | null {
+  const nist = profile.nistCsf as Record<string, unknown> | undefined;
+  if (!nist) return null;
+
+  const identify = nist.identify as Record<string, unknown> | undefined;
+  const protect  = nist.protect  as Record<string, unknown> | undefined;
+  const detect   = nist.detect   as Record<string, unknown> | undefined;
+  const respond  = nist.respond  as Record<string, unknown> | undefined;
+  const recover  = nist.recover  as Record<string, unknown> | undefined;
+
+  if (suitKey === 'clover') {
+    if (!identify || !protect) return null;
+    return [
+      {
+        k: 'Patch Cadence',
+        v: protect.patchCadenceDays != null ? `${protect.patchCadenceDays}d` : '—',
+        raw: typeof protect.patchCadenceDays === 'number' ? Math.max(0, 100 - protect.patchCadenceDays * 3) : 0,
+        trend: 0,
+      },
+      {
+        k: 'Asset Inventory',
+        v: identify.assetInventoryComplete ? 'Complete' : 'Incomplete',
+        raw: identify.assetInventoryComplete ? 100 : 40,
+        trend: 0,
+      },
+      {
+        k: 'Risk Assessment',
+        v: identify.riskAssessmentAgeMonths != null ? `${identify.riskAssessmentAgeMonths}mo ago` : '—',
+        raw: typeof identify.riskAssessmentAgeMonths === 'number' ? Math.max(0, 100 - identify.riskAssessmentAgeMonths * 5) : 0,
+        trend: 0,
+      },
+      {
+        k: 'Critical Assets Docs',
+        v: identify.criticalAssetsDocumented ? 'Yes' : 'No',
+        raw: identify.criticalAssetsDocumented ? 100 : 20,
+        trend: 0,
+      },
+    ];
+  }
+
+  if (suitKey === 'spade') {
+    if (!detect || !respond) return null;
+    return [
+      {
+        k: 'Mean Time to Detect',
+        v: detect.meanTimeToDetectHours != null ? `${detect.meanTimeToDetectHours}h` : '—',
+        raw: typeof detect.meanTimeToDetectHours === 'number' ? Math.max(0, 100 - detect.meanTimeToDetectHours * 4) : 0,
+        trend: 0,
+      },
+      {
+        k: 'EDR Coverage',
+        v: detect.edrCoveragePercent != null ? `${detect.edrCoveragePercent}%` : '—',
+        raw: typeof detect.edrCoveragePercent === 'number' ? detect.edrCoveragePercent : 0,
+        trend: 0,
+      },
+      {
+        k: 'SIEM Active',
+        v: detect.siemActive ? 'Yes' : 'No',
+        raw: detect.siemActive ? 100 : 0,
+        trend: 0,
+      },
+      {
+        k: 'Mean Time to Respond',
+        v: respond.meanTimeToRespondHours != null ? `${respond.meanTimeToRespondHours}h` : '—',
+        raw: typeof respond.meanTimeToRespondHours === 'number' ? Math.max(0, 100 - respond.meanTimeToRespondHours * 10) : 0,
+        trend: 0,
+      },
+    ];
+  }
+
+  if (suitKey === 'diamond') {
+    if (!protect) return null;
+    return [
+      {
+        k: 'MFA Adoption',
+        v: protect.mfaAdoptionPercent != null ? `${protect.mfaAdoptionPercent}%` : '—',
+        raw: typeof protect.mfaAdoptionPercent === 'number' ? protect.mfaAdoptionPercent : 0,
+        trend: 0,
+      },
+      {
+        k: 'Zero Trust Maturity',
+        v: typeof protect.zeroTrustMaturity === 'string' ? protect.zeroTrustMaturity : '—',
+        raw: protect.zeroTrustMaturity === 'full' ? 100 : protect.zeroTrustMaturity === 'in-progress' ? 50 : 10,
+        trend: 0,
+      },
+      {
+        k: 'Encryption at Rest',
+        v: protect.encryptionAtRest ? 'Enabled' : 'Disabled',
+        raw: protect.encryptionAtRest ? 100 : 0,
+        trend: 0,
+      },
+      {
+        k: 'Patch Cadence',
+        v: protect.patchCadenceDays != null ? `${protect.patchCadenceDays}d` : '—',
+        raw: typeof protect.patchCadenceDays === 'number' ? Math.max(0, 100 - protect.patchCadenceDays * 3) : 0,
+        trend: 0,
+      },
+    ];
+  }
+
+  if (suitKey === 'heart') {
+    if (!recover) return null;
+    return [
+      {
+        k: 'RTO',
+        v: recover.rtoHours != null ? `${recover.rtoHours}h` : '—',
+        raw: typeof recover.rtoHours === 'number' ? Math.max(0, 100 - recover.rtoHours * 8) : 0,
+        trend: 0,
+      },
+      {
+        k: 'RPO',
+        v: recover.rpoHours != null ? `${recover.rpoHours}h` : '—',
+        raw: typeof recover.rpoHours === 'number' ? Math.max(0, 100 - recover.rpoHours * 10) : 0,
+        trend: 0,
+      },
+      {
+        k: 'Backup Frequency',
+        v: recover.backupFrequencyHours != null ? `every ${recover.backupFrequencyHours}h` : '—',
+        raw: typeof recover.backupFrequencyHours === 'number' ? Math.max(0, 100 - recover.backupFrequencyHours * 2) : 0,
+        trend: 0,
+      },
+      {
+        k: 'Last DR Test',
+        v: recover.lastDrTestDays != null ? `${recover.lastDrTestDays}d ago` : '—',
+        raw: typeof recover.lastDrTestDays === 'number' ? Math.max(0, 100 - recover.lastDrTestDays * 2) : 0,
+        trend: 0,
+      },
+    ];
+  }
+
+  return null;
+}
+
+export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, aiAnalysis, onRequestAnalysis, hasOrgProfile, orgProfile }: SuitDashboardProps) {
   const data = SUIT_DATA[suitKey];
   const color = cfg.color;
   const pct = Math.round((rank/13)*100);
   const sevColor = { high:"#f72585", medium:"#ff9f1c", low:"#39d353" };
+
+  const derivedMetrics = orgProfile ? deriveMetrics(suitKey, orgProfile) : null;
+  const displayMetrics = derivedMetrics ?? data.metrics;
+  const metricsFromProfile = !!derivedMetrics;
 
   // Trigger Gemini analysis when panel opens (lazy loading)
   useEffect(() => {
@@ -56,13 +193,15 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
         <div className="sd-body">
           {/* Metrics */}
           <div className="sd-metrics">
-            {data.metrics.map((m: SuitMetric)=>(
+            {displayMetrics.map((m: SuitMetric)=>(
               <div key={m.k} className="sm-card" style={{borderColor:`${color}18`}}>
                 <div className="sm-lbl">{m.k}</div>
                 <div className="sm-val" style={{color}}>{m.v}</div>
-                <div className="sm-trend" style={{color:m.trend>0?"var(--green)":m.trend<0?"var(--pink)":"var(--dim)"}}>
-                  {m.trend>0?"▲":m.trend<0?"▼":"─"} {Math.abs(m.trend)}% vs prev week
-                </div>
+                {!metricsFromProfile && (
+                  <div className="sm-trend" style={{color:m.trend>0?"var(--green)":m.trend<0?"var(--pink)":"var(--dim)"}}>
+                    {m.trend>0?"▲":m.trend<0?"▼":"─"} {Math.abs(m.trend)}% vs prev week
+                  </div>
+                )}
               </div>
             ))}
           </div>
