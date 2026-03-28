@@ -458,9 +458,9 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                 data-pos={i}
                 style={{
                   color: card.color,
-                  "--land-x": `${[-380, -125, 125, 380][i]}px`,
-                  "--land-y": `${[220, 170, 170, 220][i]}px`,
-                  "--land-rot": `${[-18, -6, 6, 18][i]}deg`,
+                  "--land-x": `${[-345, -118, 118, 345][i]}px`,
+                  "--land-y": `${[170, 125, 125, 170][i]}px`,
+                  "--land-rot": `${[-16, -5, 5, 16][i]}deg`,
                   "--stack-z": `${i * 3}px`,
                   zIndex: cardStates[i] === "stacked" ? 10 + i : 20 + i,
                 } as React.CSSProperties}

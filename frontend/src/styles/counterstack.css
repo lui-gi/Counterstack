@@ -108,7 +108,6 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   top:12%;
   left:50%;
   transform:translateX(-50%);
-  perspective:1000px;
   width:220px;height:300px;
   display:flex;align-items:center;justify-content:center}
 
@@ -119,11 +118,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   border:2.5px solid;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   cursor:pointer;overflow:hidden;
-  transform-style:preserve-3d;
-  transition:transform .4s cubic-bezier(.34,1.56,.64,1),
-             box-shadow .35s ease,
-             opacity .3s ease;
-  backface-visibility:hidden}
+  transition:box-shadow .35s ease, opacity .3s ease;}
 
 /* Card variants */
 .landing-card[data-card="guest"]{
@@ -138,43 +133,56 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .landing-card[data-card="joker"]{border-color:rgba(247,37,133,.5);box-shadow:0 0 20px rgba(247,37,133,.15);
   background:linear-gradient(145deg,#0c0008,#200016,#0c0008)}
 
-/* Stacked state - face up initially */
-.landing-card.stacked{opacity:1;pointer-events:none;transition:transform .5s ease-in-out}
-.landing-card.stacked[data-pos="0"]{transform:rotateX(0) translateZ(0)}
-.landing-card.stacked[data-pos="1"]{transform:rotateX(0) translateZ(3px)}
-.landing-card.stacked[data-pos="2"]{transform:rotateX(0) translateZ(6px)}
-.landing-card.stacked[data-pos="3"]{transform:rotateX(0) translateZ(9px)}
-
-/* Tilted state - deck tilts back before throwing */
-.landing-card.tilted{opacity:.9;pointer-events:none;transition:transform .4s ease-in-out}
-.landing-card.tilted[data-pos="0"]{transform:rotateX(75deg) translateZ(0)}
-.landing-card.tilted[data-pos="1"]{transform:rotateX(75deg) translateZ(3px)}
-.landing-card.tilted[data-pos="2"]{transform:rotateX(75deg) translateZ(6px)}
-.landing-card.tilted[data-pos="3"]{transform:rotateX(75deg) translateZ(9px)}
-
-/* Throw animation - card flips forward and flies down to position */
-@keyframes cardThrow{
-  0%{transform:rotateX(75deg) translateZ(var(--stack-z)) translateY(0);opacity:.9}
-  35%{transform:rotateX(25deg) translateZ(120px) translateY(80px) scale(1.1);opacity:1}
-  65%{transform:rotateX(-5deg) translateZ(60px) translateY(180px) translateX(calc(var(--land-x) * 0.7)) rotate(calc(var(--land-rot) * 0.5)) scale(1.05);opacity:1}
-  100%{transform:rotateX(0) translateZ(0) translateY(var(--land-y)) translateX(var(--land-x)) rotate(var(--land-rot)) scale(1);opacity:1}
+/* Gather — cards slide in from spread positions and compress into the deck */
+@keyframes cardGather{
+  0%  {transform:translateX(var(--gather-x,0px)) translateY(-30px) scale(1.06);opacity:0}
+  60% {transform:translateX(calc(var(--gather-x,0px) * .08)) translateY(-4px) scale(1.01);opacity:1}
+  100%{transform:translateY(calc(var(--stack-z,0px) * -1)) scale(1);opacity:1}
 }
 
-/* Thrown state (animating) */
+/* Stacked — all overlapping at center, each flies in from its spread direction */
+.landing-card.stacked{
+  opacity:1;pointer-events:none;
+  animation:cardGather .55s cubic-bezier(0.22,1,0.36,1) forwards;
+  transition:none}
+.landing-card.stacked[data-pos="0"]{--gather-x:-220px;animation-delay:.00s}
+.landing-card.stacked[data-pos="1"]{--gather-x: -75px;animation-delay:.06s}
+.landing-card.stacked[data-pos="2"]{--gather-x:  75px;animation-delay:.12s}
+.landing-card.stacked[data-pos="3"]{--gather-x: 220px;animation-delay:.18s}
+
+/* Tilted — slight fan-back hint before throw */
+.landing-card.tilted{
+  opacity:1;pointer-events:none;
+  transform:translateY(calc(var(--stack-z, 0px) * -1)) rotate(-1deg);
+  transition:transform .18s ease-out}
+
+/* Throw — clean 2D arc, no 3D */
+@keyframes cardThrow{
+  0%  {transform:rotate(-1deg) scale(1);   opacity:1}
+  55% {transform:translateY(calc(var(--land-y) - 18px))
+                translateX(var(--land-x))
+                rotate(calc(var(--land-rot) * 1.15))
+                scale(1.05);              opacity:1}
+  100%{transform:translateY(var(--land-y))
+                translateX(var(--land-x))
+                rotate(var(--land-rot))
+                scale(1);                 opacity:1}
+}
+
 .landing-card.throwing{
-  animation:cardThrow .7s cubic-bezier(.25,.46,.45,.94) forwards;
+  animation:cardThrow .55s cubic-bezier(0.22,1,0.36,1) forwards;
+  transition:none;
   pointer-events:none}
 
-/* Landed state (semicircle arc - cards fan out from center, contained within viewport) */
-.landing-card.landed{pointer-events:auto;opacity:1}
-.landing-card.landed[data-pos="0"]{--land-x:-380px;--land-y:220px;--land-rot:-18deg;transform:translateY(220px) translateX(-380px) rotate(-18deg)}
-.landing-card.landed[data-pos="1"]{--land-x:-125px;--land-y:170px;--land-rot:-6deg;transform:translateY(170px) translateX(-125px) rotate(-6deg)}
-.landing-card.landed[data-pos="2"]{--land-x:125px;--land-y:170px;--land-rot:6deg;transform:translateY(170px) translateX(125px) rotate(6deg)}
-.landing-card.landed[data-pos="3"]{--land-x:380px;--land-y:220px;--land-rot:18deg;transform:translateY(220px) translateX(380px) rotate(18deg)}
+/* Landed — uses the CSS vars set in JSX inline styles so throw & final position always match */
+.landing-card.landed{
+  pointer-events:auto;opacity:1;
+  transform:translateY(var(--land-y)) translateX(var(--land-x)) rotate(var(--land-rot));}
 
-/* Hover effect for landed cards - straighten out */
+/* Hover — lift card up, straighten */
 .landing-card.landed:hover{
-  transform:translateY(calc(var(--land-y) - 20px)) translateX(var(--land-x)) rotate(0deg) scale(1.12);
+  transform:translateY(calc(var(--land-y) - 22px)) translateX(var(--land-x)) rotate(0deg) scale(1.1);
+  transition:transform .22s cubic-bezier(0.22,1,0.36,1);
   z-index:50}
 .landing-card.landed[data-card="guest"]{animation:guestFlicker 3.2s ease-in-out infinite}
 .landing-card.landed[data-card="guest"]:hover{
