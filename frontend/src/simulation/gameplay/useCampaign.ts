@@ -24,12 +24,13 @@ export interface CampaignCard {
 }
 
 export type CampaignPhase =
-  | 'boss-intro'    // entrance dialogue
-  | 'player-draw'   // waiting for DRAW click
-  | 'card-select'   // showing N card options
-  | 'resolve'       // auto: brief pause after play
-  | 'enemy-attack'  // auto: boss hits player
-  | 'phase-clear'   // boss defeated, click CONTINUE
+  | 'boss-intro'      // entrance dialogue
+  | 'player-draw'     // waiting for DRAW click
+  | 'card-select'     // showing N card options
+  | 'resolve'         // auto: brief pause after play
+  | 'enemy-attack'    // auto: boss hits player
+  | 'defeat-pending'  // auto: 1s delay before showing defeat screen
+  | 'phase-clear'     // boss defeated, click CONTINUE
   | 'victory'
   | 'game-over';
 
@@ -85,6 +86,13 @@ export interface CampaignState {
   adapterAdapting: boolean;   // true for 1s after adapter heals, shown as "ADAPTING"
 }
 
+// ── Per-boss defeat messages ──────────────────────────────────
+const DEFEAT_MESSAGES: Record<BossId, string> = {
+  'system-patch': 'Threat confirmed. Escalating response...',
+  'wesker':       'Threat contained. Initiating purge...',
+  'ai-adapter':   'Breach contained!',
+};
+
 // ── Static boss data ─────────────────────────────────────────
 const BOSS_DATA: CampaignBoss[] = [
   {
@@ -94,8 +102,8 @@ const BOSS_DATA: CampaignBoss[] = [
     introText: 'CRITICAL PATCH WINDOW DETECTED. Security protocols corrupted. Initiating hostile containment...',
   },
   {
-    id: 'wesker', name: 'WESKER',
-    maxHp: 50, hp: 50, atkMin: 16, atkMax: 26,
+    id: 'wesker', name: 'Weslock.exe',
+    maxHp: 50, hp: 50, atkMin: 12, atkMax: 20,
     sprite: '👤',
     introText: '7 minutes. 7 minutes is all I can spare to play with you.',
   },
@@ -241,7 +249,8 @@ type Action =
   | { type: 'SELECT_CARD'; cardId: string }
   | { type: 'ADVANCE' }
   | { type: 'TRIGGER_JACKPOT' }
-  | { type: 'WESKER_TIMEOUT' };
+  | { type: 'WESKER_TIMEOUT' }
+  | { type: 'DEFEAT_CONFIRM' };
 
 // ── Reducer ──────────────────────────────────────────────────
 function reducer(state: CampaignState, action: Action): CampaignState {
@@ -464,7 +473,8 @@ function reducer(state: CampaignState, action: Action): CampaignState {
 
         return {
           ...state,
-          phase: bossDefeated ? 'phase-clear' : 'resolve',
+          phase: bossDefeated ? 'defeat-pending' : 'resolve',
+          dialogueText: bossDefeated ? DEFEAT_MESSAGES[state.boss.id] : state.dialogueText,
           boss,
           lastPlayerDmg: totalDmg,
           mana: state.mana - cost,
@@ -605,7 +615,8 @@ function reducer(state: CampaignState, action: Action): CampaignState {
       if (state.boss.id === 'ai-adapter') {
         return {
           ...state,
-          phase: 'phase-clear', jackpotUsed: true, jackpotAvailable: false,
+          phase: 'defeat-pending', jackpotUsed: true, jackpotAvailable: false,
+          dialogueText: DEFEAT_MESSAGES['ai-adapter'],
           boss: { ...state.boss, hp: 0 }, lastPlayerDmg: state.boss.maxHp,
           log: addLog({ id: `jackpot-${state.turn}`, msg: '[BLACK HAT JACKPOT] 🎩 SYSTEM OVERRIDE! AI ADAPTER DESTROYED!', kind: 'jackpot' }),
         };
@@ -615,16 +626,22 @@ function reducer(state: CampaignState, action: Action): CampaignState {
       const newHp = Math.max(0, state.boss.hp - bonusDmg);
       return {
         ...state,
-        phase: newHp === 0 ? 'phase-clear' : 'resolve',
+        phase: newHp === 0 ? 'defeat-pending' : 'resolve',
+        dialogueText: newHp === 0 ? DEFEAT_MESSAGES[state.boss.id] : state.dialogueText,
         jackpotUsed: true, jackpotAvailable: false,
         boss: { ...state.boss, hp: newHp }, lastPlayerDmg: bonusDmg,
         log: addLog({ id: `jackpot-${state.turn}`, msg: `[BLACK HAT JACKPOT] 🎩 ${bonusDmg} DAMAGE to ${state.boss.name}!`, kind: 'jackpot' }),
       };
     }
 
+    case 'DEFEAT_CONFIRM': {
+      if (state.phase !== 'defeat-pending') return state;
+      return { ...state, phase: 'phase-clear' };
+    }
+
     case 'WESKER_TIMEOUT': {
       if (state.boss.id !== 'wesker') return state;
-      if (state.phase === 'phase-clear' || state.phase === 'victory' || state.phase === 'game-over') return state;
+      if (state.phase === 'defeat-pending' || state.phase === 'phase-clear' || state.phase === 'victory' || state.phase === 'game-over') return state;
       return {
         ...state,
         phase: 'game-over',
@@ -646,6 +663,13 @@ export function useCampaign(initialRanks?: Record<Suit, number>) {
   const [state, dispatch] = useReducer(reducer, ranks, makeInitial);
 
   useEffect(() => { dispatch({ type: 'START' }); }, []);
+
+  // 1-second delay between defeat and showing the defeat screen
+  useEffect(() => {
+    if (state.phase !== 'defeat-pending') return;
+    const t = setTimeout(() => dispatch({ type: 'DEFEAT_CONFIRM' }), 1000);
+    return () => clearTimeout(t);
+  }, [state.phase]);
 
   const continueIntro  = useCallback(() => dispatch({ type: 'CONTINUE_INTRO' }), []);
   const drawCard       = useCallback(() => dispatch({ type: 'DRAW_CARD' }), []);
