@@ -95,10 +95,36 @@ export default function App() {
     if (tutorial) setIsTutorial(true);
     if (account) {
       setAccountData(account);
+      // Store token in localStorage for persistence
+      if (account.token) {
+        localStorage.setItem('authToken', account.token);
+      }
     } else if (!profile) {
       setMode('simulation');
     }
   };
+
+  // On app load, check for stored auth token and restore session
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token && !accountData) {
+      // Verify token with backend
+      fetch('http://localhost:4000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Token invalid');
+        })
+        .then(user => {
+          setAccountData({ id: user.id, email: user.email, name: user.name, token });
+        })
+        .catch(() => {
+          // Token expired or invalid, clear it
+          localStorage.removeItem('authToken');
+        });
+    }
+  }, []);
 
   // Step 1: video splash (portal — renders on top of everything)
   return (

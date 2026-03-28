@@ -1361,6 +1361,22 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   animation: shakeBackward 0.7s ease-out;
 }
 
+.aiadapter-sprite {
+  position: relative;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+
+.aiadapter-sprite.shake-forward {
+  animation: shakeForward 0.8s ease-out;
+}
+
+.aiadapter-sprite.shake-backward {
+  animation: shakeBackward 0.7s ease-out;
+}
+
 .analyze-loading-label{
   font-family:var(--fh);font-size:16px;letter-spacing:3px;
   color:var(--cyan);text-transform:uppercase;
