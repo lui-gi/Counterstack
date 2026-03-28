@@ -359,9 +359,14 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
 
   // Wesker with sprite animations
   if (bossIndex === 1) {
+    const weskerSprite = weskerAnimationState?.currentSprite ?? 'idle';
+    const weskerYOffset = weskerSprite === 'damage' ? 40
+      : weskerSprite === 'attack' ? 20
+      : weskerSprite === 'stun' ? [30, 24, 30]
+      : 0;
     return (
       <motion.div
-        animate={{ y: [0, -10, 0] }}
+        animate={{ y: weskerSprite === 'idle' ? [0, -10, 0] : weskerYOffset }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
@@ -373,16 +378,21 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
           background: 'radial-gradient(circle, rgba(220,30,30,0.22) 0%, rgba(180,10,10,0.12) 45%, transparent 70%)',
           pointerEvents: 'none',
         }} />
-        <WeskerSprite animationState={weskerAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
+        <WeskerSprite
+          animationState={weskerAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }}
+          size={weskerSprite !== 'idle' ? 0.95 : 0.60}
+        />
       </motion.div>
     );
   }
 
   // AI Adapter with sprite animations
   if (bossIndex === 2) {
+    const adapterSprite = adapterAnimationState?.currentSprite ?? 'idle';
+    const adapterYOffset = adapterSprite === 'damage' ? 40 : adapterSprite === 'attack' ? 20 : adapterSprite === 'adapting' ? 20 : 0;
     return (
       <motion.div
-        animate={jackpotAvailable ? { x: [0, -2, 1, -1, 2, 0] } : { y: [0, -10, 0] }}
+        animate={jackpotAvailable ? { x: [0, -2, 1, -1, 2, 0] } : adapterSprite === 'idle' ? { y: [0, -10, 0] } : { y: adapterYOffset }}
         transition={jackpotAvailable
           ? { duration: 0.35, repeat: Infinity, ease: 'linear' }
           : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
@@ -409,7 +419,10 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
           ] } : { filter: 'none' }}
           transition={jackpotAvailable ? { duration: 0.8, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
         >
-          <AIAdapterSprite animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
+          <AIAdapterSprite
+            animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }}
+            size={adapterAnimationState && adapterAnimationState.currentSprite !== 'idle' ? 0.95 : 0.75}
+          />
         </motion.div>
       </motion.div>
     );
@@ -2239,7 +2252,7 @@ function BattleArena() {
             : `drop-shadow(0 0 32px rgba(77,166,255,0.4))`,
         }}
       >
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: 50}}>
           <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} adapterAnimationState={adapterAnimation} jackpotAvailable={state.bossIndex === 2 && state.jackpotAvailable && !state.jackpotUsed && state.phase === 'player-draw'} />
           {/* AI Adapter ADAPTING flash */}
           <AnimatePresence>
