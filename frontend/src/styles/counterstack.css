@@ -133,22 +133,11 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .landing-card[data-card="joker"]{border-color:rgba(247,37,133,.5);box-shadow:0 0 20px rgba(247,37,133,.15);
   background:linear-gradient(145deg,#0c0008,#200016,#0c0008)}
 
-/* Gather — cards slide in from spread positions and compress into the deck */
-@keyframes cardGather{
-  0%  {transform:translateX(var(--gather-x,0px)) translateY(-30px) scale(1.06);opacity:0}
-  60% {transform:translateX(calc(var(--gather-x,0px) * .08)) translateY(-4px) scale(1.01);opacity:1}
-  100%{transform:translateY(calc(var(--stack-z,0px) * -1)) scale(1);opacity:1}
-}
-
-/* Stacked — all overlapping at center, each flies in from its spread direction */
+/* Stacked — solid at center from the first frame, no animation */
 .landing-card.stacked{
   opacity:1;pointer-events:none;
-  animation:cardGather .55s cubic-bezier(0.22,1,0.36,1) forwards;
+  transform:none;
   transition:none}
-.landing-card.stacked[data-pos="0"]{--gather-x:-220px;animation-delay:.00s}
-.landing-card.stacked[data-pos="1"]{--gather-x: -75px;animation-delay:.06s}
-.landing-card.stacked[data-pos="2"]{--gather-x:  75px;animation-delay:.12s}
-.landing-card.stacked[data-pos="3"]{--gather-x: 220px;animation-delay:.18s}
 
 /* Tilted — slight fan-back hint before throw */
 .landing-card.tilted{
@@ -156,13 +145,16 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   transform:translateY(calc(var(--stack-z, 0px) * -1)) rotate(-1deg);
   transition:transform .18s ease-out}
 
-/* Throw — clean 2D arc, no 3D */
+/* Throw — starts nudged in each card's own travel direction */
 @keyframes cardThrow{
-  0%  {transform:rotate(-1deg) scale(1);   opacity:1}
-  55% {transform:translateY(calc(var(--land-y) - 18px))
+  0%  {transform:translateX(calc(var(--land-x) * 0.18))
+                translateY(calc(var(--land-y) * 0.12))
+                rotate(calc(var(--land-rot) * 0.25))
+                scale(1);                 opacity:1}
+  55% {transform:translateY(calc(var(--land-y) - 16px))
                 translateX(var(--land-x))
-                rotate(calc(var(--land-rot) * 1.15))
-                scale(1.05);              opacity:1}
+                rotate(calc(var(--land-rot) * 1.12))
+                scale(1.04);              opacity:1}
   100%{transform:translateY(var(--land-y))
                 translateX(var(--land-x))
                 rotate(var(--land-rot))
