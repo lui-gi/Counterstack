@@ -380,7 +380,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
         setWizardData(prev => ({
           ...prev,
           tier: "convention",
-          orgName: "My Corporation",
+          orgName: "Grayson and Co.",
           integrations: ["splunk", "crowdstrike", "azure-defender"],
         }));
         setWizardStep("posture-choice");
