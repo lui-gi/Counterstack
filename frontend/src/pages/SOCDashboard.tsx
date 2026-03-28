@@ -610,15 +610,6 @@ useEffect(()=>{
                 )}
               </div>
 
-              {/* Posture label below card */}
-              <div
-                className="suit-slot-label"
-                style={{color: '#f72585', marginTop: 8}}
-              >
-                <div style={{fontSize: 14, fontWeight: 600, letterSpacing: '0.5px'}}>{posture.hand}</div>
-                <div style={{fontSize: 11, color: 'rgba(247,37,133,0.7)', marginTop: 2, letterSpacing: '0.5px'}}>{Math.round(posture.score)}%</div>
-              </div>
-
               {(() => {
                 const tv = geminiThreatPct ?? activeCve?.threatPct ?? Math.round(animPressure);
                 const t = tv / 100;
