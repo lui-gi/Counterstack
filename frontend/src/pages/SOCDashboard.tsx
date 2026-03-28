@@ -19,6 +19,7 @@ import MagicianReading from '../components/layout/MagicianReading';
 import IntegrationsPanel from '../components/layout/IntegrationsPanel';
 import AnalyzeIntro from '../components/layout/AnalyzeIntro';
 import SecurityCommandBrief from '../components/layout/SecurityCommandBrief';
+import ThreatGapOverlay from '../components/layout/ThreatGapOverlay';
 import { MOCK_SPLUNK_DATA, MOCK_CROWDSTRIKE_DATA } from '../data/integrationMockData';
 
 import type { SOCDashboardProps } from '../interfaces/SOCDashboardProps.interface';
@@ -692,6 +693,14 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 </div>
               </div>
             </div>
+
+            {/* Threat-Gap Overlay */}
+            <ThreatGapOverlay
+              activeCve={activeCve}
+              geminiAttackVectors={geminiAttackVectors}
+              ranks={ranks}
+              optimalHand={optimalHand}
+            />
 
           </div>
 

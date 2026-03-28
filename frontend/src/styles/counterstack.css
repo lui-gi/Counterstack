@@ -1389,3 +1389,39 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .scb-btn-pink{background:rgba(247,37,133,.06);border:1px solid rgba(247,37,133,.3);
   color:var(--pink)}
 .scb-btn-pink:hover{background:rgba(247,37,133,.14);box-shadow:0 0 10px rgba(247,37,133,.2)}
+
+/* ══════════════════════════════════
+   THREAT-GAP OVERLAY
+══════════════════════════════════ */
+.tgo-panel{padding:0;display:flex;flex-direction:column}
+
+.tgo-empty{padding:8px 11px;font-family:var(--fm);font-size:11px;
+  color:var(--dim);font-style:italic}
+
+.tgo-cve-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+  padding:5px 11px 6px;border-bottom:1px solid rgba(180,79,255,.08)}
+.tgo-cve-id{font-family:var(--fm);font-size:11px;color:var(--pink);
+  letter-spacing:.5px;flex-shrink:0}
+.tgo-vector-tag{font-family:var(--fm);font-size:9px;letter-spacing:.5px;
+  border:1px solid rgba(247,37,133,.3);color:rgba(247,37,133,.75);
+  border-radius:3px;padding:1px 5px;white-space:nowrap}
+
+.tgo-domains{display:flex;flex-direction:column;padding:4px 0 6px}
+.tgo-domain-row{display:grid;grid-template-columns:16px 80px 24px 1fr;
+  align-items:center;gap:5px;padding:4px 11px;
+  transition:background .15s}
+.tgo-domain-row:hover{background:rgba(180,79,255,.04)}
+.tgo-sym{font-size:13px;line-height:1;text-align:center}
+.tgo-name{font-family:var(--fm);font-size:10px;letter-spacing:.8px;
+  text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgo-delta{font-family:var(--fh);font-size:11px;font-weight:700;text-align:right}
+
+.tgo-badge{font-family:var(--fm);font-size:9px;letter-spacing:.8px;
+  border-radius:3px;padding:2px 6px;text-align:center;
+  border:1px solid;white-space:nowrap;justify-self:end}
+.tgo-badge-exposed{color:#ef4444;border-color:rgba(239,68,68,.45);
+  background:rgba(239,68,68,.08)}
+.tgo-badge-covered{color:#39d353;border-color:rgba(57,211,83,.35);
+  background:rgba(57,211,83,.06)}
+.tgo-badge-gap{color:var(--dim);border-color:rgba(205,217,229,.15);
+  background:transparent}
