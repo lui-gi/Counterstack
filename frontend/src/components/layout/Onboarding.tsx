@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faShuffle, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import '../../styles/counterstack.css';
 import { SUITS, RANK_NAMES } from '../../data/gameData';
 import CardArt from '../CardArt';
-import p5jokerImg from '../../assets/sprites/cards/p5jokerSVG.png';
 import type { SuitConfig } from '../../interfaces/SuitConfig.interface';
 import { analyzeOrgProfile } from '../../services/geminiPosture';
 import type { OnboardingProps } from '../../interfaces/OnboardingProps.interface';
@@ -92,6 +94,10 @@ export default function Onboarding({ onDone }: OnboardingProps) {
   const [importError, setImportError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Wizard state
@@ -355,6 +361,50 @@ export default function Onboarding({ onDone }: OnboardingProps) {
 
   const handleExisting = () => launchSequence({clover:10,spade:9,diamond:10,heart:7});
 
+  const handleLogin = async () => {
+    if (!loginEmail || !loginPassword) {
+      setLoginError("Email and password are required");
+      return;
+    }
+    
+    setLoginLoading(true);
+    setLoginError(null);
+    
+    try {
+      const response = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      
+      if (!response.ok) {
+        const err = await response.json();
+        setLoginError(err.error || "Login failed");
+        setLoginLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+      const accountData: AccountData = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        token: data.token,
+      };
+      
+      // Store token in localStorage for persistence
+      localStorage.setItem('authToken', data.token);
+      
+      // Close modal and launch with default ranks
+      setShowLoginModal(false);
+      launchSequence({clover:10,spade:9,diamond:10,heart:7}, undefined, accountData);
+    } catch (err) {
+      console.error("Login error:", err);
+      setLoginError("Network error. Please try again.");
+      setLoginLoading(false);
+    }
+  };
+
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -514,7 +564,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                       transform:'translateY(-14px)',
                     }}>
                       <img
-                        src={p5jokerImg}
+                        src="/assets/sprites/p5jokerSVG.png"
                         alt=""
                         style={{
                           width:130, height:'auto', opacity:0.92,
@@ -1167,33 +1217,57 @@ export default function Onboarding({ onDone }: OnboardingProps) {
           <div className="modal-box" style={{borderColor:"rgba(167,139,250,.28)"}} onClick={e => e.stopPropagation()}>
             <div className="modal-h">
               <span className="modal-t" style={{color:"var(--violet)"}}>🔑 LOG IN</span>
-              <button className="modal-x" style={{borderColor:"rgba(167,139,250,.25)",color:"var(--violet)"}} onClick={() => setShowLoginModal(false)}>×</button>
+              <button className="modal-x" style={{borderColor:"rgba(167,139,250,.25)",color:"var(--violet)"}} onClick={() => {setShowLoginModal(false); setLoginError(null); setLoginEmail(""); setLoginPassword("");}}>×</button>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div>
                 <label style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--dim)",letterSpacing:1,display:"block",marginBottom:6}}>EMAIL</label>
-                <input type="email" placeholder="user@company.com" style={{
-                  width:"100%",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.25)",
-                  borderRadius:6,padding:"10px 12px",color:"#fff",fontFamily:"var(--fm)",fontSize:14,outline:"none"
-                }}/>
+                <input 
+                  type="email" 
+                  placeholder="user@company.com"
+                  value={loginEmail}
+                  onChange={(e) => {setLoginEmail(e.target.value); setLoginError(null);}}
+                  disabled={loginLoading}
+                  style={{
+                    width:"100%",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.25)",
+                    borderRadius:6,padding:"10px 12px",color:"#fff",fontFamily:"var(--fm)",fontSize:14,outline:"none",
+                    opacity: loginLoading ? 0.6 : 1, cursor: loginLoading ? "not-allowed" : "text"
+                  }}
+                />
               </div>
               <div>
                 <label style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--dim)",letterSpacing:1,display:"block",marginBottom:6}}>PASSWORD</label>
-                <input type="password" placeholder="••••••••" style={{
-                  width:"100%",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.25)",
-                  borderRadius:6,padding:"10px 12px",color:"#fff",fontFamily:"var(--fm)",fontSize:14,outline:"none"
-                }}/>
+                <input 
+                  type="password" 
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => {setLoginPassword(e.target.value); setLoginError(null);}}
+                  disabled={loginLoading}
+                  onKeyPress={(e) => e.key === "Enter" && !loginLoading && handleLogin()}
+                  style={{
+                    width:"100%",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.25)",
+                    borderRadius:6,padding:"10px 12px",color:"#fff",fontFamily:"var(--fm)",fontSize:14,outline:"none",
+                    opacity: loginLoading ? 0.6 : 1, cursor: loginLoading ? "not-allowed" : "text"
+                  }}
+                />
               </div>
-              <button disabled style={{
-                marginTop:8,padding:"12px 24px",background:"rgba(167,139,250,.15)",border:"1px solid rgba(167,139,250,.4)",
-                borderRadius:6,color:"var(--violet)",fontFamily:"var(--fh)",fontSize:13,letterSpacing:2,
-                cursor:"not-allowed",opacity:.6
-              }}>
-                COMING SOON
+              {loginError && (
+                <div style={{padding:"10px 12px",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.3)",borderRadius:6,color:"#ef4444",fontFamily:"var(--fm)",fontSize:12,textAlign:"center"}}>
+                  {loginError}
+                </div>
+              )}
+              <button 
+                onClick={handleLogin}
+                disabled={loginLoading}
+                style={{
+                  marginTop:8,padding:"12px 24px",background:loginLoading ? "rgba(167,139,250,.15)" : "rgba(167,139,250,.3)",border:"1px solid rgba(167,139,250,.4)",
+                  borderRadius:6,color:"var(--violet)",fontFamily:"var(--fh)",fontSize:13,letterSpacing:2,
+                  cursor:loginLoading ? "not-allowed" : "pointer",opacity:loginLoading ? 0.6 : 1,
+                  transition: "all 0.2s"
+                }}
+              >
+                {loginLoading ? "LOGGING IN..." : "LOG IN"}
               </button>
-              <p style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--dim)",textAlign:"center",marginTop:4}}>
-                Authentication will be available soon.
-              </p>
             </div>
           </div>
         </div>

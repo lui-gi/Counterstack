@@ -414,11 +414,11 @@ useEffect(()=>{
           {/* ── LEFT ── */}
           <div id="tour-integrations" className="left-col">
             {/* Connected Integrations (Convention Floor only) */}
-            {accountData?.tier === 'convention' && accountData.integrations.length > 0 && (
+            {accountData?.tier === 'convention' && (accountData?.integrations?.length ?? 0) > 0 && (
               <IntegrationsPanel
-                integrations={accountData.integrations}
-                splunkData={accountData.integrations.includes('splunk') ? MOCK_SPLUNK_DATA : undefined}
-                crowdstrikeData={accountData.integrations.includes('crowdstrike') ? MOCK_CROWDSTRIKE_DATA : undefined}
+                integrations={accountData.integrations ?? []}
+                splunkData={accountData.integrations?.includes('splunk') ? MOCK_SPLUNK_DATA : undefined}
+                crowdstrikeData={accountData.integrations?.includes('crowdstrike') ? MOCK_CROWDSTRIKE_DATA : undefined}
               />
             )}
             {/* Azure Defender */}
