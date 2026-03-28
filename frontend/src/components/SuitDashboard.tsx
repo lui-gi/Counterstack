@@ -270,6 +270,73 @@ function deriveRisks(suitKey: string, profile: Record<string, unknown>): SuitRis
   return anomalies.length > 0 ? anomalies : [];
 }
 
+// ── Control status derivation (B) ─────────────────────────────────────────
+
+function deriveControlStatus(suitKey: string, profile: Record<string, unknown>): { have: string[]; gaps: string[] } | null {
+  const nist = profile.nistCsf as Record<string, unknown> | undefined;
+  if (!nist) return null;
+
+  const identify = nist.identify as Record<string, unknown> | undefined;
+  const protect  = nist.protect  as Record<string, unknown> | undefined;
+  const detect   = nist.detect   as Record<string, unknown> | undefined;
+  const respond  = nist.respond  as Record<string, unknown> | undefined;
+  const recover  = nist.recover  as Record<string, unknown> | undefined;
+
+  const have: string[] = [];
+  const gaps: string[] = [];
+
+  if (suitKey === 'clover' && identify && protect) {
+    identify.assetInventoryComplete    ? have.push('Asset Inventory Complete')       : gaps.push('Asset Inventory Incomplete');
+    identify.criticalAssetsDocumented  ? have.push('Critical Assets Documented')     : gaps.push('Critical Assets Undocumented');
+    typeof protect.patchCadenceDays === 'number' && protect.patchCadenceDays <= 14
+      ? have.push(`Patch Cadence: ${protect.patchCadenceDays}d`)
+      : gaps.push(`Patch Cadence Slow${typeof protect.patchCadenceDays === 'number' ? ` (${protect.patchCadenceDays}d)` : ''}`);
+    typeof identify.riskAssessmentAgeMonths === 'number' && identify.riskAssessmentAgeMonths <= 12
+      ? have.push('Risk Assessment Current')
+      : gaps.push(`Risk Assessment Stale${typeof identify.riskAssessmentAgeMonths === 'number' ? ` (${identify.riskAssessmentAgeMonths}mo)` : ''}`);
+  }
+
+  if (suitKey === 'spade' && detect && respond) {
+    detect.siemActive                  ? have.push('SIEM Active')                    : gaps.push('No SIEM Deployed');
+    typeof detect.edrCoveragePercent === 'number' && detect.edrCoveragePercent >= 90
+      ? have.push(`EDR Coverage ${detect.edrCoveragePercent}%`)
+      : gaps.push(`EDR Coverage Partial${typeof detect.edrCoveragePercent === 'number' ? ` (${detect.edrCoveragePercent}%)` : ''}`);
+    typeof detect.meanTimeToDetectHours === 'number' && detect.meanTimeToDetectHours <= 4
+      ? have.push(`MTTD: ${detect.meanTimeToDetectHours}h`)
+      : gaps.push(`High MTTD${typeof detect.meanTimeToDetectHours === 'number' ? ` (${detect.meanTimeToDetectHours}h)` : ''}`);
+    respond.irPlanExists               ? have.push('IR Plan Exists')                 : gaps.push('No IR Plan');
+    detect.threatHuntingFrequency && detect.threatHuntingFrequency !== 'none'
+      ? have.push('Threat Hunting Active')
+      : gaps.push('No Threat Hunting');
+  }
+
+  if (suitKey === 'diamond' && protect) {
+    typeof protect.mfaAdoptionPercent === 'number' && protect.mfaAdoptionPercent >= 95
+      ? have.push(`MFA ${protect.mfaAdoptionPercent}% Adopted`)
+      : gaps.push(`MFA Incomplete${typeof protect.mfaAdoptionPercent === 'number' ? ` (${protect.mfaAdoptionPercent}%)` : ''}`);
+    protect.encryptionAtRest           ? have.push('Encryption at Rest')             : gaps.push('No Encryption at Rest');
+    protect.endpointHardeningPolicy    ? have.push('Endpoint Hardening Policy')      : gaps.push('No Hardening Policy');
+    protect.zeroTrustMaturity && protect.zeroTrustMaturity !== 'none' && protect.zeroTrustMaturity !== 'not-started'
+      ? have.push(`Zero Trust: ${protect.zeroTrustMaturity}`)
+      : gaps.push('Zero Trust Not Started');
+  }
+
+  if (suitKey === 'heart' && recover) {
+    recover.backupsTested              ? have.push('Backups Tested')                 : gaps.push('Backups Not Tested');
+    typeof recover.lastDrTestDays === 'number' && recover.lastDrTestDays <= 90
+      ? have.push(`DR Tested (${recover.lastDrTestDays}d ago)`)
+      : gaps.push(`DR Test Overdue${typeof recover.lastDrTestDays === 'number' ? ` (${recover.lastDrTestDays}d)` : ''}`);
+    typeof recover.rtoHours === 'number' && recover.rtoHours <= 4
+      ? have.push(`RTO: ${recover.rtoHours}h`)
+      : gaps.push(`RTO >4h${typeof recover.rtoHours === 'number' ? ` (${recover.rtoHours}h)` : ''}`);
+    typeof recover.backupFrequencyHours === 'number' && recover.backupFrequencyHours <= 24
+      ? have.push(`Backup: every ${recover.backupFrequencyHours}h`)
+      : gaps.push(`Low Backup Frequency${typeof recover.backupFrequencyHours === 'number' ? ` (every ${recover.backupFrequencyHours}h)` : ''}`);
+  }
+
+  return { have, gaps };
+}
+
 export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, aiAnalysis, onRequestAnalysis, hasOrgProfile, orgProfile }: SuitDashboardProps) {
   const data = SUIT_DATA[suitKey];
   const color = cfg.color;
@@ -282,6 +349,9 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
 
   const derivedRisks = orgProfile ? deriveRisks(suitKey, orgProfile) : null;
   const displayRisks = (derivedRisks && derivedRisks.length > 0) ? derivedRisks : data.risks;
+
+  const controlStatus = orgProfile ? deriveControlStatus(suitKey, orgProfile) : null;
+  const displayUpgradePath = aiAnalysis?.upgradePath?.length ? aiAnalysis.upgradePath : data.upgrade;
 
   // Trigger Gemini analysis when panel opens (lazy loading)
   useEffect(() => {
@@ -345,17 +415,25 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
         <div className="sd-body">
           {/* Metrics */}
           <div className="sd-metrics">
-            {displayMetrics.map((m: SuitMetric)=>(
-              <div key={m.k} className="sm-card" style={{borderColor:`${color}18`}}>
-                <div className="sm-lbl">{m.k}</div>
-                <div className="sm-val" style={{color}}>{m.v}</div>
-                {!metricsFromProfile && (
-                  <div className="sm-trend" style={{color:m.trend>0?"var(--green)":m.trend<0?"var(--pink)":"var(--dim)"}}>
-                    {m.trend>0?"▲":m.trend<0?"▼":"─"} {Math.abs(m.trend)}% vs prev week
-                  </div>
-                )}
-              </div>
-            ))}
+            {displayMetrics.map((m: SuitMetric)=>{
+              const benchmark = aiAnalysis?.benchmarks?.[m.k];
+              return (
+                <div key={m.k} className="sm-card" style={{borderColor:`${color}18`}}>
+                  <div className="sm-lbl">{m.k}</div>
+                  <div className="sm-val" style={{color}}>{m.v}</div>
+                  {benchmark && (
+                    <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fm)",marginTop:2}}>
+                      target: <span style={{color:`${color}bb`}}>{benchmark}</span>
+                    </div>
+                  )}
+                  {!metricsFromProfile && (
+                    <div className="sm-trend" style={{color:m.trend>0?"var(--green)":m.trend<0?"var(--pink)":"var(--dim)"}}>
+                      {m.trend>0?"▲":m.trend<0?"▼":"─"} {Math.abs(m.trend)}% vs prev week
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* AI Recommendations */}
@@ -396,15 +474,48 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
 
           {/* 3 columns */}
           <div className="sd-cols">
+
+            {/* Controls — Have vs Gaps (B) */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
-              <div className="sd-block-t" style={{color:`${color}88`}}>Capabilities</div>
-              {data.capabilities.map((c: string)=>(
-                <div key={c} className="cap-item">
-                  <div className="cap-dot" style={{background:color,boxShadow:`0 0 4px ${color}`}}/>
-                  {c}
-                </div>
-              ))}
+              {controlStatus ? (
+                <>
+                  {controlStatus.have.length > 0 && (
+                    <>
+                      <div className="sd-block-t" style={{color:"var(--green)"}}>Controls Active</div>
+                      {controlStatus.have.map((c: string)=>(
+                        <div key={c} className="cap-item" style={{color:"var(--green)"}}>
+                          <div className="cap-dot" style={{background:"var(--green)",boxShadow:"0 0 4px var(--green)"}}/>
+                          {c}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {controlStatus.gaps.length > 0 && (
+                    <>
+                      <div className="sd-block-t" style={{color:"#ff9f1c",marginTop:controlStatus.have.length > 0 ? 10 : 0}}>Gaps</div>
+                      {controlStatus.gaps.map((g: string)=>(
+                        <div key={g} className="cap-item" style={{color:"#ff9f1c"}}>
+                          <div className="cap-dot" style={{background:"#ff9f1c",boxShadow:"0 0 4px #ff9f1c"}}/>
+                          {g}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="sd-block-t" style={{color:`${color}88`}}>Capabilities</div>
+                  {data.capabilities.map((c: string)=>(
+                    <div key={c} className="cap-item">
+                      <div className="cap-dot" style={{background:color,boxShadow:`0 0 4px ${color}`}}/>
+                      {c}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
+
+            {/* Risk Exposure + Compliance Gaps (C/H + G) */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>Risk Exposure</div>
               {displayRisks.length === 0 ? (
@@ -418,16 +529,33 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
                   </div>
                 ))
               )}
+              {aiAnalysis?.complianceGaps?.length ? (
+                <>
+                  <div className="sd-block-t" style={{color:`${color}88`,marginTop:10}}>Compliance Gaps</div>
+                  {aiAnalysis.complianceGaps.map((g: string, i: number)=>(
+                    <div key={i} className="risk-row" style={{background:"#ff9f1c0a",border:"1px solid #ff9f1c22"}}>
+                      <div className="risk-dot" style={{background:"#ff9f1c"}}/>
+                      <span style={{flex:1,fontSize:12}}>{g}</span>
+                    </div>
+                  ))}
+                </>
+              ) : null}
             </div>
+
+            {/* Upgrade Path (D) */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
-              <div className="sd-block-t" style={{color:`${color}88`}}>Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}</div>
-              {data.upgrade.map((u: string,i: number)=>(
+              <div className="sd-block-t" style={{color:`${color}88`}}>
+                Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}
+                {aiAnalysis?.upgradePath?.length ? <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span> : null}
+              </div>
+              {displayUpgradePath.map((u: string,i: number)=>(
                 <div key={i} className="upg-step">
                   <div className="upg-n" style={{background:`${color}18`,border:`1px solid ${color}30`,color}}>{i+1}</div>
                   <div className="upg-t">{u}</div>
                 </div>
               ))}
             </div>
+
           </div>
 
           {/* History */}

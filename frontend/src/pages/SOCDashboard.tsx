@@ -155,9 +155,9 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
     return () => { mounted = false; };
   }, []);
 
-  // Call Gemini to analyze CVE threat when activeCve changes (only if orgProfile exists)
+  // Call Gemini to analyze CVE threat when activeCve changes
   useEffect(() => {
-    if (!activeCve || !orgProfile) {
+    if (!activeCve) {
       setGeminiThreatPct(null);
       setGeminiExposure('');
       setGeminiControls('');
@@ -167,6 +167,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
       return;
     }
 
+    const profileToUse = orgProfile ?? DEFAULT_ORG_PROFILE;
     let mounted = true;
     setGeminiAnalyzing(true);
 
@@ -179,7 +180,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
         affectedVendor: activeCve.affectedVendor,
         affectedProduct: activeCve.affectedProduct,
       },
-      orgProfile
+      profileToUse
     )
       .then((result) => {
         if (!mounted) return;
@@ -251,6 +252,9 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
           [suitKey]: {
             recommendations: result.recommendations,
             reasoning: result.reasoning,
+            benchmarks: result.benchmarks,
+            upgradePath: result.upgradePath,
+            complianceGaps: result.complianceGaps,
             loading: false
           }
         }));

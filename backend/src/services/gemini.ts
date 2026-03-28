@@ -109,12 +109,25 @@ For remediationSteps: provide 3-5 concise, org-specific containment and remediat
 export async function analyzeSuit(
   suit: Record<string, unknown>,
   orgProfile: unknown
-): Promise<{ recommendations: string[]; reasoning: string }> {
+): Promise<{
+  recommendations: string[];
+  reasoning: string;
+  benchmarks: Record<string, string>;
+  upgradePath: string[];
+  complianceGaps: string[];
+}> {
   const suitDescriptions: Record<string, string> = {
     clover: 'RESOURCES - Baseline visibility, asset hygiene, patch compliance, vulnerability management',
     spade: 'OFFSEC - Detection capability, SOC operations, containment, threat hunting',
     diamond: 'HARDEN - Hardening, access control, zero trust, privileged access management',
     heart: 'RESILIENCE - Backup readiness, disaster recovery, business continuity, RTO/RPO',
+  };
+
+  const suitBenchmarkKeys: Record<string, string[]> = {
+    clover:  ['Patch Cadence', 'Asset Inventory', 'Risk Assessment', 'Vuln Scan Coverage'],
+    spade:   ['Mean Time to Detect', 'EDR Coverage', 'Mean Time to Respond', 'IR Plan Age'],
+    diamond: ['MFA Adoption', 'Zero Trust Maturity', 'Encryption at Rest', 'Patch Cadence'],
+    heart:   ['RTO', 'RPO', 'Backup Frequency', 'Last DR Test'],
   };
 
   const activeCve = suit.activeCve as Record<string, unknown> | undefined;
@@ -128,33 +141,51 @@ Active Threat Context:
 - Product: ${activeCve.affectedProduct}` : '';
 
   const suitKey = suit.suitKey as string;
+  const nextRank = Math.min(Number(suit.currentRank) + 2, 13);
+  const benchmarkKeys = (suitBenchmarkKeys[suitKey] || []).join(', ');
+
   const prompt = `You are a cybersecurity analyst specializing in ${suitDescriptions[suitKey] || suitKey}.
 
-Given this organization's security profile and their current ${suit.suitName} rank of ${suit.currentRank}/13, provide 4 specific, actionable recommendations to improve this domain.
-${cveContext}
-
-Organization Profile:
-${JSON.stringify(orgProfile, null, 2)}
-
-Respond ONLY with a JSON object:
+Given this organization's security profile and their current ${suit.suitName} rank of ${suit.currentRank}/13, respond ONLY with a JSON object:
 {
   "recommendations": [
-    "Specific action 1",
+    "Specific action 1 referencing their actual metrics",
     "Specific action 2",
     "Specific action 3",
     "Specific action 4"
   ],
-  "reasoning": "One sentence explaining the overall priority for this domain"
+  "reasoning": "One sentence explaining the overall priority for this domain",
+  "benchmarks": {
+    ${benchmarkKeys.split(', ').map(k => `"${k}": "<industry median/target as short string, e.g. '7d', '95%', '<1h'>"`).join(',\n    ')}
+  },
+  "upgradePath": [
+    "Rank-specific step 1 to reach rank ${nextRank}/13",
+    "Rank-specific step 2",
+    "Rank-specific step 3"
+  ],
+  "complianceGaps": [
+    "If compliance frameworks exist in the profile, list 0-3 specific requirements at risk in this domain, e.g. 'PCI DSS 6.3.3: patch cadence SLA not met'. Empty array if no compliance data or no gaps."
+  ]
 }
+${cveContext}
 
-Make recommendations specific to the organization's actual gaps. Reference specific metrics from their profile.`;
+Organization Profile:
+${JSON.stringify(orgProfile, null, 2)}`;
 
   const raw = await callGemini(prompt);
   const parsed = parseJsonFromText(raw) as Record<string, unknown>;
   const recs = Array.isArray(parsed.recommendations) ? (parsed.recommendations as unknown[]).slice(0, 4).map(String) : [];
+  const benchmarks = (parsed.benchmarks && typeof parsed.benchmarks === 'object' && !Array.isArray(parsed.benchmarks))
+    ? Object.fromEntries(Object.entries(parsed.benchmarks as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
+    : {};
+  const upgradePath = Array.isArray(parsed.upgradePath) ? (parsed.upgradePath as unknown[]).slice(0, 4).map(String) : [];
+  const complianceGaps = Array.isArray(parsed.complianceGaps) ? (parsed.complianceGaps as unknown[]).slice(0, 3).map(String) : [];
   return {
     recommendations: recs,
     reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
+    benchmarks,
+    upgradePath,
+    complianceGaps,
   };
 }
 

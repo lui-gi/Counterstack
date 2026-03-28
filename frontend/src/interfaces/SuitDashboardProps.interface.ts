@@ -4,6 +4,9 @@ export interface SuitAnalysisCache {
   recommendations: string[];
   reasoning: string;
   loading: boolean;
+  benchmarks?: Record<string, string>;
+  upgradePath?: string[];
+  complianceGaps?: string[];
 }
 
 export interface SuitDashboardProps {
