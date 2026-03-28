@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShuffle, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import '../styles/counterstack.css';
@@ -56,7 +56,6 @@ const TIER_INFO: Record<string, { name: string; icon: string; color: string }> =
   'convention': { name: 'Convention Floor', icon: '🏛️', color: 'var(--pink)' },
 };
 
-const ANALYZE_DEAL_ORDER = ['clover', 'diamond', 'heart', 'spade'] as const;
 
 export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChange, orgProfile, accountData }: SOCDashboardProps) {
   const [ranks, setRanks] = useState(INIT_RANKS);
@@ -85,11 +84,6 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
   const [jokerFlipped, setJokerFlipped] = useState(false);
   const [cveSearchInput, setCveSearchInput] = useState('');
   const [showCveInput, setShowCveInput] = useState(false);
-  const [dealPhase, setDealPhase] = useState<'idle' | 'dealing' | 'joker' | 'done'>('idle');
-  const [dealtCount, setDealtCount] = useState(0);
-  const [showDealLabels, setShowDealLabels] = useState(false);
-  const [jokerAlerting, setJokerAlerting] = useState(false);
-  const dealTimerRef = useRef<number | null>(null);
 
   // Gemini threat analysis state
   const [geminiThreatPct, setGeminiThreatPct] = useState<number | null>(null);
@@ -287,66 +281,6 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
     return ()=>clearInterval(t);
   },[]);
 
-  useEffect(() => {
-    if (!onboarded || mode !== 'soc') return;
-
-    setDealPhase('dealing');
-    setDealtCount(0);
-    setShowDealLabels(false);
-    setJokerAlerting(false);
-
-    const startDelayMs = 900;
-    const perCardDelayMs = 420;
-
-    let cancelled = false;
-
-    const clearDealTimer = () => {
-      if (dealTimerRef.current !== null) {
-        window.clearTimeout(dealTimerRef.current);
-        dealTimerRef.current = null;
-      }
-    };
-
-    const revealJoker = () => {
-      if (cancelled) return;
-      setDealPhase('joker');
-      setShowDealLabels(true);
-      setJokerAlerting(true);
-      try {
-        const audio = new Audio('/assets/audio/systemcompromised.mp3');
-        audio.volume = 0.45;
-        void audio.play();
-      } catch {
-        // Ignore autoplay or decoding failures in intro sequence.
-      }
-      dealTimerRef.current = window.setTimeout(() => {
-        if (cancelled) return;
-        setDealPhase('done');
-        setJokerAlerting(false);
-      }, 1200);
-    };
-
-    const dealNextCard = (idx: number) => {
-      if (cancelled) return;
-      if (idx >= ANALYZE_DEAL_ORDER.length) {
-        revealJoker();
-        return;
-      }
-      setDealtCount(idx + 1);
-      dealTimerRef.current = window.setTimeout(() => {
-        dealNextCard(idx + 1);
-      }, perCardDelayMs);
-    };
-
-    dealTimerRef.current = window.setTimeout(() => {
-      dealNextCard(0);
-    }, startDelayMs);
-
-    return () => {
-      cancelled = true;
-      clearDealTimer();
-    };
-  }, [onboarded, mode]);
 
   const cveSearchResults = useMemo(() =>
     cveSearchInput.trim().length < 2
@@ -503,17 +437,11 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
             <div className="hub-glow"/>
 
             {/* 4 suit slots */}
-            {Object.entries(SUITS).map(([k,cfg]) => {
-              const stackRank = ANALYZE_DEAL_ORDER.indexOf(k as typeof ANALYZE_DEAL_ORDER[number]);
-              const isDealt = stackRank < dealtCount;
-              return (
-              <div
-                key={k}
-                className={`suit-slot ${cfg.pos} stack-rank-${stackRank} ${isDealt ? 'dealt' : 'is-stacked'}`}
-              >
+            {Object.entries(SUITS).map(([k,cfg]) => (
+              <div key={k} className={`suit-slot ${cfg.pos}`}>
                 {(cfg.pos==="top"||cfg.pos==="left"||cfg.pos==="right") && (
                   <div
-                    className={`suit-slot-label ${showDealLabels ? (dealPhase === 'joker' ? 'deal-reveal' : '') : 'deal-hidden'}`}
+                    className="suit-slot-label"
                     style={{color:activeSuit===k?cfg.color:undefined}}
                   >
                     {cfg.name}
@@ -528,20 +456,19 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 />
                 {cfg.pos==="bottom" && (
                   <div
-                    className={`suit-slot-label ${showDealLabels ? (dealPhase === 'joker' ? 'deal-reveal' : '') : 'deal-hidden'}`}
+                    className="suit-slot-label"
                     style={{color:activeSuit===k?cfg.color:undefined}}
                   >
                     {cfg.name}
                   </div>
                 )}
               </div>
-            );
-            })}
+            ))}
 
             {/* Joker center */}
             <div
               id="tour-joker"
-              className={`joker-container${dealPhase !== 'idle' ? ' is-dealing' : ''}${jokerFlipped ? ' expanded' : ''}`}
+              className={`joker-container${jokerFlipped ? ' expanded' : ''}`}
             >
               {/* Horizontal row: left-btn | card | right-btn */}
               <div className="joker-row">
@@ -557,7 +484,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
 
                 {/* The card itself */}
                 <div
-                  className={`joker-card-wrapper ${dealPhase !== 'idle' ? 'is-dealing' : ''} ${(jokerAlerting || (dealPhase !== 'dealing' && (geminiThreatPct ?? activeCve?.threatPct ?? animPressure) > 80)) ? 'glitch' : ''} ${jokerAlerting ? 'joker-alert' : ''}`}
+                  className={`joker-card-wrapper ${(geminiThreatPct ?? activeCve?.threatPct ?? animPressure) > 80 ? 'glitch' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setJokerFlipped(prev => !prev);

@@ -54,7 +54,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
     <div className="modal-ov" onClick={onClose}>
       <div
         className="modal-box"
-        style={{ width: 860, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', paddingTop: 0 }}
+        style={{ width: 1040, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', paddingTop: 0 }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header */}
@@ -74,7 +74,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
             </div>
             <div style={{
               fontFamily: 'var(--fm)',
-              fontSize: 12,
+              fontSize: 13,
               letterSpacing: 1,
               color: posture.royal ? 'var(--gold)' : 'var(--cyan)',
               paddingLeft: 24,
@@ -128,15 +128,15 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
             <div key={key} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                 <span style={{ color: cfg.color, fontSize: 15 }}>{cfg.sym}</span>
-                <span style={{ fontFamily: 'var(--fm)', fontSize: 12, letterSpacing: 1, color: cfg.color }}>
+                <span style={{ fontFamily: 'var(--fm)', fontSize: 13, letterSpacing: 1, color: cfg.color }}>
                   {cfg.name}
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--dim)', marginLeft: 2 }}>{cfg.sub}</span>
-                <span style={{ marginLeft: 'auto', fontFamily: 'var(--fm)', fontSize: 11, color: 'var(--dim)' }}>
+                <span style={{ fontSize: 12, color: 'var(--dim)', marginLeft: 2 }}>{cfg.sub}</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--fm)', fontSize: 12, color: 'var(--dim)' }}>
                   {rankName} · {rank}/13
                 </span>
                 <span style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   fontFamily: 'var(--fm)',
                   letterSpacing: 0.8,
                   color: qual.color,
@@ -195,7 +195,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
               alignItems: 'flex-start',
             }}>
               <span style={{ fontSize: 18, flexShrink: 0 }}>🔮</span>
-              <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', lineHeight: 1.7 }}>
+              <p style={{ margin: 0, fontSize: 15, color: 'var(--text)', lineHeight: 1.7 }}>
                 {result.summary}
               </p>
             </div>
@@ -214,8 +214,8 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
               }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
                 <div>
-                  <div style={{ fontSize: 10, fontFamily: 'var(--fm)', letterSpacing: 1, color: '#f59e0b', marginBottom: 4 }}>CRITICAL FINDING</div>
-                  <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', lineHeight: 1.6 }}>{result.topPriority}</p>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--fm)', letterSpacing: 1, color: '#f59e0b', marginBottom: 4 }}>CRITICAL FINDING — REQUIRES IMMEDIATE ACTION</div>
+                  <p style={{ margin: 0, fontSize: 15, color: 'var(--text)', lineHeight: 1.6 }}>{result.topPriority}</p>
                 </div>
               </div>
             )}
