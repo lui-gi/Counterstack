@@ -4050,13 +4050,58 @@ function BattleLogOverlay({ log, onClose }: { log: CampaignLogEntry[]; onClose: 
   );
 }
 
-// ── Victory overlay → Thank You Screen ─────────────────────
-// After all three threats are defeated, show the full-screen
-// ThankYouScreen with the background carousel and logo text.
+// ── Victory overlay ─────────────────────────────────────────
 function VictoryOverlay() {
   const { state, restart, onBack } = useCampaignContext();
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   if (state.phase !== 'victory') return null;
-  return <ThankYouScreen onRestart={restart} onBack={onBack ?? undefined} />;
+
+  if (showThankYou) {
+    return <ThankYouScreen onRestart={restart} onBack={onBack ?? undefined} />;
+  }
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: 'rgba(0,8,0,0.95)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 28,
+        }}
+      >
+        <motion.div animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 1.4, repeat: Infinity }}>
+          <img src={JACKPOT_ICON} alt="" style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 0 20px #ffd700)' }} />
+        </motion.div>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 22, color: '#ffd700', textShadow: '0 0 28px #ffd70066, 3px 3px 0 #000', letterSpacing: 7 }}>VICTORY</div>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(255,255,255,0.35)', letterSpacing: 3, textAlign: 'center', lineHeight: 2 }}>
+          ALL THREE BOSSES DEFEATED.<br />THE SYSTEM IS SECURE.
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={restart}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3, padding: '12px 36px', cursor: 'pointer', background: 'rgba(255,200,40,0.08)', border: '2px solid rgba(255,200,40,0.65)', color: '#ffd700', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ PLAY AGAIN ]
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowLog(true)}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(77,166,255,0.08)', border: '2px solid rgba(77,166,255,0.5)', color: '#4da6ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ REVIEW LOG ]
+          </motion.button>
+          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowThankYou(true)}
+            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(51,221,119,0.08)', border: '2px solid rgba(51,221,119,0.55)', color: '#33dd77', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+            [ THANK YOU ]
+          </motion.button>
+          {onBack && (
+            <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onBack}
+              style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(204,136,255,0.08)', border: '2px solid rgba(204,136,255,0.5)', color: '#cc88ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+              [ ANALYST MODE ]
+            </motion.button>
+          )}
+        </div>
+      </motion.div>
+      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
+    </>
+  );
 }
 
 function GameOverOverlay() {
