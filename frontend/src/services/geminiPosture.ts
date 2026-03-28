@@ -43,7 +43,8 @@ interface SuitAnalysisResult {
   businessImpact?: string[];
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// Normalize API URL by removing trailing slash
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 
 export async function analyzeOrgProfile(json: Record<string, unknown>): Promise<GeminiRanks> {
   const res = await fetch(`${API_URL}/api/posture/analyze`, {

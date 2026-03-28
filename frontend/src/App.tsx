@@ -111,7 +111,8 @@ export default function App() {
     const token = localStorage.getItem('authToken');
     if (token && !accountData) {
       // Verify token with backend
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/auth/me`, {
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+      fetch(`${apiUrl}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
         .then(res => {
