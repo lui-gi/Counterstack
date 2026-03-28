@@ -214,7 +214,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
               }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>⚠</span>
                 <div>
-                  <div style={{ fontSize: 10, fontFamily: 'var(--fm)', letterSpacing: 1, color: '#f59e0b', marginBottom: 4 }}>CRITICAL FINDING</div>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--fm)', letterSpacing: 1, color: '#f59e0b', marginBottom: 4 }}>CRITICAL FINDING — REQUIRES IMMEDIATE ACTION</div>
                   <p style={{ margin: 0, fontSize: 15, color: 'var(--text)', lineHeight: 1.6 }}>{result.topPriority}</p>
                 </div>
               </div>
