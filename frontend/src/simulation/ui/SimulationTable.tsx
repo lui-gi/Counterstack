@@ -21,6 +21,7 @@ import {
 } from '../gameplay/useCampaign';
 import { CharacterSprite, type CharacterAnimationState } from './CharacterSprite';
 import { WeskerSprite, type WeskerAnimationState } from './WeskerSprite';
+import { AIAdapterSprite, type AIAdapterAnimationState } from './AIAdapterSprite';
 import CardArt         from '../../components/CardArt';
 import { MusicManager } from '../audio/MusicManager';
 import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
@@ -99,7 +100,7 @@ const TUTORIAL_STEPS: Array<{
 // ── Asset paths ───────────────────────────────────────────
 const WESKER_IMG               = '/assets/sprites/wesker/idle.png';
 const WESKER_FALLBACK          = '/assets/sprites/0C9FD310-B1BA-44F0-A4CD-750793CA35C6.png';
-const AI_ADAPTER_IMG           = '/assets/sprites/aiadapter.png';
+const AI_ADAPTER_IMG           = '/assets/sprites/aiadapter/idle.png';
 const AI_ADAPTER_FALLBACK      = '/assets/sprites/C0C94271-FAB8-44EA-985C-CB472E57708D.png';
 const AI_ADAPTER_TRANSFORM_IMG = '/assets/sprites/aiadaptertransformimage.png';
 const SYSTEM_PATCH_IMG         = '/assets/sprites/systempatch-new.png';
@@ -127,6 +128,10 @@ interface CampaignCtxValue {
   playWeskerAttackAnimation: () => void;
   playWeskerDamageAnimation: () => void;
   playWeskerStunAnimation:   () => void;
+  adapterAnimation:         AIAdapterAnimationState;
+  playAdapterAttackAnimation: () => void;
+  playAdapterDamageAnimation: () => void;
+  playAdapterAdaptingAnimation: () => void;
 }
 
 const CampaignCtx = createContext<CampaignCtxValue | null>(null);
@@ -341,7 +346,7 @@ function SystemPatchBoss() {
 }
 
 // ── Boss sprite selector ──────────────────────────────────
-function BossSprite({ bossIndex, adapting, weskerAnimationState }: { bossIndex: number; adapting?: boolean; weskerAnimationState?: WeskerAnimationState }) {
+function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimationState }: { bossIndex: number; adapting?: boolean; weskerAnimationState?: WeskerAnimationState; adapterAnimationState?: AIAdapterAnimationState }) {
   const [fallback, setFallback] = useState(false);
   if (bossIndex === 0) return <SystemPatchBoss />;
 
@@ -362,6 +367,27 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState }: { bossIndex: 
           pointerEvents: 'none',
         }} />
         <WeskerSprite animationState={weskerAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
+      </motion.div>
+    );
+  }
+
+  // AI Adapter with sprite animations
+  if (bossIndex === 2) {
+    return (
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        {/* Cyan radial aura */}
+        <div style={{
+          position: 'absolute',
+          width: 260, height: 260,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(40,200,220,0.22) 0%, rgba(0,180,220,0.12) 45%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <AIAdapterSprite animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
       </motion.div>
     );
   }
@@ -1940,16 +1966,20 @@ function StatBar({ value, max, color, label, showNums = true, height = 10 }: {
 // ── Battle arena (characters tall in background) ──────────
 function BattleArena() {
   const {
-    state, characterAnimation, weskerAnimation,
-    playWeskerAttackAnimation, playWeskerDamageAnimation, playWeskerStunAnimation
+    state, characterAnimation, weskerAnimation, adapterAnimation,
+    playWeskerAttackAnimation, playWeskerDamageAnimation, playWeskerStunAnimation,
+    playAdapterAttackAnimation, playAdapterDamageAnimation, playAdapterAdaptingAnimation
   } = useCampaignContext();
   const tut = useContext(TutorialCtx);
   const hideBossHp = tut.open || state.bossIndex === 0;
 
   // Attack movement state
   const prevPhaseRef = useRef(state.phase);
+  const prevPlayerHpBeforeDamageRef = useRef(state.playerHp);
+  const enemyAttackStartTimeRef = useRef(0);
   const [magAtk, setMagAtk] = useState(false);
   const [bossAtk, setBossAtk] = useState(false);
+  const [displayPlayerHp, setDisplayPlayerHp] = useState(state.playerHp);
 
   // Diamond strength flash
   const [showStrengthFlash, setShowStrengthFlash] = useState(false);
@@ -1960,6 +1990,9 @@ function BattleArena() {
 
   // Track Wesker exposed state for stun animation
   const prevWeskerExposedRef = useRef(state.weskerExposed);
+
+  // Track Adapter HP for damage animation
+  const prevAdapterHpRef = useRef(state.boss.hp);
 
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -1976,21 +2009,41 @@ function BattleArena() {
     // Boss attacks when phase becomes enemy-attack
     // For AI Adapter with adapting: delay the lunge by 1s
     if (curPhase === 'enemy-attack') {
+      // Record when attack phase started for damage animation timing
+      enemyAttackStartTimeRef.current = Date.now();
+      
+      // Save current display HP before damage is applied (use the ref which tracks pre-damage HP)
+      setDisplayPlayerHp(state.playerHp + (state.lastBossDmg || 0));
+      
+      // If adapter is adapting, trigger adapting animation immediately
+      if (state.bossIndex === 2 && state.adapterAdapting) {
+        playAdapterAdaptingAnimation();
+      }
+      
       const delay = state.adapterAdapting ? 1000 : 0;
       const t = setTimeout(() => {
         setBossAtk(true);
-        // Trigger Wesker attack animation
+        // Trigger boss attack animation
         if (state.bossIndex === 1) {
           playWeskerAttackAnimation();
+        } else if (state.bossIndex === 2) {
+          playAdapterAttackAnimation();
         }
         setTimeout(() => setBossAtk(false), 400);
+        // Show damage after attack animation completes
+        setTimeout(() => setDisplayPlayerHp(state.playerHp), 600);
       }, delay);
       prevPhaseRef.current = curPhase;
       return () => clearTimeout(t);
     }
 
+    // When leaving enemy-attack phase, update the pre-damage HP tracking
+    if (prevPhase === 'enemy-attack') {
+      prevPlayerHpBeforeDamageRef.current = state.playerHp;
+    }
+
     prevPhaseRef.current = curPhase;
-  }, [state.phase, state.bossIndex, state.adapterAdapting, playWeskerAttackAnimation]);
+  }, [state.phase, state.bossIndex, state.adapterAdapting, state.playerHp, state.lastBossDmg, playWeskerAttackAnimation, playAdapterAttackAnimation, playAdapterAdaptingAnimation]);
 
   // Diamond charge increase → flash "STRENGTH INCREASE +"
   useEffect(() => {
@@ -2005,6 +2058,13 @@ function BattleArena() {
     prevChargeRef.current = cur;
   }, [state.diamondCharge]);
 
+  // Keep displayPlayerHp in sync unless we're animating an attack
+  useEffect(() => {
+    if (state.phase !== 'enemy-attack') {
+      setDisplayPlayerHp(state.playerHp);
+    }
+  }, [state.playerHp, state.phase]);
+
   // Wesker damage animation when he takes damage
   useEffect(() => {
     if (state.bossIndex === 1 && state.boss.hp < prevWeskerHpRef.current) {
@@ -2012,6 +2072,14 @@ function BattleArena() {
     }
     prevWeskerHpRef.current = state.boss.hp;
   }, [state.boss.hp, state.bossIndex, playWeskerDamageAnimation]);
+
+  // AI Adapter damage animation when it takes damage
+  useEffect(() => {
+    if (state.bossIndex === 2 && state.boss.hp < prevAdapterHpRef.current) {
+      playAdapterDamageAnimation();
+    }
+    prevAdapterHpRef.current = state.boss.hp;
+  }, [state.boss.hp, state.bossIndex, playAdapterDamageAnimation]);
 
   // Wesker stun animation when exposed (diamonds break isolation)
   useEffect(() => {
@@ -2025,7 +2093,7 @@ function BattleArena() {
 
   const boss       = state.boss;
   const bossColor  = boss.hp / boss.maxHp > 0.6 ? '#33dd77' : boss.hp / boss.maxHp > 0.25 ? '#ffd700' : '#ff4455';
-  const playerColor = state.playerHp / state.playerMaxHp > 0.5 ? '#33dd77' : state.playerHp / state.playerMaxHp > 0.25 ? '#ffd700' : '#ff4455';
+  const playerColor = displayPlayerHp / state.playerMaxHp > 0.5 ? '#33dd77' : displayPlayerHp / state.playerMaxHp > 0.25 ? '#ffd700' : '#ff4455';
   const bossOrbitColor  = state.bossIndex === 0 ? '#720072' : state.bossIndex === 1 ? '#ff4455' : '#4da6ff';
   const bossOrbitColor2 = state.bossIndex === 0 ? '#960096' : state.bossIndex === 1 ? '#ffd700' : '#cc88ff';
 
@@ -2117,7 +2185,7 @@ function BattleArena() {
 
           {/* Player HP + Mana bars */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <StatBar value={state.playerHp} max={state.playerMaxHp} color={playerColor} label="HP" />
+            <StatBar value={displayPlayerHp} max={state.playerMaxHp} color={playerColor} label="HP" />
             <StatBar value={state.mana} max={state.manaMax} color="#4da6ff" label="MANA" />
             {state.defenseStacks > 0 && (
               <div style={{
@@ -2148,7 +2216,7 @@ function BattleArena() {
         }}
       >
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} />
+          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} adapterAnimationState={adapterAnimation} />
           {/* AI Adapter ADAPTING flash */}
           <AnimatePresence>
             {state.adapterAdapting && (
@@ -4633,6 +4701,72 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     }, 800);
   }, []);
 
+  // ── AI Adapter Animation State ──────────────────────────
+  const [adapterAnimation, setAdapterAnimation] = useState<AIAdapterAnimationState>({
+    currentSprite: 'idle',
+    isAnimating: false,
+    shakeDirection: null,
+    animationStartTime: 0,
+    animationDuration: 600,
+  });
+
+  const playAdapterAttackAnimation = useCallback(() => {
+    setAdapterAnimation({
+      currentSprite: 'attack',
+      isAnimating: true,
+      shakeDirection: 'forward',
+      animationStartTime: Date.now(),
+      animationDuration: 600,
+    });
+
+    setTimeout(() => {
+      setAdapterAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 600);
+  }, []);
+
+  const playAdapterDamageAnimation = useCallback(() => {
+    setAdapterAnimation({
+      currentSprite: 'damage',
+      isAnimating: true,
+      shakeDirection: 'backward',
+      animationStartTime: Date.now(),
+      animationDuration: 700,
+    });
+
+    setTimeout(() => {
+      setAdapterAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 700);
+  }, []);
+
+  const playAdapterAdaptingAnimation = useCallback(() => {
+    setAdapterAnimation({
+      currentSprite: 'adapting',
+      isAnimating: true,
+      shakeDirection: 'forward',
+      animationStartTime: Date.now(),
+      animationDuration: 1000,
+    });
+
+    setTimeout(() => {
+      setAdapterAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 1000);
+  }, []);
+
   // ── Wesker 7-minute countdown ──────────────────────────
   const [weskerTimeLeft, setWeskerTimeLeft] = useState(WESKER_DURATION);
   const weskerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -4701,13 +4835,31 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
 
   // Track player HP for damage animations
   const prevPlayerHpRef = useRef(state.playerHp);
+  const damageAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   useEffect(() => {
     if (state.playerHp < prevPlayerHpRef.current && state.phase === 'enemy-attack') {
-      // Player took damage — trigger damage animation
-      playDamageAnimation();
+      // Player took damage — trigger damage animation with delay
+      // Delay until damage is visually revealed (600ms after damage display update)
+      const delay = state.adapterAdapting ? 1600 : 600; // adapter has 1s adapting delay + 600ms for damage reveal
+      
+      if (damageAnimationTimeoutRef.current) {
+        clearTimeout(damageAnimationTimeoutRef.current);
+      }
+      
+      damageAnimationTimeoutRef.current = setTimeout(() => {
+        playDamageAnimation();
+        damageAnimationTimeoutRef.current = null;
+      }, delay);
     }
     prevPlayerHpRef.current = state.playerHp;
-  }, [state.playerHp, state.phase, playDamageAnimation]);
+    
+    return () => {
+      if (damageAnimationTimeoutRef.current) {
+        clearTimeout(damageAnimationTimeoutRef.current);
+      }
+    };
+  }, [state.playerHp, state.phase, state.adapterAdapting, playDamageAnimation]);
 
   // Keep Wesker on stun sprite while stunned, revert to idle when stun expires
   useEffect(() => {
@@ -4747,6 +4899,10 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     playWeskerAttackAnimation,
     playWeskerDamageAnimation,
     playWeskerStunAnimation,
+    adapterAnimation,
+    playAdapterAttackAnimation,
+    playAdapterDamageAnimation,
+    playAdapterAdaptingAnimation,
   };
 
   // Tab hidden → mute
