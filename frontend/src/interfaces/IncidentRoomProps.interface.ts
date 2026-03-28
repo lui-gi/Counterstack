@@ -6,7 +6,11 @@ export interface IncidentRoomProps {
   threatPressure: number;
   activeCve?: ScoredCve | null;
   geminiThreatPct?: number | null;
-  geminiReasoning?: string;
+  geminiExposure?: string;
+  geminiControls?: string;
+  geminiVerdict?: string;
   geminiAnalyzing?: boolean;
+  geminiAttackVectors?: string[];
+  geminiRemediationSteps?: string[];
   onClose: () => void;
 }

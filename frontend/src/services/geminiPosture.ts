@@ -18,7 +18,11 @@ interface CveThreatInput {
 
 interface CveThreatResult {
   threatPct: number;
-  reasoning: string;
+  exposure: string;
+  controls: string;
+  verdict: string;
+  attackVectors: string[];
+  remediationSteps: string[];
 }
 
 interface SuitAnalysisInput {

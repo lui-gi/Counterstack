@@ -59,7 +59,7 @@ ${JSON.stringify(json, null, 2)}`;
 export async function analyzeCveThreat(
   cve: Record<string, unknown>,
   orgProfile: unknown
-): Promise<{ threatPct: number; reasoning: string }> {
+): Promise<{ threatPct: number; exposure: string; controls: string; verdict: string; attackVectors: string[]; remediationSteps: string[] }> {
   const prompt = `You are a cybersecurity threat analyst. Given a specific CVE and an organization's security profile, calculate how vulnerable this organization is to this specific CVE.
 
 CVE Details:
@@ -74,14 +74,15 @@ ${cve.knownRansomware ? '- WARNING: Known to be used in ransomware campaigns' : 
 Organization Profile:
 ${JSON.stringify(orgProfile, null, 2)}
 
-Analyze:
-1. Does this organization use the affected vendor/product?
-2. How well do their security controls mitigate this type of vulnerability?
-3. What is their detection and response capability for this threat?
-4. How critical would this vulnerability be to their business?
-
 Respond ONLY with a JSON object:
-{"threatPct": <0-100>, "reasoning": "<2-3 sentences>"}
+{
+  "threatPct": <0-100>,
+  "exposure": "<1 sentence: does this org use the affected vendor/product and to what extent?>",
+  "controls": "<1 sentence: how well do their specific security controls mitigate this vulnerability?>",
+  "verdict": "<1 sentence: why was this exact threat percentage assigned, tying exposure and controls together?>",
+  "attackVectors": ["<label1>", "<label2>"],
+  "remediationSteps": ["<step1>", "<step2>", "<step3>"]
+}
 
 Where threatPct is how vulnerable THIS organization is to THIS CVE:
 - 0-30: Low threat (don't use affected product, or strong mitigations)
@@ -89,16 +90,19 @@ Where threatPct is how vulnerable THIS organization is to THIS CVE:
 - 61-80: High threat (uses affected product with gaps in controls)
 - 81-100: Critical threat (direct exposure with weak defenses)
 
-For the reasoning field, provide exactly 3 sentences:
-1. First sentence: Brief assessment of the organization's exposure to this CVE
-2. Second sentence: Explain WHY the specific threat percentage was assigned based on the organization's security posture
-3. Third sentence: Explain why the threat level cannot be 0% (or lower than the assigned percentage).`;
+For attackVectors: provide 1-4 short labels (e.g. "RCE", "Auth Bypass", "Priv Esc", "SSRF", "SQLi", "XSS", "Supply Chain") that describe the attack surface relevant to this CVE and this organization.
+
+For remediationSteps: provide 3-5 concise, org-specific containment and remediation actions tailored to this organization's stack and security controls. Each step should be a single actionable sentence.`;
 
   const raw = await callGemini(prompt);
   const parsed = parseJsonFromText(raw) as Record<string, unknown>;
   return {
     threatPct: Math.max(0, Math.min(100, Math.round(Number(parsed.threatPct)))),
-    reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
+    exposure: typeof parsed.exposure === 'string' ? parsed.exposure : '',
+    controls: typeof parsed.controls === 'string' ? parsed.controls : '',
+    verdict: typeof parsed.verdict === 'string' ? parsed.verdict : '',
+    attackVectors: Array.isArray(parsed.attackVectors) ? (parsed.attackVectors as unknown[]).slice(0, 4).map(String) : [],
+    remediationSteps: Array.isArray(parsed.remediationSteps) ? (parsed.remediationSteps as unknown[]).slice(0, 5).map(String) : [],
   };
 }
 
