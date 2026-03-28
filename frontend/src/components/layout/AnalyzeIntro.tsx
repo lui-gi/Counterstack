@@ -23,8 +23,7 @@ const TOUR_STEPS: TourStep[] = [
   { id: 'tour-hub',            modalPosition: 'right',   title: 'THE FOUR SUITS',        subtitle: 'YOUR SECURITY DOMAINS' },
   { id: 'tour-joker',          modalPosition: 'right',   title: 'THE JOKER',             subtitle: 'YOUR THREAT PRESSURE' },
   { id: 'tour-integrations',   modalPosition: 'right',   title: 'INTEGRATIONS',          subtitle: 'YOUR LIVE TELEMETRY' },
-  { id: 'tour-magician',       modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
-  { id: null, modalPosition: 'center', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
+  { id: 'tour-right-col',      modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
   { id: 'tour-mode-toggle', modalPosition: 'below', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
 ];
 
@@ -228,17 +227,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
             </>
           )}
 
-          {/* Step 6 — Analyze vs Simulate */}
-          {currentStep === 6 && (
-            <>
-              <div className="tour-text">
-                <strong style={{ color: '#00d4ff' }}>● ANALYZE</strong> gives you a live view of your organization's security posture across all four domains — and shows how vulnerable you are to different known threats in the wild.
-              </div>
-              <div className="tour-text" style={{ marginTop: 10 }}>
-                <strong style={{ color: '#a78bfa' }}>○ SIMULATE</strong> pits your organization directly against a known threat. If your hand rank isn't strong enough to defeat it, you lose the simulation — exposing exactly where you need to improve.
-              </div>
-            </>
-          )}
+
         </div>
 
         <div className="tour-footer">
