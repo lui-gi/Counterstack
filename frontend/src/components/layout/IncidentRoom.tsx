@@ -1,4 +1,5 @@
 import type { IncidentRoomProps } from '../../interfaces/IncidentRoomProps.interface';
+import JokerCardSVG from '../JokerCardSVG';
 
 const ANALYSIS_ROWS: { key: 'geminiExposure' | 'geminiControls' | 'geminiVerdict'; label: string }[] = [
   { key: 'geminiExposure', label: 'Exposure' },
@@ -22,8 +23,16 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
   const analysisValues: Record<string, string> = { geminiExposure: geminiExposure ?? '', geminiControls: geminiControls ?? '', geminiVerdict: geminiVerdict ?? '' };
 
   return (
-    <div className="modal-ov" onClick={onClose}>
-      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+    <div className="ir-overlay" onClick={onClose}>
+
+      {/* Floating Joker card — left of panel */}
+      <div className="sd-floating-card" onClick={e=>e.stopPropagation()}>
+        <div className="sd-panel-card" style={{borderRadius:13,overflow:'hidden'}}>
+          <JokerCardSVG style={{width:132,height:186,borderRadius:13}} />
+        </div>
+      </div>
+
+      <div className="ir-panel" onClick={e=>e.stopPropagation()}>
 
         {/* Sticky header */}
         <div className="modal-h" style={{marginBottom:18}}>
@@ -162,3 +171,4 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
     </div>
   );
 }
+
