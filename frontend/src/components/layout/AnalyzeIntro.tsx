@@ -34,11 +34,17 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<Rect | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 2800);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -100,6 +106,19 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
 
   return (
     <>
+      {/* Loading screen with wave animation */}
+      {isLoading && (
+        <div className="analyze-loading-screen">
+          <div className="analyze-loading-content">
+            <div className="analyze-loading-label">ANALYZING POSTURE</div>
+            <div className="analyze-loading-cards">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="analyze-loading-card" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Spotlight overlay — 4 panels around the target, or full overlay on step 0 */}
       {spotlightRect ? (
         <>
