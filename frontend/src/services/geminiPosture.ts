@@ -39,6 +39,8 @@ interface SuitAnalysisResult {
   benchmarks?: Record<string, string>;
   upgradePath?: string[];
   complianceGaps?: string[];
+  attackerView?: string[];
+  businessImpact?: string[];
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -95,8 +97,9 @@ export async function analyzeCveThreat(
 
 interface MagicianReadingResult {
   summary: string;
+  topPriority: string;
   strengths: string[];
-  weaknesses: string[];
+  weaknesses: { text: string; urgency: 'immediate' | 'short_term' | 'long_term' }[];
 }
 
 export async function analyzeMagicianReading(

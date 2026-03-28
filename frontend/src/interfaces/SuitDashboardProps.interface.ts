@@ -7,6 +7,8 @@ export interface SuitAnalysisCache {
   benchmarks?: Record<string, string>;
   upgradePath?: string[];
   complianceGaps?: string[];
+  attackerView?: string[];
+  businessImpact?: string[];
 }
 
 export interface SuitDashboardProps {

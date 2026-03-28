@@ -5,8 +5,9 @@ import type { MagicianReadingProps } from '../../interfaces/MagicianReadingProps
 
 interface MagicianReadingResult {
   summary: string;
+  topPriority: string;
   strengths: string[];
-  weaknesses: string[];
+  weaknesses: { text: string; urgency: 'immediate' | 'short_term' | 'long_term' }[];
 }
 
 export default function MagicianReading({ orgProfile, ranks, accountData, posture, onClose }: MagicianReadingProps) {
@@ -45,7 +46,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
     <div className="modal-ov" onClick={onClose}>
       <div
         className="modal-box"
-        style={{ width: 680, maxWidth: '95vw' }}
+        style={{ width: 680, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -95,7 +96,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
         </div>
 
         {/* Domain Posture */}
-        <div className="modal-sect-t">Domain Posture</div>
+        <div className="modal-sect-t" style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>Domain Posture</div>
         {Object.entries(SUITS).map(([key, cfg]) => {
           const rank = ranks[key] ?? 1;
           const rankName = RANK_NAMES[rank] ?? String(rank);
@@ -127,7 +128,7 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
         })}
 
         {/* Magician's Analysis */}
-        <div className="modal-sect-t" style={{display:'flex',alignItems:'center',gap:5}}><img src="/magician-icon.png" style={{height:14,objectFit:'contain',flexShrink:0}} />Magician's Analysis</div>
+        <div className="modal-sect-t" style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12, display:'flex',alignItems:'center',gap:5}}><img src="/magician-icon.png" style={{height:14,objectFit:'contain',flexShrink:0}} />Magician's Analysis</div>
 
         {loading && (
           <div className="ai-scan">
@@ -161,23 +162,65 @@ export default function MagicianReading({ orgProfile, ranks, accountData, postur
               </p>
             </div>
 
-            {/* Strengths */}
-            <div className="mr-subsect-label" style={{ color: '#39d353' }}>▲ STRENGTHS</div>
-            {result.strengths.map((s, i) => (
-              <div key={i} className="mr-reading-item mr-strength">
-                <span className="mr-item-bullet" style={{ color: '#39d353' }}>✓</span>
-                {s}
+            {/* Critical Finding */}
+            {result.topPriority && (
+              <div style={{
+                background: 'rgba(245,158,11,.06)',
+                border: '1px solid rgba(245,158,11,.3)',
+                borderRadius: 6,
+                padding: '10px 12px',
+                marginBottom: 14,
+                display: 'flex',
+                gap: 8,
+                alignItems: 'flex-start',
+              }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>⚠</span>
+                <div>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--fm)', letterSpacing: 1, color: '#f59e0b', marginBottom: 3 }}>CRITICAL FINDING</div>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{result.topPriority}</p>
+                </div>
               </div>
-            ))}
+            )}
 
-            {/* Weaknesses */}
-            <div className="mr-subsect-label" style={{ color: 'var(--pink)', marginTop: 10 }}>▼ WEAKNESSES</div>
-            {result.weaknesses.map((w, i) => (
-              <div key={i} className="mr-reading-item mr-weakness">
-                <span className="mr-item-bullet" style={{ color: 'var(--pink)' }}>!</span>
-                {w}
+            {/* Strengths + Weaknesses side by side */}
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              {/* Strengths */}
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div className="mr-subsect-label" style={{ color: '#39d353' }}>▲ STRENGTHS</div>
+                {result.strengths.map((s, i) => (
+                  <div key={i} className="mr-reading-item mr-strength">
+                    <span className="mr-item-bullet" style={{ color: '#39d353' }}>✓</span>
+                    {s}
+                  </div>
+                ))}
               </div>
-            ))}
+
+              {/* Weaknesses */}
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div className="mr-subsect-label" style={{ color: 'var(--pink)' }}>▼ WEAKNESSES</div>
+                {result.weaknesses.map((w, i) => {
+                  const urgencyLabel = w.urgency === 'immediate' ? 'IMMEDIATE' : w.urgency === 'short_term' ? 'SHORT TERM' : 'LONG TERM';
+                  const urgencyColor = w.urgency === 'immediate' ? '#ef4444' : w.urgency === 'short_term' ? '#f59e0b' : 'var(--dim)';
+                  return (
+                    <div key={i} className="mr-reading-item mr-weakness" style={{ flexWrap: 'wrap', gap: 6 }}>
+                      <span className="mr-item-bullet" style={{ color: 'var(--pink)' }}>!</span>
+                      <span style={{ flex: 1 }}>{w.text}</span>
+                      <span style={{
+                        fontSize: 8,
+                        fontFamily: 'var(--fm)',
+                        letterSpacing: 0.8,
+                        color: urgencyColor,
+                        border: `1px solid ${urgencyColor}`,
+                        borderRadius: 3,
+                        padding: '1px 4px',
+                        flexShrink: 0,
+                        alignSelf: 'center',
+                      }}>{urgencyLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </>
         )}
       </div>

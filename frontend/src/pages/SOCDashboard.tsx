@@ -259,6 +259,8 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
             benchmarks: result.benchmarks,
             upgradePath: result.upgradePath,
             complianceGaps: result.complianceGaps,
+            attackerView: result.attackerView,
+            businessImpact: result.businessImpact,
             loading: false
           }
         }));

@@ -117,6 +117,8 @@ export async function analyzeSuit(
   benchmarks: Record<string, string>;
   upgradePath: string[];
   complianceGaps: string[];
+  attackerView: string[];
+  businessImpact: string[];
 }> {
   const suitDescriptions: Record<string, string> = {
     clover: 'RESOURCES - Baseline visibility, asset hygiene, patch compliance, vulnerability management',
@@ -167,6 +169,16 @@ Given this organization's security profile and their current ${suit.suitName} ra
   ],
   "complianceGaps": [
     "If compliance frameworks exist in the profile, list 0-3 specific requirements at risk in this domain, e.g. 'PCI DSS 6.3.3: patch cadence SLA not met'. Empty array if no compliance data or no gaps."
+  ],
+  "attackerView": [
+    "3 short bullets written from the attacker's perspective, referencing this org's actual metric gaps. E.g. 'Your 12h MTTD gives attackers a full business day of undetected dwell time.'",
+    "Bullet 2",
+    "Bullet 3"
+  ],
+  "businessImpact": [
+    "3 short bullets translating this domain's technical gaps into business risk — revenue, compliance exposure, or reputational harm. E.g. 'An unverified backup means your stated 4h RTO is unconfirmed — real recovery time unknown.'",
+    "Bullet 2",
+    "Bullet 3"
   ]
 }
 ${cveContext}
@@ -182,19 +194,23 @@ ${JSON.stringify(orgProfile, null, 2)}`;
     : {};
   const upgradePath = Array.isArray(parsed.upgradePath) ? (parsed.upgradePath as unknown[]).slice(0, 4).map(String) : [];
   const complianceGaps = Array.isArray(parsed.complianceGaps) ? (parsed.complianceGaps as unknown[]).slice(0, 3).map(String) : [];
+  const attackerView = Array.isArray(parsed.attackerView) ? (parsed.attackerView as unknown[]).slice(0, 3).map(String) : [];
+  const businessImpact = Array.isArray(parsed.businessImpact) ? (parsed.businessImpact as unknown[]).slice(0, 3).map(String) : [];
   return {
     recommendations: recs,
     reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
     benchmarks,
     upgradePath,
     complianceGaps,
+    attackerView,
+    businessImpact,
   };
 }
 
 export async function analyzeMagicianReading(input: {
   orgProfile: unknown;
   ranks: Record<string, number>;
-}): Promise<{ summary: string; strengths: string[]; weaknesses: string[] }> {
+}): Promise<{ summary: string; topPriority: string; strengths: string[]; weaknesses: { text: string; urgency: 'immediate' | 'short_term' | 'long_term' }[] }> {
   const { orgProfile, ranks } = input;
   const prompt = `You are a senior cybersecurity strategist providing a holistic assessment of an organization's security posture across all four domains.
 
@@ -209,27 +225,47 @@ ${JSON.stringify(orgProfile, null, 2)}
 
 Provide a holistic executive-level reading of this organization's overall security posture. Identify the 3 most significant strengths and 3 most significant weaknesses across ALL domains combined.
 
+Instructions:
+- In the summary (2-3 sentences), frame the posture relative to the organization's industry and size — note if they are above or below the typical baseline for their sector. Call out the most significant interaction between two domains where one domain's weakness amplifies another's risk.
+- topPriority: one clear, specific action sentence — the single most important thing this org must do right now.
+- For each weakness, assign an urgency: "immediate" (act within days/weeks), "short_term" (act within 1-3 months), or "long_term" (act within 6-12 months).
+
 Respond ONLY with a JSON object:
 {
-  "summary": "2-3 sentence executive overview of the overall security posture",
+  "summary": "2-3 sentence executive overview framed relative to industry/size, including cross-domain risk interaction",
+  "topPriority": "Single most critical action sentence",
   "strengths": [
     "Specific strength 1 referencing domain and evidence from the profile",
     "Specific strength 2 referencing domain and evidence from the profile",
     "Specific strength 3 referencing domain and evidence from the profile"
   ],
   "weaknesses": [
-    "Specific weakness 1 with actionable insight",
-    "Specific weakness 2 with actionable insight",
-    "Specific weakness 3 with actionable insight"
+    { "text": "Specific weakness 1 with actionable insight", "urgency": "immediate" },
+    { "text": "Specific weakness 2 with actionable insight", "urgency": "short_term" },
+    { "text": "Specific weakness 3 with actionable insight", "urgency": "long_term" }
   ]
 }`;
 
   const raw = await callGemini(prompt);
   const parsed = parseJsonFromText(raw) as Record<string, unknown>;
+
+  const rawWeaknesses = Array.isArray(parsed.weaknesses) ? parsed.weaknesses as unknown[] : [];
+  const weaknesses = rawWeaknesses.slice(0, 3).map((w) => {
+    if (typeof w === 'object' && w !== null && 'text' in w) {
+      const obj = w as Record<string, unknown>;
+      const urgency = obj.urgency === 'immediate' || obj.urgency === 'short_term' || obj.urgency === 'long_term'
+        ? obj.urgency as 'immediate' | 'short_term' | 'long_term'
+        : 'short_term';
+      return { text: String(obj.text ?? ''), urgency };
+    }
+    return { text: String(w), urgency: 'short_term' as const };
+  });
+
   return {
     summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    topPriority: typeof parsed.topPriority === 'string' ? parsed.topPriority : '',
     strengths: Array.isArray(parsed.strengths) ? (parsed.strengths as unknown[]).slice(0, 3).map(String) : [],
-    weaknesses: Array.isArray(parsed.weaknesses) ? (parsed.weaknesses as unknown[]).slice(0, 3).map(String) : [],
+    weaknesses,
   };
 }
 

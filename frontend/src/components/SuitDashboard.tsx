@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
-import { SUITS, SUIT_DATA, RANK_NAMES, RANK_FULL } from '../data/gameData';
+import { SUIT_DATA, RANK_NAMES, RANK_FULL } from '../data/gameData';
 import SuitCard from './SuitCard';
-import type { SuitConfig } from '../interfaces/SuitConfig.interface';
 import type { SuitMetric } from '../interfaces/SuitMetric.interface';
 import type { SuitRisk } from '../interfaces/SuitRisk.interface';
 import type { SuitDashboardProps } from '../interfaces/SuitDashboardProps.interface';
-import PostureChart from './PostureChart';
 
 function deriveMetrics(suitKey: string, profile: Record<string, unknown>): SuitMetric[] | null {
   const nist = profile.nistCsf as Record<string, unknown> | undefined;
@@ -475,9 +473,26 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
           {/* 3 columns */}
           <div className="sd-cols">
 
-            {/* Controls — Have vs Gaps (B) */}
+            {/* Col 1 — Attacker's View (AI) / Controls fallback */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
-              {controlStatus ? (
+              {aiAnalysis?.attackerView?.length ? (
+                <>
+                  <div className="sd-block-t" style={{color:"#f72585"}}>
+                    ATTACKER'S VIEW
+                    <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span>
+                  </div>
+                  {aiAnalysis.attackerView.map((b: string, i: number)=>(
+                    <div key={i} className="ai-item" style={{borderColor:"#f7258510"}}>
+                      <span className="ai-arr" style={{color:"#f72585"}}>▸</span>{b}
+                    </div>
+                  ))}
+                </>
+              ) : isAiLoading ? (
+                <>
+                  <div className="sd-block-t" style={{color:"#f72585"}}>ATTACKER'S VIEW</div>
+                  <div style={{fontSize:13,color:"var(--dim)",padding:"6px 0"}}>Analyzing...</div>
+                </>
+              ) : controlStatus ? (
                 <>
                   {controlStatus.have.length > 0 && (
                     <>
@@ -515,34 +530,44 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
               )}
             </div>
 
-            {/* Risk Exposure + Compliance Gaps (C/H + G) */}
+            {/* Col 2 — Business Impact (AI) / Risk Exposure fallback */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
-              <div className="sd-block-t" style={{color:`${color}88`}}>Risk Exposure</div>
-              {displayRisks.length === 0 ? (
-                <div style={{fontSize:13,color:"var(--green)",padding:"6px 0"}}>✓ No anomalies detected</div>
-              ) : (
-                displayRisks.map((r: SuitRisk)=>(
-                  <div key={r.n} className="risk-row" style={{background:`${sevColor[r.lvl as keyof typeof sevColor]}0a`,border:`1px solid ${sevColor[r.lvl as keyof typeof sevColor]}22`}}>
-                    <div className="risk-dot" style={{background:sevColor[r.lvl as keyof typeof sevColor]}}/>
-                    <span style={{flex:1,fontSize:13}}>{r.n}</span>
-                    <span style={{fontSize:12,fontFamily:"var(--fm)",color:sevColor[r.lvl as keyof typeof sevColor],textTransform:"uppercase"}}>{r.lvl}</span>
-                  </div>
-                ))
-              )}
-              {aiAnalysis?.complianceGaps?.length ? (
+              {aiAnalysis?.businessImpact?.length ? (
                 <>
-                  <div className="sd-block-t" style={{color:`${color}88`,marginTop:10}}>Compliance Gaps</div>
-                  {aiAnalysis.complianceGaps.map((g: string, i: number)=>(
-                    <div key={i} className="risk-row" style={{background:"#ff9f1c0a",border:"1px solid #ff9f1c22"}}>
-                      <div className="risk-dot" style={{background:"#ff9f1c"}}/>
-                      <span style={{flex:1,fontSize:12}}>{g}</span>
+                  <div className="sd-block-t" style={{color:"#ff9f1c"}}>
+                    BUSINESS IMPACT
+                    <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span>
+                  </div>
+                  {aiAnalysis.businessImpact.map((b: string, i: number)=>(
+                    <div key={i} className="ai-item" style={{borderColor:"#ff9f1c10"}}>
+                      <span className="ai-arr" style={{color:"#ff9f1c"}}>▸</span>{b}
                     </div>
                   ))}
                 </>
-              ) : null}
+              ) : isAiLoading ? (
+                <>
+                  <div className="sd-block-t" style={{color:"#ff9f1c"}}>BUSINESS IMPACT</div>
+                  <div style={{fontSize:13,color:"var(--dim)",padding:"6px 0"}}>Analyzing...</div>
+                </>
+              ) : (
+                <>
+                  <div className="sd-block-t" style={{color:`${color}88`}}>Risk Exposure</div>
+                  {displayRisks.length === 0 ? (
+                    <div style={{fontSize:13,color:"var(--green)",padding:"6px 0"}}>✓ No anomalies detected</div>
+                  ) : (
+                    displayRisks.map((r: SuitRisk)=>(
+                      <div key={r.n} className="risk-row" style={{background:`${sevColor[r.lvl as keyof typeof sevColor]}0a`,border:`1px solid ${sevColor[r.lvl as keyof typeof sevColor]}22`}}>
+                        <div className="risk-dot" style={{background:sevColor[r.lvl as keyof typeof sevColor]}}/>
+                        <span style={{flex:1,fontSize:13}}>{r.n}</span>
+                        <span style={{fontSize:12,fontFamily:"var(--fm)",color:sevColor[r.lvl as keyof typeof sevColor],textTransform:"uppercase"}}>{r.lvl}</span>
+                      </div>
+                    ))
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Upgrade Path (D) */}
+            {/* Col 3 — Upgrade Path */}
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>
                 Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}
@@ -556,19 +581,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
               ))}
             </div>
 
-          </div>
-
-          {/* History */}
-          <div className="sd-block" style={{borderColor:`${color}18`}}>
-            <div className="sd-block-t" style={{color:`${color}88`}}>Posture History — All Pillars</div>
-            <PostureChart ranks={allRanks}/>
-            <div style={{display:"flex",gap:12,marginTop:6}}>
-              {(Object.entries(SUITS) as [string, SuitConfig][]).map(([k,c])=>(
-                <div key={k} style={{display:"flex",alignItems:"center",gap:4,fontSize:12,color:c.color,fontFamily:"var(--fm)"}}>
-                  <span style={{fontSize:14}}>{c.sym}</span>{c.name}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
