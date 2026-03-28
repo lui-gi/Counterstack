@@ -622,9 +622,9 @@ useEffect(()=>{
           {/* ── RIGHT SIDEBAR ── */}
           <div className="right-col">
             {/* Joker Analysis */}
-            <div className="panel" style={{flex:1}}>
+            <div className="panel" style={{flex:1,display:'flex',flexDirection:'column'}}>
               <div className="ptitle">Joker Analysis</div>
-              <div className="ja-panel">
+              <div className="ja-panel" style={{display:'flex',flexDirection:'column',flex:1}}>
                 <div className="ja-name">{activeCve?.cveId || "No CVE Selected"}</div>
                 <div className="ja-subname">{activeCve?.name || ""}</div>
                 <div className="pbar-wrap">
@@ -637,6 +637,11 @@ useEffect(()=>{
                 <div className="spread">CVSS: <span>{activeCve?.cvssScore ?? "N/A"}</span> | Risk: <span>{(geminiThreatPct ?? activeCve?.threatPct ?? 0) > 70 ? "High" : (geminiThreatPct ?? activeCve?.threatPct ?? 0) > 50 ? "Medium" : "Low"}</span></div>
                 <div className="ja-vendor">{activeCve?.affectedVendor} — {activeCve?.affectedProduct}</div>
 
+{activeCve?.dueDate && (
+                  <div className="ja-due">
+                    <span>CISA DUE</span><span>{activeCve.dueDate}</span>
+                  </div>
+                )}
                 <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN THREAT ANALYSIS</button>
               </div>
             </div>
