@@ -95,13 +95,16 @@ function CampaignCutscene({ onDone }: { onDone: () => void }) {
                 fontFamily: "'Press Start 2P', monospace",
                 fontSize: 11,
                 letterSpacing: 5,
-                color: 'rgba(255,80,80,0.7)',
                 textTransform: 'uppercase',
                 marginTop: 18,
-                textShadow: '0 0 12px rgba(255,34,51,0.5)',
               }}
             >
-              CAMPAIGN MODE
+              <span style={{ color: 'rgba(255,80,80,0.7)', textShadow: '0 0 12px rgba(255,34,51,0.5)' }}>
+                CAMPAIGN MODE:{' '}
+              </span>
+              <span style={{ color: '#ff2233', textShadow: '0 0 18px rgba(255,34,51,0.95), 0 0 40px rgba(255,34,51,0.5)' }}>
+                ZERO-DAY ECLIPSE
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -124,6 +127,7 @@ function CampaignCutscene({ onDone }: { onDone: () => void }) {
             />
           )}
         </AnimatePresence>
+
       </div>
     </motion.div>
   );

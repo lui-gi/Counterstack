@@ -6,7 +6,7 @@
 
 export const CARD_ACTIONS: Record<string, Record<number, string>> = {
   spades: {
-    2:  'Threat Ping',
+    2:  'Port Scan',
     3:  'Flag Malicious Behavior',
     4:  'Block Suspicious IP',
     5:  'Terminate Suspicious Process',
@@ -15,13 +15,13 @@ export const CARD_ACTIONS: Record<string, Record<number, string>> = {
     8:  'Quarantine Infected Endpoint',
     9:  'Kill Persistence Mechanism',
     10: 'Sinkhole Malicious Domain',
-    11: 'Contain Lateral Movement',
+    11: 'Bug Bounty',
     12: 'Network Isolation',
     13: 'Full Threat Neutralization',
     1:  'Advanced Counterstrike',
   },
   clubs: {
-    2:  'Resource Ping',
+    2:  'Asset Inventory',
     3:  'Assign SOC Analyst',
     4:  'Increase Logging',
     5:  'Activate Monitoring',

@@ -484,7 +484,7 @@ function reducer(state: CampaignState, action: Action): CampaignState {
           cardOptions: [], drawnCard: null,
           log: addLog({
             id: `play-${state.turn}`,
-            msg: `[THREAT PING] ${rankDisplay(card.rank)}♠ — ${baseDmg} base${chargeStr} = ${totalDmg} DMG · −${cost} mana → ${state.boss.name} ${newHp}/${state.boss.maxHp} HP${bossNote}`,
+            msg: `[OFFENSIVE] ${rankDisplay(card.rank)}♠ — ${baseDmg} base${chargeStr} = ${totalDmg} DMG · −${cost} mana → ${state.boss.name} ${newHp}/${state.boss.maxHp} HP${bossNote}`,
             kind: 'damage',
           }),
         };
