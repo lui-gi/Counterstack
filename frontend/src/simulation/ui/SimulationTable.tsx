@@ -727,15 +727,18 @@ function SlotReel({ stopped, jackpotFlash, reelIndex }: { stopped: boolean; jack
 function JackpotCinematic({ onDone }: { onDone: () => void }) {
   const [stage, setStage] = useState<'throw' | 'reels' | 'jackpot'>('throw');
   const [stopped, setStopped] = useState([false, false, false]);
+  const [absorbFlash, setAbsorbFlash] = useState(false);
 
   useEffect(() => {
+    // Flash fires just before the machine appears — sells the "icon goes in" moment
+    const tf = setTimeout(() => { setAbsorbFlash(true); setTimeout(() => setAbsorbFlash(false), 220); }, 700);
     const t1 = setTimeout(() => { setStage('reels'); playSpinTicks(); }, 900);
     const t2 = setTimeout(() => { setStopped([true, false, false]); playReelStop(); }, 1600);
     const t3 = setTimeout(() => { setStopped([true, true,  false]); playReelStop(); }, 2300);
     const t4 = setTimeout(() => { setStopped([true, true,  true]);  playReelStop(); }, 3100);
     const t5 = setTimeout(() => { setStage('jackpot'); playJackpotBells(); }, 3200);
     const t6 = setTimeout(onDone, 5700);
-    return () => [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
+    return () => [tf, t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
   }, []);
 
   const isJackpot = stage === 'jackpot';
@@ -779,15 +782,35 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
         }}
       />
 
-      {/* Hat throw arc */}
+      {/* Absorb flash — bright burst when icon enters the machine */}
+      <AnimatePresence>
+        {absorbFlash && (
+          <motion.div
+            key="absorb-flash"
+            initial={{ opacity: 0.85 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            style={{
+              position: 'absolute', inset: 0, zIndex: 20, pointerEvents: 'none',
+              background: 'radial-gradient(ellipse 55% 45% at 50% 50%, rgba(255,240,160,0.95) 0%, rgba(212,168,67,0.55) 40%, transparent 75%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Icon flies in from below and gets absorbed into the machine center */}
       <AnimatePresence>
         {stage === 'throw' && (
           <motion.div
             key="hat-throw"
-            initial={{ x: -320, y: 180, rotate: -180, scale: 0.4, opacity: 0 }}
-            animate={{ x: 0, y: -40, rotate: 720, scale: 2.0, opacity: 1 }}
-            exit={{ y: -180, opacity: 0, scale: 0.5, rotate: 900 }}
-            transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ x: 0, y: 300, scale: 0.35, opacity: 0, rotate: -10 }}
+            animate={{ x: 0, y: 0, scale: 2.0, opacity: 1, rotate: 15 }}
+            exit={{ scale: 0, opacity: 0, rotate: 30, filter: 'drop-shadow(0 0 80px #fffbe0) drop-shadow(0 0 40px #d4a843)' }}
+            transition={{
+              default: { duration: 0.68, ease: [0.16, 1, 0.3, 1] },
+              exit: { duration: 0.22, ease: [0.6, 0, 1, 0.4] },
+            }}
             style={{ filter: 'drop-shadow(0 0 28px #d4a843) drop-shadow(0 0 56px #d4a84355)', position: 'absolute', zIndex: 10 }}
           >
             <img src={JACKPOT_ICON} alt="" style={{ width: 88, height: 88, objectFit: 'contain' }} />
@@ -821,9 +844,9 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
               SLOT MACHINE CABINET — realistic physical look
               ════════════════════════════════════════════ */}
           <motion.div
-            initial={{ y: 24, scale: 0.88, opacity: 0 }}
+            initial={{ y: 0, scale: 0.92, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             style={{
               position: 'relative', zIndex: 5,
               display: 'flex', alignItems: 'stretch',
@@ -1025,9 +1048,9 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
               >
                 {/* JACKPOT headline */}
                 <motion.div
-                  initial={{ scale: 0.2, opacity: 0 }}
-                  animate={{ scale: [0.2, 1.22, 0.92, 1.08, 1], opacity: 1 }}
-                  transition={{ duration: 0.62, ease: 'easeOut' }}
+                  initial={{ scale: 1.55, opacity: 0, y: -48 }}
+                  animate={{ scale: [1.55, 0.88, 1.08, 0.97, 1], opacity: 1, y: 0 }}
+                  transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
                   style={{
                     fontFamily: "'Playfair Display', Georgia, serif",
                     fontWeight: 900, fontStyle: 'italic',
