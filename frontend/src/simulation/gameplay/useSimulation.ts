@@ -1,12 +1,18 @@
 import { useState, useCallback } from 'react';
 import type {
-  SimState,
+  SimulationState,
   SimCard,
   SimThreat,
   SimSuit,
-  LogEntry,
+  SimLogEntry,
   PostureLevel,
+  SimPhase,
+  SimRank,
 } from '../engine/types';
+
+// Local aliases for brevity
+type SimState = SimulationState;
+type LogEntry = SimLogEntry;
 
 // ── Threat pool ──────────────────────────────────────────────────────────────
 
@@ -18,9 +24,11 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 18,
     evasion: 0.1,
     difficulty: 'medium',
-    behavior: 'aggressive',
-    cveTag: 'CVE-2024-1234',
-    specialMechanic: 'ransomware',
+    behaviors: ['exploit'],
+    currentBehavior: 'exploit',
+    tags: ['ransomware', 'encryption'],
+    cveId: 'CVE-2024-1234',
+    specialMechanic: 'system-patch',
   },
   {
     name: 'APT Lateral Movement',
@@ -29,8 +37,9 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 12,
     evasion: 0.35,
     difficulty: 'hard',
-    behavior: 'stealth',
-    specialMechanic: 'lateral-movement',
+    behaviors: ['hide', 'escalate'],
+    currentBehavior: 'hide',
+    tags: ['apt', 'lateral-movement'],
   },
   {
     name: 'DDoS Amplification',
@@ -39,8 +48,9 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 20,
     evasion: 0.05,
     difficulty: 'easy',
-    behavior: 'aggressive',
-    specialMechanic: 'ddos',
+    behaviors: ['exploit'],
+    currentBehavior: 'exploit',
+    tags: ['ddos', 'volumetric'],
   },
   {
     name: 'Rootkit Trojan',
@@ -49,10 +59,12 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 10,
     evasion: 0.6,
     difficulty: 'elite',
-    behavior: 'stealth',
-    cveTag: 'CVE-2024-5678',
+    behaviors: ['hide'],
+    currentBehavior: 'hide',
+    tags: ['rootkit', 'stealth'],
+    cveId: 'CVE-2024-5678',
     specialMechanic: 'rootkit-trojan',
-    diamondsPlayed: 0,
+    rootkitState: { diamondsApplied: 0, exposed: false },
   },
   {
     name: 'Credential Stuffing',
@@ -61,7 +73,9 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 14,
     evasion: 0.2,
     difficulty: 'easy',
-    behavior: 'persistent',
+    behaviors: ['escalate'],
+    currentBehavior: 'escalate',
+    tags: ['credential', 'brute-force'],
   },
   {
     name: 'Supply Chain Compromise',
@@ -70,8 +84,10 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 16,
     evasion: 0.25,
     difficulty: 'hard',
-    behavior: 'evasive',
-    cveTag: 'CVE-2025-0099',
+    behaviors: ['hide', 'spread'],
+    currentBehavior: 'hide',
+    tags: ['supply-chain'],
+    cveId: 'CVE-2025-0099',
   },
   {
     name: 'Zero-Day API Exploit',
@@ -80,18 +96,24 @@ const THREAT_POOL: Omit<SimThreat, 'id' | 'hp'>[] = [
     attackPower: 22,
     evasion: 0.15,
     difficulty: 'medium',
-    behavior: 'aggressive',
-    cveTag: 'CVE-2025-1337',
+    behaviors: ['exploit', 'escalate'],
+    currentBehavior: 'exploit',
+    tags: ['zero-day', 'rce'],
+    cveId: 'CVE-2025-1337',
   },
 ];
 
 // ── Card action names per suit ───────────────────────────────────────────────
 
 const ACTION_NAMES: Record<SimSuit, string[]> = {
-  spade:   ['Firewall Block', 'IDS Rule', 'Threat Hunt', 'Isolate Host', 'Force Patch'],
-  club:    ['SIEM Query', 'Log Harvest', 'Scan Subnet', 'Health Check', 'Intel Pull'],
-  diamond: ['Harden Config', 'Rotate Creds', 'WAF Update', 'Zero-Trust Rule', 'PAM Enforce'],
-  heart:   ['Restore Backup', 'Run Playbook', 'DR Activate', 'Patch Deploy', 'RTO Reset'],
+  spades:   ['Firewall Block', 'IDS Rule', 'Threat Hunt', 'Isolate Host', 'Force Patch'],
+  clubs:    ['SIEM Query', 'Log Harvest', 'Scan Subnet', 'Health Check', 'Intel Pull'],
+  diamonds: ['Harden Config', 'Rotate Creds', 'WAF Update', 'Zero-Trust Rule', 'PAM Enforce'],
+  hearts:   ['Restore Backup', 'Run Playbook', 'DR Activate', 'Patch Deploy', 'RTO Reset'],
+};
+
+const SUIT_SYMBOLS: Record<SimSuit, string> = {
+  spades: '♠', clubs: '♣', hearts: '♥', diamonds: '♦',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,23 +124,30 @@ function randomThreat(): SimThreat {
     ...template,
     id: `threat-${Date.now()}`,
     hp: template.maxHp,
-    diamondsPlayed: template.specialMechanic === 'rootkit-trojan' ? 0 : undefined,
+    rootkitState: template.specialMechanic === 'rootkit-trojan'
+      ? { diamondsApplied: 0, exposed: false }
+      : undefined,
   };
 }
 
 function drawHand(ranks: Record<string, number>): SimCard[] {
-  const suits: SimSuit[] = ['spade', 'club', 'diamond', 'heart'];
+  const suits: SimSuit[] = ['spades', 'clubs', 'diamonds', 'hearts'];
   return suits.map((suit, i) => {
-    const suitKey = suit === 'club' ? 'clover' : suit;
-    const rank = ranks[suitKey] ?? 7;
+    // Map plural suit name to the posture rank key (clubs → clover, others strip trailing 's')
+    const suitKey = suit === 'clubs' ? 'clover' : suit.slice(0, -1);
+    const rawRank = ranks[suitKey] ?? 7;
+    const rank = (Math.max(1, Math.min(13, rawRank))) as SimRank;
     const actions = ACTION_NAMES[suit];
+    const label = actions[Math.floor(Math.random() * actions.length)];
     return {
       id: `card-${suit}-${Date.now()}-${i}`,
       suit,
       rank,
+      label,
+      symbol: SUIT_SYMBOLS[suit],
       power: rank * 3,
-      actionName: actions[Math.floor(Math.random() * actions.length)],
-      manaCost: suit === 'diamond' ? Math.max(0, rank - 6) : suit === 'heart' ? Math.max(0, rank - 5) : 0,
+      manaCost: suit === 'diamonds' ? Math.max(0, rank - 6) : suit === 'hearts' ? Math.max(0, rank - 5) : 0,
+      flavour: '',
     };
   });
 }
@@ -132,8 +161,8 @@ function scoreToPostureLevel(score: number): PostureLevel {
 }
 
 let logIdCounter = 0;
-function makeLog(turn: number, text: string, severity: LogEntry['severity']): LogEntry {
-  return { id: String(logIdCounter++), turn, text, severity };
+function makeLog(turn: number, phase: SimPhase, message: string, severity: LogEntry['severity']): LogEntry {
+  return { id: String(logIdCounter++), turn, phase, message, severity, timestamp: new Date().toISOString() };
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -148,7 +177,7 @@ function buildInitialState(initialRanks: Record<string, number>): SimState {
     hand: drawHand(initialRanks),
     deck: [],
     discardPile: [],
-    log: [makeLog(0, 'Simulation started. Threat scan initiated.', 'info')],
+    log: [makeLog(0, 'threat-appears', 'Simulation started. Threat scan initiated.', 'info')],
     posture: { level: 'stable', score: 70 },
     jackpotAvailable: false,
     jackpotUsed: false,
@@ -162,89 +191,88 @@ export function useSimulation(initialRanks: Record<string, number>) {
   const [state, setState] = useState<SimState>(() => buildInitialState(initialRanks));
 
   const startTurn = useCallback(() => {
-    setState(prev => {
+    setState((prev: SimState) => {
       const threat = randomThreat();
       return {
         ...prev,
-        phase: 'choose',
+        phase: 'choose' as SimPhase,
         activeThreat: threat,
-        log: [...prev.log, makeLog(prev.turn, `Threat detected: ${threat.name}`, 'danger')],
+        log: [...prev.log, makeLog(prev.turn, 'threat-appears', `Threat detected: ${threat.name}`, 'critical')],
       };
     });
   }, []);
 
   const playCard = useCallback((card: SimCard) => {
-    setState(prev => {
+    setState((prev: SimState) => {
       if (prev.phase !== 'choose' || !prev.activeThreat) return prev;
 
       const threat = { ...prev.activeThreat };
       let { health, mana, strength } = { ...prev.resources };
       const newLog: LogEntry[] = [];
-      let newPhase: SimState['phase'] = 'enemy-respond';
+      let newPhase: SimPhase = 'enemy-respond';
 
       // Mana cost check
       if (card.manaCost > mana) {
-        newLog.push(makeLog(prev.turn, `Not enough mana to play ${card.actionName} (need ${card.manaCost})`, 'warning'));
+        newLog.push(makeLog(prev.turn, prev.phase, `Not enough mana to play ${card.label} (need ${card.manaCost})`, 'warning'));
         return { ...prev, log: [...prev.log, ...newLog] };
       }
 
       mana = Math.max(0, mana - card.manaCost);
 
-      // Rootkit special: must use spades
-      if (threat.specialMechanic === 'rootkit-trojan' && card.suit !== 'spade' && card.suit !== 'diamond') {
-        newLog.push(makeLog(prev.turn, 'Rootkit active — only Spades deal damage. System compromised by wrong play!', 'danger'));
+      // System-patch special: only Spades are valid
+      if (threat.specialMechanic === 'system-patch' && card.suit !== 'spades') {
+        newLog.push(makeLog(prev.turn, prev.phase, 'System Patch active — only Spades deal damage. System compromised by wrong play!', 'critical'));
         return { ...prev, phase: 'compromised', log: [...prev.log, ...newLog] };
       }
 
       switch (card.suit) {
-        case 'spade': {
+        case 'spades': {
           const base = card.rank * 3;
           const hit = Math.random() > threat.evasion;
           if (hit) {
             const dmg = Math.round(base * (1 - threat.evasion * 0.5));
             threat.hp = Math.max(0, threat.hp - dmg);
-            newLog.push(makeLog(prev.turn, `${card.actionName}: dealt ${dmg} damage to ${threat.name}`, 'success'));
+            newLog.push(makeLog(prev.turn, prev.phase, `${card.label}: dealt ${dmg} damage to ${threat.name}`, 'success'));
           } else {
-            newLog.push(makeLog(prev.turn, `${card.actionName}: evaded! Threat dodged the attack.`, 'warning'));
+            newLog.push(makeLog(prev.turn, prev.phase, `${card.label}: evaded! Threat dodged the attack.`, 'warning'));
           }
           break;
         }
-        case 'club': {
+        case 'clubs': {
           const gained = Math.round(card.rank * 0.8 * 5);
           mana = Math.min(100, mana + gained);
-          newLog.push(makeLog(prev.turn, `${card.actionName}: restored ${gained} mana`, 'info'));
+          newLog.push(makeLog(prev.turn, prev.phase, `${card.label}: restored ${gained} mana`, 'info'));
           break;
         }
-        case 'heart': {
+        case 'hearts': {
           const hpGain = Math.round(card.rank * 1.5 * 2);
           const manaGain = Math.round(card.rank * 0.5 * 3);
           health = Math.min(100, health + hpGain);
           mana = Math.min(100, mana + manaGain);
-          newLog.push(makeLog(prev.turn, `${card.actionName}: +${hpGain} HP, +${manaGain} mana`, 'success'));
+          newLog.push(makeLog(prev.turn, prev.phase, `${card.label}: +${hpGain} HP, +${manaGain} mana`, 'success'));
           break;
         }
-        case 'diamond': {
+        case 'diamonds': {
           const strGain = Math.round(card.rank * 1.2);
           strength = Math.min(100, strength + strGain);
-          // 20% chance extra turn
           const extraTurn = Math.random() < 0.2;
           if (extraTurn) newPhase = 'choose';
-          newLog.push(makeLog(prev.turn, `${card.actionName}: +${strGain} strength${extraTurn ? ' (EXTRA TURN!)' : ''}`, 'info'));
+          newLog.push(makeLog(prev.turn, prev.phase, `${card.label}: +${strGain} strength${extraTurn ? ' (EXTRA TURN!)' : ''}`, 'info'));
           // Rootkit diamond counter
-          if (threat.specialMechanic === 'rootkit-trojan') {
-            threat.diamondsPlayed = (threat.diamondsPlayed ?? 0) + 1;
-            if (threat.diamondsPlayed >= 7) {
+          if (threat.specialMechanic === 'rootkit-trojan' && threat.rootkitState) {
+            const applied = threat.rootkitState.diamondsApplied + 1;
+            threat.rootkitState = { diamondsApplied: applied, exposed: applied >= 7 };
+            if (applied >= 7) {
               threat.hp = 0;
-              newLog.push(makeLog(prev.turn, 'Rootkit exposed and neutralised!', 'success'));
+              newLog.push(makeLog(prev.turn, prev.phase, 'Rootkit exposed and neutralised!', 'success'));
             }
           }
           break;
         }
       }
 
-      // Block incoming damage from strength
       if (threat.hp <= 0) {
-        newLog.push(makeLog(prev.turn, `${threat.name} neutralised!`, 'success'));
+        newLog.push(makeLog(prev.turn, prev.phase, `${threat.name} neutralised!`, 'success'));
         newPhase = 'posture-update';
       }
 
@@ -265,38 +293,37 @@ export function useSimulation(initialRanks: Record<string, number>) {
   }, [initialRanks]);
 
   const fold = useCallback(() => {
-    setState(prev => {
+    setState((prev: SimState) => {
       if (prev.foldCount >= 3 || prev.phase !== 'choose') return prev;
       return {
         ...prev,
         foldCount: prev.foldCount + 1,
         hand: drawHand(initialRanks),
-        log: [...prev.log, makeLog(prev.turn, `FOLD — new hand drawn (${3 - prev.foldCount - 1} folds remaining)`, 'warning')],
+        log: [...prev.log, makeLog(prev.turn, prev.phase, `FOLD — new hand drawn (${3 - prev.foldCount - 1} folds remaining)`, 'warning')],
       };
     });
   }, [initialRanks]);
 
   const useJackpot = useCallback(() => {
-    setState(prev => {
+    setState((prev: SimState) => {
       if (!prev.jackpotAvailable || prev.jackpotUsed || prev.phase !== 'choose') return prev;
-      const threat = prev.activeThreat ? { ...prev.activeThreat, hp: 0 } : null;
       return {
         ...prev,
         jackpotUsed: true,
         jackpotAvailable: false,
         activeThreat: null,
         resources: { health: Math.min(100, prev.resources.health + 30), mana: 100, strength: prev.resources.strength + 20 },
-        phase: 'posture-update',
-        log: [...prev.log, makeLog(prev.turn, '🎰 BLACK HAT JACKPOT activated! All resources restored, threat eliminated.', 'success')],
+        phase: 'posture-update' as SimPhase,
+        log: [...prev.log, makeLog(prev.turn, prev.phase, 'BLACK HAT JACKPOT activated! All resources restored, threat eliminated.', 'success')],
       };
     });
   }, []);
 
   const nextPhase = useCallback(() => {
-    setState(prev => {
+    setState((prev: SimState) => {
       if (prev.phase === 'enemy-respond') {
         const threat = prev.activeThreat;
-        if (!threat) return { ...prev, phase: 'posture-update' };
+        if (!threat) return { ...prev, phase: 'posture-update' as SimPhase };
 
         let { health, strength } = { ...prev.resources };
         const newLog: LogEntry[] = [];
@@ -304,37 +331,39 @@ export function useSimulation(initialRanks: Record<string, number>) {
         const block = Math.min(strength, threat.attackPower * 0.4);
         const dmg = Math.round(Math.max(0, threat.attackPower - block));
         health = Math.max(0, health - dmg);
-        if (block > 0) newLog.push(makeLog(prev.turn, `Strength absorbed ${Math.round(block)} damage`, 'info'));
-        newLog.push(makeLog(prev.turn, `${threat.name} attacks for ${dmg} damage`, 'danger'));
+        if (block > 0) newLog.push(makeLog(prev.turn, prev.phase, `Strength absorbed ${Math.round(block)} damage`, 'info'));
+        newLog.push(makeLog(prev.turn, prev.phase, `${threat.name} attacks for ${dmg} damage`, 'critical'));
 
         if (health <= 0) {
           return {
             ...prev,
             resources: { ...prev.resources, health: 0, strength },
-            phase: 'defeat',
-            log: [...prev.log, ...newLog, makeLog(prev.turn, 'BREACH — systems compromised!', 'danger')],
+            phase: 'defeat' as SimPhase,
+            log: [...prev.log, ...newLog, makeLog(prev.turn, prev.phase, 'BREACH — systems compromised!', 'critical')],
           };
         }
 
         return {
           ...prev,
           resources: { ...prev.resources, health, strength },
-          phase: 'posture-update',
+          phase: 'posture-update' as SimPhase,
           log: [...prev.log, ...newLog],
         };
       }
 
       if (prev.phase === 'posture-update') {
-        const newScore = Math.max(10, Math.min(100, Math.round((prev.resources.health * 0.6) + (prev.resources.mana * 0.2) + (prev.resources.strength * 0.2))));
+        const newScore = Math.max(10, Math.min(100, Math.round(
+          (prev.resources.health * 0.6) + (prev.resources.mana * 0.2) + (prev.resources.strength * 0.2)
+        )));
         const newLevel = scoreToPostureLevel(newScore);
 
         if (prev.turn > 20) {
-          return { ...prev, phase: 'victory', posture: { level: newLevel, score: newScore } };
+          return { ...prev, phase: 'victory' as SimPhase, posture: { level: newLevel, score: newScore } };
         }
 
         return {
           ...prev,
-          phase: 'threat-appears',
+          phase: 'threat-appears' as SimPhase,
           posture: { level: newLevel, score: newScore },
         };
       }
