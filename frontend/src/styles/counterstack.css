@@ -603,7 +603,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 
 /* The actual playing card */
 .suit-card{
-  width:112px;height:157px;border-radius:9px;position:relative;
+  width:124px;height:174px;border-radius:9px;position:relative;
   border:1.5px solid;cursor:pointer;overflow:hidden;
   transition:box-shadow .3s, filter .3s, transform .3s;
   perspective:600px;
