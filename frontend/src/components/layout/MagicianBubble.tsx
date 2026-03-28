@@ -1,13 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface Props {
   answer: string | null;
   onClose: () => void;
+  anchorRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function MagicianBubble({ answer, onClose }: Props) {
+export default function MagicianBubble({ answer, onClose, anchorRef }: Props) {
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!answer || !anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPos({
+      top: rect.top,
+      right: window.innerWidth - rect.left + 12,
+    });
+  }, [answer, anchorRef]);
+
   useEffect(() => {
     if (!answer) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -17,12 +29,13 @@ export default function MagicianBubble({ answer, onClose }: Props) {
 
   return createPortal(
     <AnimatePresence>
-      {answer && (
+      {answer && pos && (
         <motion.div
           className="mc-bubble"
-          initial={{ opacity: 0, scale: 0.92, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.92, y: 8 }}
+          style={{ top: pos.top, right: pos.right }}
+          initial={{ opacity: 0, scale: 0.92, x: -8 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.92, x: -8 }}
           transition={{ duration: 0.22, ease: 'easeOut' }}
         >
           <div className="mc-bubble-header">

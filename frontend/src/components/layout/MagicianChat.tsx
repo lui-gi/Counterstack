@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { askMagician } from '../../services/geminiPosture';
 import type { AccountData } from '../../interfaces/AccountData.interface';
 import MagicianBubble from './MagicianBubble';
@@ -9,6 +9,7 @@ interface MagicianChatProps {
 }
 
 export default function MagicianChat({ orgProfile, accountData }: MagicianChatProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [bubbleOpen, setBubbleOpen] = useState(false);
@@ -46,7 +47,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
   }
 
   return (
-    <div className="panel" style={{ flex: 1 }}>
+    <div ref={panelRef} className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="ptitle" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <img src="/magician-icon.png" style={{ height: 16, objectFit: 'contain', flexShrink: 0 }} />
         Ask The Magician
@@ -61,7 +62,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
           </div>
         </div>
       ) : (
-        <div className="mc-body">
+        <div className="mc-body" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <textarea
             className="mc-input"
             rows={2}
@@ -72,15 +73,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
             maxLength={500}
             disabled={loading}
           />
-          <button
-            className="btn-ir"
-            style={{ marginTop: 8, width: '100%' }}
-            onClick={() => handleSend()}
-            disabled={!input.trim() || loading}
-          >
-            {loading ? 'CONSULTING…' : 'SEND'}
-          </button>
-          <div className="mc-suggestions">
+          <div className="mc-suggestions" style={{ marginTop: 8 }}>
             {suggestions.map(s => (
               <button
                 key={s}
@@ -92,12 +85,20 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
               </button>
             ))}
           </div>
+          <button
+            className="btn-ir"
+            style={{ marginTop: 'auto', paddingTop: 8, width: '100%' }}
+            onClick={() => handleSend()}
+            disabled={!input.trim() || loading}
+          >
+            {loading ? 'CONSULTING…' : 'SEND'}
+          </button>
           {error && (
             <div className="mc-error">{error}</div>
           )}
         </div>
       )}
-      <MagicianBubble answer={bubbleOpen ? answer : null} onClose={() => setBubbleOpen(false)} />
+      <MagicianBubble answer={bubbleOpen ? answer : null} onClose={() => setBubbleOpen(false)} anchorRef={panelRef} />
     </div>
   );
 }

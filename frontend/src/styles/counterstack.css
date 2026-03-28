@@ -824,7 +824,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   border-radius:3px;border:1px solid;background:rgba(255,255,255,.03)}
 
 /* Magician Chat Panel */
-.mc-body{padding:10px 11px 12px}
+.mc-body{padding:10px 11px 12px;flex:1;display:flex;flex-direction:column}
 .mc-input{width:100%;box-sizing:border-box;
   background:rgba(0,0,0,.45);border:1px solid rgba(180,79,255,.3);border-radius:6px;
   color:var(--text);font-family:var(--ff);font-size:12px;line-height:1.5;
@@ -850,20 +850,21 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .mc-suggestion:disabled{opacity:.4;cursor:not-allowed}
 
 /* Magician Speech Bubble */
-.mc-bubble{position:fixed;bottom:120px;right:20px;width:320px;
+.mc-bubble{position:fixed;width:320px;
   max-width:calc(100vw - 40px);
   background:rgba(7,0,14,0.97);border:1px solid rgba(180,79,255,0.35);
   border-radius:12px;padding:14px 16px 16px;
   box-shadow:0 0 40px rgba(180,79,255,0.18),0 8px 32px rgba(0,0,0,0.6);
   z-index:5000}
-.mc-bubble::after{content:'';position:absolute;bottom:-10px;right:28px;
+/* tail pointing right toward the panel */
+.mc-bubble::after{content:'';position:absolute;top:22px;right:-10px;
   width:0;height:0;
-  border-left:10px solid transparent;border-right:0px solid transparent;
-  border-top:10px solid rgba(180,79,255,0.35)}
-.mc-bubble::before{content:'';position:absolute;bottom:-8px;right:29px;
+  border-top:10px solid transparent;border-bottom:10px solid transparent;
+  border-left:10px solid rgba(180,79,255,0.35)}
+.mc-bubble::before{content:'';position:absolute;top:23px;right:-8px;
   width:0;height:0;
-  border-left:9px solid transparent;border-right:0px solid transparent;
-  border-top:9px solid rgba(7,0,14,0.97);z-index:1}
+  border-top:9px solid transparent;border-bottom:9px solid transparent;
+  border-left:9px solid rgba(7,0,14,0.97);z-index:1}
 .mc-bubble-header{display:flex;align-items:center;justify-content:space-between;
   margin-bottom:10px}
 .mc-bubble-title{display:inline-flex;align-items:center;gap:6px;
