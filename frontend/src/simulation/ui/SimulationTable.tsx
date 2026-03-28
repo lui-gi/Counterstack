@@ -19,7 +19,6 @@ import {
   FIXED_HAND_RANKS,
   type CampaignState, type CampaignLogEntry, type Suit,
 } from '../gameplay/useCampaign';
-import MagicianSprite  from './MagicianSprite';
 import { CharacterSprite, type CharacterAnimationState } from './CharacterSprite';
 import { WeskerSprite, type WeskerAnimationState } from './WeskerSprite';
 import CardArt         from '../../components/CardArt';
@@ -105,8 +104,8 @@ const AI_ADAPTER_FALLBACK      = '/assets/sprites/C0C94271-FAB8-44EA-985C-CB472E
 const AI_ADAPTER_TRANSFORM_IMG = '/assets/sprites/aiadaptertransformimage.png';
 const SYSTEM_PATCH_IMG         = '/assets/sprites/systempatch-new.png';
 const BG_IN_GAME               = '/assets/sprites/backgroundingame.png';
-const SIM_BG                   = '/assets/sprites/SimulationBackground.jpg';
-const WESKER_BG                = '/assets/backgrounds/ResidentEvilBackground2.jpg';
+const SIM_BG                   = '/assets/backgrounds/purpleAndBlackBG.png';
+const WESKER_BG                = '/assets/backgrounds/purpleAndBlackBG.png';
 const JACKPOT_VIDEO            = '/assets/video/jackpot.mp4';
 const JACKPOT_ICON             = '/assets/sprites/jackpoticon.png';
 
@@ -1512,17 +1511,12 @@ function CasinoBackground() {
 
   if (isWesker) {
     return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden', background: '#03050d' }}>
         <img
-          src={WESKER_BG}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '75%', objectFit: 'cover', transform: 'scale(1)', transformOrigin: 'center center' }}
+          src={SIM_BG}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', opacity: 0.75, filter: 'blur(2px)', transform: 'scale(1.02)' }}
         />
-        {/* Dark overlay over the bottom HUD area */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 300,
-          background: 'linear-gradient(to top, rgba(4,2,10,0.92) 0%, rgba(4,2,10,0.85) 60%, rgba(4,2,10,0.4) 100%)',
-          pointerEvents: 'none',
-        }} />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, background: 'linear-gradient(to top, rgba(4,2,10,0.95) 0%, rgba(4,2,10,0.4) 100%)', pointerEvents: 'none' }} />
       </div>
     );
   }
@@ -1862,7 +1856,7 @@ function HpBars() {
   // Replaced by CounterStack center badge — content moved to HandPhasePanel
   return (
     <div style={{
-      position: 'fixed', bottom: 300, left: '50%',
+      position: 'fixed', bottom: 226, left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 22, pointerEvents: 'none',
       display: 'flex', alignItems: 'center', gap: 10,
@@ -2038,7 +2032,7 @@ function BattleArena() {
   return (
     <div style={{
       position: 'fixed', left: 0, right: 0,
-      top: 0, bottom: 300,
+      top: 0, bottom: 220,
       zIndex: 20,
       pointerEvents: 'none',
       display: 'flex',
@@ -2046,35 +2040,32 @@ function BattleArena() {
       justifyContent: 'space-between',
       padding: '0 80px',
     }}>
-      {/* Background — SimulationBackground flipped vertically (hidden for Wesker) */}
-      {state.bossIndex !== 1 && (
-        <img
-          src={SIM_BG}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center center',
-            transform: 'scaleY(-1)',
-            opacity: 0.55,
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-      )}
-
-      {/* Purple colour wash over the image (hidden for Wesker) */}
-      {state.bossIndex !== 1 && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 1,
-          background: 'rgba(120, 0, 180, 0.18)',
-          mixBlendMode: 'color',
+      {/* Background — purpleAndBlackBG for all bosses */}
+      <img
+        src={SIM_BG}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center top',
+          opacity: 0.75,
+          filter: 'blur(2px)',
+          transform: 'scale(1.02)',
           pointerEvents: 'none',
-        }} />
-      )}
+          zIndex: 0,
+        }}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+
+      {/* Purple colour wash */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: 'rgba(120, 0, 180, 0.18)',
+        mixBlendMode: 'color',
+        pointerEvents: 'none',
+      }} />
 
       {/* Magician — tall left */}
       <motion.div
@@ -2210,16 +2201,16 @@ function BattleArena() {
 // ── Card action name lookup ───────────────────────────────
 const CARD_ACTIONS: Record<Suit, Record<number, string>> = {
   spades: {
-    2: 'Threat Ping',            3: 'Flag Malicious Behavior',
+    2: 'Port Scan',              3: 'Flag Malicious Behavior',
     4: 'Block Suspicious IP',    5: 'Terminate Suspicious Process',
     6: 'Disable Compromised Account', 7: 'Remove Malware Artifact',
     8: 'Quarantine Infected Endpoint', 9: 'Kill Persistence Mechanism',
-    10: 'Sinkhole Malicious Domain',  11: 'Contain Lateral Movement',
+    10: 'Sinkhole Malicious Domain',  11: 'Bug Bounty',
     12: 'Network Isolation',     13: 'Full Threat Neutralization',
     1:  'Advanced Counterstrike',
   },
   clubs: {
-    2: 'Resource Ping',          3: 'Assign SOC Analyst',
+    2: 'Asset Inventory',         3: 'Assign SOC Analyst',
     4: 'Increase Logging',       5: 'Activate Monitoring',
     6: 'Deploy Detection Rule',  7: 'Enable Threat Intelligence Feed',
     8: 'Expand Monitoring Coverage', 9: 'Automated Alert Triage',
@@ -2250,7 +2241,7 @@ const CARD_ACTIONS: Record<Suit, Record<number, string>> = {
 // ── Suit action tooltips ──────────────────────────────────
 const CARD_FLAVOR: Record<Suit, Record<number, string>> = {
   spades: {
-    2:  'probe target for open vulnerabilities',
+    2:  'enumerate open ports and exposed services',
     3:  'mark anomalous activity for response',
     4:  'firewall drop — cut inbound vector',
     5:  'kill rogue exec — stop the spread',
@@ -2259,13 +2250,13 @@ const CARD_FLAVOR: Record<Suit, Record<number, string>> = {
     8:  'isolate host — contain the damage',
     9:  'strip autorun — deny re-entry',
     10: 'redirect C2 traffic to null',
-    11: 'segment network — block lateral pivot',
+    11: 'crowdsource vuln discovery — external researchers find what you missed',
     12: 'full cut — zero egress allowed',
     13: 'total sweep — threat eliminated',
     1:  'max-power retaliation payload',
   },
   clubs: {
-    2:  'minimal signal — restore trace mana',
+    2:  'catalogue known assets — establish baseline visibility',
     3:  'pull analyst — boost ops capacity',
     4:  'widen telemetry — refuel intel stream',
     5:  'spin up sensors — restore visibility',
@@ -2758,7 +2749,7 @@ function CardHand() {
     <div style={{
       flex: 1,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      gap: 18, height: '100%', padding: '10px 24px',
+      gap: 12, height: '100%', padding: '6px 16px',
     }}>
       {/* Horizontal card row — fills panel height */}
       {ROW_ORDER.map(({ suit, label }) => {
@@ -2770,7 +2761,7 @@ function CardHand() {
             <PlayingCard
               suit={suit}
               rank={state.handRanks[suit]}
-              size={2.0}
+              size={1.5}
               selected={isActiveSuit}
               glow={isActiveSuit}
               disabled={(disabled && !isFourSuitsStep) || (isSelectingStep && suit !== 'spades')}
@@ -2780,7 +2771,7 @@ function CardHand() {
             />
             {(!isSelectingStep || suit === 'spades') && (
               <div style={{
-                fontFamily: "'Cinzel Decorative', serif", fontSize: 9, fontWeight: 700,
+                fontFamily: "'Cinzel Decorative', serif", fontSize: 7, fontWeight: 700,
                 color: disabled ? 'rgba(255,255,255,0.18)' : color,
                 letterSpacing: 1.5,
                 textShadow: disabled ? 'none' : `0 0 8px ${color}88`,
@@ -2944,7 +2935,7 @@ function PostureStatusPopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-function HandPhasePanel({ onShowInfo }: { onShowInfo?: () => void }) {
+function HandPhasePanel({ setOpenPanel, onShowInfo }: { setOpenPanel: (v: 'mission' | null) => void; onShowInfo: () => void }) {
   const { state } = useCampaignContext();
 
   const LABELS: Record<string, string> = {
@@ -2958,153 +2949,103 @@ function HandPhasePanel({ onShowInfo }: { onShowInfo?: () => void }) {
     'game-over':      'GAME OVER',
   };
 
-  const color =
+  const phaseColor =
     state.phase === 'game-over'       ? '#ff4455' :
     state.phase === 'victory'         ? '#33dd77' :
     state.phase === 'phase-clear'     ? '#ffd700' :
     state.phase === 'defeat-pending'  ? '#ffd700' :
     state.phase === 'enemy-attack'    ? '#ff8844' :
     state.phase === 'card-select'     ? '#00d4ff' :
-    state.phase === 'player-draw'     ? '#e0d8ff' :
-    'rgba(255,255,255,0.45)';
+    state.phase === 'player-draw'     ? '#cc88ff' :
+    'rgba(204,136,255,0.45)';
 
   const label = state.phase === 'enemy-attack' && state.lastAttackMsg
     ? state.lastAttackMsg
     : (LABELS[state.phase] ?? state.phase.toUpperCase());
 
-  const [showPlayerInfo, setShowPlayerInfo] = useState(false);
+  if (state.phase === 'boss-intro') return <div style={{ width: 260, flexShrink: 0 }} />;
 
-  if (state.phase === 'boss-intro') return <div style={{ width: 215, flexShrink: 0 }} />;
+  const ac = '#cc88ff';
 
-  const ROW = (content: React.ReactNode, color_: string = 'rgba(255,255,255,0.55)') => (
-    <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: color_, letterSpacing: 2, lineHeight: 1.5 }}>
-      {content}
-    </div>
+  const panelBtn = (onClick: () => void, text: string) => (
+    <motion.button
+      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+      onClick={onClick}
+      onMouseEnter={e => {
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = 'rgba(204,136,255,0.12)';
+        b.style.borderColor = 'rgba(204,136,255,0.6)';
+        b.style.boxShadow = '0 0 20px rgba(204,136,255,0.2)';
+      }}
+      onMouseLeave={e => {
+        const b = e.currentTarget as HTMLButtonElement;
+        b.style.background = 'rgba(204,136,255,0.06)';
+        b.style.borderColor = 'rgba(204,136,255,0.3)';
+        b.style.boxShadow = '0 0 12px rgba(204,136,255,0.08)';
+      }}
+      style={{
+        fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 3,
+        padding: '16px 14px', cursor: 'pointer',
+        background: 'rgba(204,136,255,0.06)',
+        border: '1px solid rgba(204,136,255,0.3)',
+        color: 'rgba(204,136,255,0.85)',
+        borderRadius: 5, transition: 'all 0.15s',
+        textShadow: '0 0 8px rgba(204,136,255,0.4)',
+        boxShadow: '0 0 12px rgba(204,136,255,0.08)',
+        width: '100%', textAlign: 'left' as const, whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {text}
+    </motion.button>
   );
-
-  const playerHpPct  = Math.round(state.playerHp / state.playerMaxHp * 100);
-  const manaPct      = Math.round(state.mana / state.manaMax * 100);
-  const hpColor      = playerHpPct > 50 ? '#33dd77' : playerHpPct > 25 ? '#ffd700' : '#ff4455';
 
   return (
     <div style={{
-      width: 215, flexShrink: 0,
+      width: 260, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
       alignItems: 'flex-start', justifyContent: 'flex-start',
-      paddingLeft: 4, paddingTop: 14, paddingRight: 4,
-      height: '100%', gap: 8, position: 'relative',
+      paddingLeft: 4, paddingTop: 8, paddingRight: 4,
+      height: '100%', gap: 5, position: 'relative',
     }}>
-      {/* Turn */}
-      <div style={{
-        fontFamily: 'var(--px-font)', fontSize: 16,
-        color: 'rgba(255,255,255,0.7)', letterSpacing: 4,
-        textShadow: '2px 2px 0 rgba(0,0,0,0.9)',
-      }}>
+
+      {/* ── Game stats ── */}
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: ac, letterSpacing: 4, textShadow: `0 0 10px ${ac}88` }}>
         TURN {state.turn}
       </div>
 
-      {/* Phase label */}
       <motion.div
         key={state.phase}
-        initial={{ opacity: 0, y: -6 }}
+        initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22 }}
-        style={{
-          fontFamily: 'var(--px-font)', fontSize: 13,
-          color, lineHeight: 1.3, letterSpacing: 1,
-          textShadow: `0 0 14px ${color}88, 2px 2px 0 rgba(0,0,0,0.9)`,
-        }}
+        style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: phaseColor, letterSpacing: 1, textShadow: `0 0 12px ${phaseColor}88` }}
       >
         {label}
       </motion.div>
 
-      {ROW(`PHASE ${state.bossIndex + 1} / 3`, 'rgba(204,136,255,0.65)')}
-      {ROW(`DECK  ${state.deck.length}`, 'rgba(204,136,255,0.65)')}
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: `${ac}88`, letterSpacing: 2 }}>
+        PHASE {state.bossIndex + 1} / 3
+      </div>
+      <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: `${ac}88`, letterSpacing: 2 }}>
+        DECK &nbsp;{state.deck.length}
+      </div>
 
-      {state.boss.id === 'wesker' && ROW(
-        `♦ ${state.diamondsUsed}/3${state.weskerExposed ? ' — STUNNED!' : ' ISOLATION'}`, '#cc88ff',
-      )}
-
-      {state.boss.id === 'ai-adapter' && !state.jackpotUsed && (
-        <div style={{ fontFamily: 'var(--px-font)', fontSize: 10, color: '#ff8844', letterSpacing: 1, lineHeight: 1.6, textShadow: '0 0 8px #ff884466' }}>
-          IMMUNE TO ALL SUITS — play 🎩 JACKPOT to break immunity and deal damage
+      {state.boss.id === 'wesker' && (
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: ac, letterSpacing: 1 }}>
+          ♦ {state.diamondsUsed}/3{state.weskerExposed ? ' — STUNNED!' : ' ISOLATION'}
         </div>
       )}
 
-      {/* Posture button — styled like right panel buttons */}
-      <motion.button
-        whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-        onClick={() => setShowPlayerInfo(v => !v)}
-        onMouseEnter={e => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = 'rgba(0,212,255,0.12)';
-          b.style.borderColor = 'rgba(0,212,255,0.6)';
-          b.style.boxShadow = '0 0 20px rgba(0,212,255,0.2)';
-        }}
-        onMouseLeave={e => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = 'rgba(0,212,255,0.06)';
-          b.style.borderColor = 'rgba(0,212,255,0.3)';
-          b.style.boxShadow = '0 0 12px rgba(0,212,255,0.08)';
-        }}
-        style={{
-          marginTop: 6,
-          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2,
-          padding: '10px 10px', cursor: 'pointer',
-          background: 'rgba(0,212,255,0.06)',
-          border: '1px solid rgba(0,212,255,0.3)',
-          color: 'rgba(0,212,255,0.85)',
-          borderRadius: 5, transition: 'all 0.15s',
-          textShadow: '0 0 8px rgba(0,212,255,0.4)',
-          boxShadow: '0 0 12px rgba(0,212,255,0.08)',
-          width: '100%', textAlign: 'left', whiteSpace: 'nowrap',
-        }}
-      >
-        ◈ POSTURE STATUS
-      </motion.button>
+      {/* Divider */}
+      <div style={{ width: '100%', height: 1, background: `linear-gradient(90deg, ${ac}44, transparent)`, margin: '2px 0' }} />
 
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        onClick={() => onShowInfo?.()}
-        onMouseEnter={e => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = 'rgba(0,212,255,0.12)';
-          b.style.borderColor = 'rgba(0,212,255,0.6)';
-          b.style.boxShadow = '0 0 20px rgba(0,212,255,0.2)';
-        }}
-        onMouseLeave={e => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = 'rgba(0,212,255,0.06)';
-          b.style.borderColor = 'rgba(0,212,255,0.3)';
-          b.style.boxShadow = '0 0 12px rgba(0,212,255,0.08)';
-        }}
-        style={{
-          marginTop: 2,
-          fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2,
-          padding: '10px 10px', cursor: 'pointer',
-          background: 'rgba(0,212,255,0.06)',
-          border: '1px solid rgba(0,212,255,0.3)',
-          color: 'rgba(0,212,255,0.85)',
-          borderRadius: 5, transition: 'all 0.15s',
-          textShadow: '0 0 8px rgba(0,212,255,0.4)',
-          boxShadow: '0 0 12px rgba(0,212,255,0.08)',
-          width: '100%', textAlign: 'left', whiteSpace: 'nowrap',
-        }}
-      >
-        ◈ GAME INFO
-      </motion.button>
-
-      <AnimatePresence>
-        {showPlayerInfo && <PostureStatusPopup onClose={() => setShowPlayerInfo(false)} />}
-      </AnimatePresence>
+      {/* ── Buttons ── */}
+      {panelBtn(() => setOpenPanel('mission'), '★ MISSION BRIEF')}
+      {panelBtn(onShowInfo, '★ GAME INFO')}
 
       {/* AI Adapter jackpot hint */}
       {state.boss.id === 'ai-adapter' && !state.jackpotUsed && (
-        <div style={{
-          fontFamily: 'var(--px-font)', fontSize: 6,
-          color: '#ff8844', letterSpacing: 1,
-          textShadow: '0 0 8px #ff884466',
-        }}>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 6, color: '#ff8844', letterSpacing: 1, textShadow: '0 0 8px #ff884466' }}>
           IMMUNE — USE <img src={JACKPOT_ICON} alt="" style={{ width: 14, height: 14, objectFit: 'contain', verticalAlign: 'middle', display: 'inline' }} />
         </div>
       )}
@@ -3453,8 +3394,20 @@ const BOSS_BRIEFS = [
 
 function MissionBriefPopup({ onClose }: { onClose: () => void }) {
   const { state } = useCampaignContext();
-  const brief = BOSS_BRIEFS[state.bossIndex] ?? BOSS_BRIEFS[0];
-  const ac = brief.accentColor;
+  const tut         = useContext(TutorialCtx);
+  const brief       = BOSS_BRIEFS[state.bossIndex] ?? BOSS_BRIEFS[0];
+  const ac          = brief.accentColor;
+  const hideBossHp  = tut.open || state.bossIndex === 0;
+  const boss        = state.boss;
+  const bossHpPct   = Math.round(boss.hp / boss.maxHp * 100);
+  const playerHpPct = Math.round(state.playerHp / state.playerMaxHp * 100);
+  const bossColor   = bossHpPct > 60 ? '#33dd77' : bossHpPct > 25 ? '#ffd700' : '#ff4455';
+  const playerColor = playerHpPct > 50 ? '#33dd77' : playerHpPct > 25 ? '#ffd700' : '#ff4455';
+  const recentLog   = [...state.log].reverse().slice(0, 6);
+  const logKindColor: Record<string, string> = {
+    info: 'rgba(200,190,255,0.6)', damage: '#4da6ff',
+    enemy: '#ff8844', boss: '#cc88ff', jackpot: '#ffd700',
+  };
 
   return (
     <motion.div
@@ -3480,7 +3433,7 @@ function MissionBriefPopup({ onClose }: { onClose: () => void }) {
         onClick={e => e.stopPropagation()}
         style={{
           position: 'relative', zIndex: 1,
-          width: 460, maxHeight: '70vh',
+          width: 500, maxHeight: '80vh',
           background: `linear-gradient(160deg, #0a0018 0%, #060012 100%)`,
           border: `1px solid ${ac}40`,
           boxShadow: `0 0 40px ${ac}12, 0 24px 60px rgba(0,0,0,0.85)`,
@@ -3554,85 +3507,100 @@ function MissionBriefPopup({ onClose }: { onClose: () => void }) {
           <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(204,136,255,0.55)', letterSpacing: 1, lineHeight: 1.6, paddingTop: 4, borderTop: '1px solid rgba(204,136,255,0.12)' }}>
             ◈ INTEL: {brief.intel}
           </div>
+
+          {/* ── Threat Intel section ── */}
+          <div style={{ borderTop: '1px solid rgba(255,168,68,0.25)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,168,68,0.85)', letterSpacing: 3, textShadow: '0 0 8px rgba(255,168,68,0.4)' }}>
+              ◈ THREAT INTEL
+            </div>
+
+            {/* Boss HP + live stats */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: bossColor, letterSpacing: 2, textShadow: `0 0 8px ${bossColor}66` }}>
+                  {boss.name}
+                </div>
+                <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, fontWeight: 600, color: hideBossHp ? '#ff4455' : bossColor }}>
+                  {hideBossHp ? '???' : `${boss.hp} / ${boss.maxHp}`}
+                </div>
+              </div>
+              {!hideBossHp && (
+                <div style={{ height: 5, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' }}>
+                  <motion.div animate={{ width: `${bossHpPct}%` }} transition={{ duration: 0.4 }}
+                    style={{ height: '100%', background: bossColor, boxShadow: `0 0 6px ${bossColor}88` }} />
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--px-body-font)', fontSize: 12, fontWeight: 500 }}>
+                <span style={{ color: '#ff8844' }}>⚡ {boss.atkMin}–{boss.atkMax}</span>
+                <span style={{ color: playerColor }}>♥ {state.playerHp}/{state.playerMaxHp}</span>
+                <span style={{ color: '#4da6ff' }}>💧 {state.mana}/{state.manaMax}</span>
+              </div>
+            </div>
+
+            {/* Battle Log */}
+            {recentLog.length > 0 && (
+              <div>
+                <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: 3, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 5, marginBottom: 7 }}>
+                  BATTLE LOG
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {recentLog.map((entry, i) => (
+                    <div key={entry.id} style={{
+                      fontFamily: 'var(--px-body-font)', fontSize: 12, fontWeight: 500,
+                      color: logKindColor[entry.kind] ?? 'rgba(200,190,255,0.6)',
+                      opacity: 1 - i * 0.12, lineHeight: 1.4,
+                    }}>{entry.msg}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* CVE Reference */}
+            <div>
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 7, color: 'rgba(255,168,68,0.7)', letterSpacing: 3, borderBottom: '1px solid rgba(255,168,68,0.2)', paddingBottom: 5, marginBottom: 7 }}>
+                CVE REFERENCE
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', columnGap: 16, rowGap: 4 }}>
+                {([
+                  ['CVE ID',    'CVE-2024-21412'],
+                  ['CVSS',      '8.1 HIGH'],
+                  ['Source',    'CISA KEV / NVD'],
+                  ['Published', '2024-02-13'],
+                  ['Vendor',    'Microsoft'],
+                  ['System',    'Windows SmartScreen'],
+                  ['MITRE',     'T1566.002 — Spear Phishing'],
+                  ['Status',    'Actively Exploited (ITW)'],
+                ] as [string, string][]).map(([k, v]) => (
+                  <>
+                    <span key={k + '-k'} style={{ fontFamily: 'var(--px-font)', fontSize: 6, color: 'rgba(255,168,68,0.45)', letterSpacing: 1, whiteSpace: 'nowrap' }}>{k}</span>
+                    <span key={k + '-v'} style={{ fontFamily: 'var(--px-font)', fontSize: 6, color: 'rgba(230,210,255,0.8)', letterSpacing: 0.5 }}>{v}</span>
+                  </>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
     </motion.div>
   );
 }
 
-// ── Hand demo / intel panel (right side — button stack) ───
-function HandDemoPanel({ openPanel, setOpenPanel }: { openPanel: 'threat' | 'ai' | 'mission' | null; setOpenPanel: (v: 'threat' | 'ai' | 'mission' | null) => void }) {
+// ── Hand demo / intel panel (right side — signal feed only) ───
+function HandDemoPanel() {
   const { state } = useCampaignContext();
 
-  if (state.phase === 'boss-intro') return <div style={{ width: 280, flexShrink: 0 }} />;
-
-  const btnStyle = (color: string) => ({
-    fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 4,
-    color: `rgba(${color},0.85)`,
-    background: `rgba(${color},0.06)`,
-    border: `1px solid rgba(${color},0.3)`,
-    borderRadius: 5,
-    padding: '10px 18px',
-    cursor: 'pointer',
-    textShadow: `0 0 8px rgba(${color},0.4)`,
-    boxShadow: `0 0 12px rgba(${color},0.08)`,
-    transition: 'all 0.15s',
-    whiteSpace: 'nowrap' as const,
-    width: '100%',
-    textAlign: 'left' as const,
-  });
-
-  const onHover = (e: React.MouseEvent<HTMLButtonElement>, color: string, enter: boolean) => {
-    const b = e.currentTarget;
-    if (enter) {
-      b.style.background = `rgba(${color},0.12)`;
-      b.style.borderColor = `rgba(${color},0.6)`;
-      b.style.boxShadow = `0 0 20px rgba(${color},0.2)`;
-    } else {
-      b.style.background = `rgba(${color},0.06)`;
-      b.style.borderColor = `rgba(${color},0.3)`;
-      b.style.boxShadow = `0 0 12px rgba(${color},0.08)`;
-    }
-  };
+  if (state.phase === 'boss-intro') return <div style={{ width: 320, flexShrink: 0 }} />;
 
   return (
     <div style={{
-      width: 280, flexShrink: 0,
+      width: 320, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
       justifyContent: 'flex-start', alignSelf: 'stretch',
-      paddingTop: 16, paddingBottom: 16, gap: 8,
+      paddingTop: 8, paddingBottom: 8,
       paddingRight: 8,
     }}>
-      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-        onClick={() => setOpenPanel('mission')}
-        style={btnStyle('204,136,255')}
-        onMouseEnter={e => onHover(e, '204,136,255', true)}
-        onMouseLeave={e => onHover(e, '204,136,255', false)}
-      >
-        ★ MISSION BRIEF
-      </motion.button>
-
-      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-        onClick={() => setOpenPanel('threat')}
-        style={btnStyle('204,136,255')}
-        onMouseEnter={e => onHover(e, '204,136,255', true)}
-        onMouseLeave={e => onHover(e, '204,136,255', false)}
-      >
-        ★ THREAT INTEL
-      </motion.button>
-
-      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-        onClick={() => setOpenPanel('ai')}
-        style={btnStyle('204,136,255')}
-        onMouseEnter={e => onHover(e, '204,136,255', true)}
-        onMouseLeave={e => onHover(e, '204,136,255', false)}
-      >
-        ★ AI ANALYSIS
-      </motion.button>
-
       {/* Live Signal Feed */}
       <div style={{
-        marginTop: 4,
         background: 'rgba(204,136,255,0.04)',
         border: '1px solid rgba(204,136,255,0.15)',
         borderRadius: 5,
@@ -3649,24 +3617,63 @@ function HandDemoPanel({ openPanel, setOpenPanel }: { openPanel: 'threat' | 'ai'
         }}>
           ★ SIGNAL FEED
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <AnimatePresence initial={false}>
-            {[...state.log].reverse().slice(0, 12).map((entry, i) => {
+            {[...state.log].reverse().slice(0, 20).map((entry, i) => {
               const color =
                 entry.kind === 'damage'  ? '#cc88ff' :
                 entry.kind === 'enemy'   ? '#ff8877' :
                 entry.kind === 'boss'    ? '#dd99ff' :
                 entry.kind === 'jackpot' ? '#ffd700' :
                 'rgba(200,185,230,0.45)';
+              const isNewest = i === 0;
               return (
                 <motion.div
                   key={entry.id}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1 - i * 0.07, x: 0 }}
-                  transition={{ duration: 0.2 }}
+                  initial={isNewest
+                    ? { opacity: 0, x: -8, scaleX: 0.97 }
+                    : { opacity: 0 }
+                  }
+                  animate={isNewest
+                    ? {
+                        opacity: 1,
+                        x: 0,
+                        scaleX: 1,
+                        color: ['#ff2233', '#ff3344', '#ff2233', color],
+                        fontWeight: [800, 800, 800, 500],
+                        textShadow: [
+                          '0 0 18px rgba(255,34,51,1), 0 0 6px rgba(255,34,51,0.8)',
+                          '0 0 22px rgba(255,34,51,1), 0 0 8px rgba(255,34,51,0.9)',
+                          '0 0 14px rgba(255,34,51,0.7)',
+                          '0 0 0px transparent',
+                        ],
+                        fontSize: ['13px', '13px', '13px', '11px'],
+                      }
+                    : { opacity: 1 - i * 0.07, x: 0, scaleX: 1, color, fontWeight: 500, fontSize: '11px', textShadow: '0 0 0px transparent' }
+                  }
+                  transition={isNewest
+                    ? {
+                        duration: 2.2,
+                        times: [0, 0.15, 0.5, 1],
+                        opacity: { duration: 0.15 },
+                        x: { duration: 0.18, ease: 'easeOut' },
+                        scaleX: { duration: 0.18, ease: 'easeOut' },
+                      }
+                    : { duration: 0.25 }
+                  }
                   style={{
-                    fontFamily: 'var(--px-body-font)', fontSize: 11, fontWeight: 500,
-                    color, lineHeight: 1.45,
+                    fontFamily: 'var(--px-body-font)',
+                    lineHeight: 1.45,
+                    transformOrigin: 'left center',
+                    ...(isNewest ? {
+                      borderLeft: '2px solid rgba(255,34,51,0.7)',
+                      paddingLeft: 7,
+                      marginLeft: -9,
+                    } : {
+                      borderLeft: '2px solid transparent',
+                      paddingLeft: 7,
+                      marginLeft: -9,
+                    }),
                   }}
                 >
                   {entry.msg}
@@ -4225,9 +4232,9 @@ const WESKER_DURATION = 7 * 60; // 420 seconds
 
 // ── Tutorial Highlight Overlay ─────────────────────────────
 // Layout constants matching the HUD structure
-const HUD_H        = 300;   // bottom HUD height
-const LEFT_PANEL_W = 235;   // HandPhasePanel (200px) + left padding (20px) + button overhang buffer
-const RIGHT_PANEL_W = 300;  // HandDemoPanel (280px) + right padding + buffer to avoid overlap with right buttons
+const HUD_H        = 220;   // bottom HUD height
+const LEFT_PANEL_W = 280;   // HandPhasePanel + left padding + button overhang buffer
+const RIGHT_PANEL_W = 340;  // HandDemoPanel + right padding + buffer
 
 const OV: React.CSSProperties = {
   position: 'fixed',
@@ -4835,8 +4842,8 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     }
   }, [state.phase]);
 
-  const [showInfo, setShowInfo] = useState(false);
-  const [openPanel, setOpenPanel] = useState<'threat' | 'ai' | 'mission' | null>(null);
+  const [openPanel, setOpenPanel] = useState<'mission' | null>(null);
+  const [showInfo, setShowInfo]   = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
@@ -4885,21 +4892,22 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
 
       {/* Bottom hand — phase panel | D-pad | demo panel */}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, height: 300, zIndex: 30,
+        position: 'fixed', bottom: 0, left: 0, right: 0, height: 220, zIndex: 30,
         background: 'linear-gradient(180deg, rgba(10,0,16,0) 0%, rgba(10,0,16,0.82) 28%, rgba(10,0,16,0.97) 100%)',
         borderTop: '1px solid rgba(204,136,255,0.12)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 20px',
       }}>
-        {/* HUD / character-display divider — Mad Hatter lavender */}
+        {/* HUD / character-display divider */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: 1,
           background: 'linear-gradient(90deg, transparent 0%, rgba(204,136,255,0.15) 20%, rgba(204,136,255,0.5) 50%, rgba(204,136,255,0.15) 80%, transparent 100%)',
           pointerEvents: 'none',
         }} />
-        <HandPhasePanel onShowInfo={() => setShowInfo(true)} />
+
+        <HandPhasePanel setOpenPanel={setOpenPanel} onShowInfo={() => setShowInfo(true)} />
         <CardHand />
-        <HandDemoPanel openPanel={openPanel} setOpenPanel={setOpenPanel} />
+        <HandDemoPanel />
       </div>
 
       {/* System Compromised flash */}
@@ -4929,88 +4937,48 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
       <VictoryOverlay />
       <GameOverOverlay />
 
-      {/* Info overlay */}
+
+      {/* Game Info overlay */}
       <AnimatePresence>
         {showInfo && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={() => setShowInfo(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 900,
-              background: 'rgba(2,1,8,0.82)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
+            style={{ position: 'fixed', inset: 0, zIndex: 900, background: 'rgba(2,1,8,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {/* Panel — stop click-through */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               onClick={e => e.stopPropagation()}
               style={{
-                position: 'relative',
                 width: 680, maxHeight: '82vh',
-                background: 'linear-gradient(160deg, #0c0720 0%, #080514 100%)',
+                background: 'linear-gradient(160deg, #0a0018 0%, #060012 100%)',
                 border: '1px solid rgba(204,136,255,0.35)',
-                boxShadow: '0 0 60px rgba(160,80,255,0.2), 0 24px 80px rgba(0,0,0,0.8)',
-                borderRadius: 6,
-                display: 'flex', flexDirection: 'column',
-                overflow: 'hidden',
+                boxShadow: '0 0 60px rgba(204,136,255,0.12), 0 24px 80px rgba(0,0,0,0.85)',
+                borderRadius: 8, display: 'flex', flexDirection: 'column', overflow: 'hidden',
               }}
             >
-              {/* Header bar */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '14px 22px',
-                borderBottom: '1px solid rgba(204,136,255,0.18)',
-                background: 'rgba(150,80,255,0.07)',
-                flexShrink: 0,
-              }}>
-                <div style={{
-                  fontFamily: 'var(--px-font)', fontSize: 9,
-                  color: '#ffd700', letterSpacing: 4,
-                  textShadow: '0 0 12px rgba(255,210,40,0.5)',
-                }}>
-                  ★ SIMULATION — FIELD GUIDE
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 22px', borderBottom: '1px solid rgba(204,136,255,0.18)', background: 'rgba(204,136,255,0.06)', flexShrink: 0 }}>
+                <div style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: '#cc88ff', letterSpacing: 4, textShadow: '0 0 12px rgba(204,136,255,0.5)' }}>
+                  ★ GAME INFO
                 </div>
-                <button
-                  onClick={() => setShowInfo(false)}
-                  style={{
-                    fontFamily: 'var(--px-body-font)', fontWeight: 700,
-                    fontSize: 20, lineHeight: 1,
-                    color: 'rgba(200,180,255,0.6)',
-                    background: 'none', border: 'none',
-                    cursor: 'pointer', padding: '2px 6px',
-                    transition: 'color 0.1s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(200,180,255,0.6)'; }}
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowInfo(false)} style={{ fontFamily: 'var(--px-body-font)', fontWeight: 700, fontSize: 20, lineHeight: 1, color: 'rgba(204,136,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', transition: 'color 0.1s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#ee88ff'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(204,136,255,0.5)'; }}
+                >✕</button>
               </div>
-
-              {/* Scrollable content */}
-              <div style={{
-                flex: 1, overflowY: 'auto', padding: '24px 28px',
-                fontFamily: 'var(--px-body-font)',
-              }}>
-
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', fontFamily: 'var(--px-body-font)' }}>
                 <Section title="WHAT IS SIMULATION MODE?">
                   <p style={bodyText}>A poker-themed cybersecurity posture battle. You play as a security analyst using playing cards to defend against escalating threat scenarios. Each suit maps to a real cyber defense strategy.</p>
                 </Section>
-
                 <Section title="THE FOUR SUITS">
-                  <SuitRow color="#4da6ff"  sym="♠" name="SPADES — OFFENSIVE"  desc="Deal direct damage to the active threat. High-rank Spades cost mana." />
-                  <SuitRow color="#33dd77"  sym="♣" name="CLUBS — RESOURCE"   desc="Restore your mana pool. Always free to play. Fuel your bigger attacks." />
-                  <SuitRow color="#ff4455"  sym="♥" name="HEARTS — RESILIENCE" desc="Recover HP. Higher ranks restore more health." />
-                  <SuitRow color="#cc88ff"  sym="♦" name="DIAMONDS — HARDEN"  desc="Build armor stacks that absorb incoming damage. Costs mana." />
+                  <SuitRow color="#4da6ff" sym="♠" name="SPADES — OFFENSIVE"  desc="Deal direct damage to the active threat. High-rank Spades cost mana." />
+                  <SuitRow color="#33dd77" sym="♣" name="CLUBS — RESOURCE"    desc="Restore your mana pool. Always free to play. Fuel your bigger attacks." />
+                  <SuitRow color="#ff4455" sym="♥" name="HEARTS — RESILIENCE" desc="Recover HP. Higher ranks restore more health." />
+                  <SuitRow color="#cc88ff" sym="♦" name="DIAMONDS — HARDEN"   desc="Build armor stacks that absorb incoming damage. Costs mana." />
                 </Section>
-
                 <Section title="HOW TO WIN">
                   <BulletList items={[
                     'Reduce boss HP to zero before your own HP hits zero.',
@@ -5019,36 +4987,20 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
                     'The 🎩 Jackpot unlocks at Turn 13 — save it for the right moment.',
                   ]} />
                 </Section>
-
                 <Section title="BOSS MECHANICS">
-                  <BossRow name="UNPATCHED VULNERABILITY" color="#33dd77"
-                    desc="Knowledge test. Only ♠ Spades deal damage. Any other suit triggers SYSTEM COMPROMISED — a penalty hit." />
-                  <BossRow name="WESKER" color="#ffd700"
-                    desc="Play 7× ♦ Diamonds to expose him. Once exposed, Spades deal 3× damage. 7-minute countdown active." />
-                  <BossRow name="AI ADAPTER" color="#4da6ff"
-                    desc="Immune to Spades entirely. The only way to defeat it is the 🎩 Jackpot ability." />
+                  <BossRow name="UNPATCHED VULNERABILITY" color="#33dd77" desc="Knowledge test. Only ♠ Spades deal damage. Any other suit triggers SYSTEM COMPROMISED — a penalty hit." />
+                  <BossRow name="WESKER" color="#ffd700" desc="Play 7× ♦ Diamonds to expose him. Once exposed, Spades deal 3× damage. 7-minute countdown active." />
+                  <BossRow name="AI ADAPTER" color="#4da6ff" desc="Immune to Spades entirely. The only way to defeat it is the 🎩 Jackpot ability." />
                 </Section>
-
-                <div style={{
-                  marginTop: 28, padding: '10px 14px',
-                  background: 'rgba(255,136,68,0.07)',
-                  borderLeft: '3px solid #ff8844',
-                  fontFamily: 'var(--px-body-font)', fontSize: 13,
-                  color: 'rgba(255,180,100,0.75)', lineHeight: 1.6,
-                }}>
-                  ⚠ This guide is a work in progress and will change as the simulation evolves.
-                </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mission brief / threat intel / AI popups — rendered at root level so they stack above WeskerTimer */}
+      {/* Mission brief popup — rendered at root level so it stacks above WeskerTimer */}
       <AnimatePresence>
-        {openPanel === 'threat'  && <ThreatIntelPopup   onClose={() => setOpenPanel(null)} />}
-        {openPanel === 'ai'      && <AiAnalysisPopup    onClose={() => setOpenPanel(null)} />}
-        {openPanel === 'mission' && <MissionBriefPopup  onClose={() => setOpenPanel(null)} />}
+        {openPanel === 'mission' && <MissionBriefPopup onClose={() => setOpenPanel(null)} />}
       </AnimatePresence>
     </CampaignCtx.Provider>
     </TutorialCtx.Provider>
