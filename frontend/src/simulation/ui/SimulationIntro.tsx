@@ -4,7 +4,7 @@
 // Joker card (clickable) to start the simulation.
 // ============================================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react'; // useRef kept for introTimers
 import { motion, AnimatePresence } from 'framer-motion';
 import { MusicManager } from '../audio/MusicManager';
 import CardArt from '../../components/CardArt';
@@ -87,6 +87,7 @@ function briefHand(ranks: Record<string,number>): { hand: string; score: number 
 export default function SimulationIntro({ onStart, initialRanks }: Props) {
   const [phase, setPhase] = useState<Phase>('open');
   const [jokerHover, setJokerHover] = useState(false);
+  const introTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => MusicManager.init(), 120);
@@ -97,7 +98,8 @@ export default function SimulationIntro({ onStart, initialRanks }: Props) {
     const t1 = setTimeout(() => setPhase('cards'), 300);
     const t2 = setTimeout(() => setPhase('title'), 900);
     const t3 = setTimeout(() => setPhase('ready'), 1800);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    introTimers.current = [t1, t2, t3];
+    return () => { introTimers.current.forEach(clearTimeout); };
   }, []);
 
   const handleStart = useCallback(() => {
@@ -106,6 +108,7 @@ export default function SimulationIntro({ onStart, initialRanks }: Props) {
   }, [onStart]);
 
   return (
+
     <div
       className="px-root"
       style={{
@@ -160,9 +163,9 @@ export default function SimulationIntro({ onStart, initialRanks }: Props) {
         <AnimatePresence>
           {(phase === 'title' || phase === 'ready') && (
             <motion.div
-              initial={{ opacity: 0, y: -14, scale: 0.95 }}
+              initial={{ opacity: 0, y: 80, scale: 0.88 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
               style={{ textAlign: 'center' }}
             >
               {/* Top marquee dots */}
@@ -296,10 +299,10 @@ export default function SimulationIntro({ onStart, initialRanks }: Props) {
                 {BRIEF_SUITS.map((s, i) => (
                   <motion.div
                     key={s.key}
-                    initial={{ y: 50, opacity: 0, rotate: (i - 1.5) * 5 }}
-                    animate={{ y: 0, opacity: 1, rotate: (i - 1.5) * 3 }}
+                    initial={{ x: (1.5 - i) * 100, y: 20, opacity: 0, rotate: (i - 1.5) * 25 }}
+                    animate={{ x: 0, y: 0, opacity: 1, rotate: (i - 1.5) * 3 }}
                     whileHover={{ y: -3, scale: 1.06, rotate: 0, transition: { duration: 0.2 } }}
-                    transition={{ duration: 0.55, delay: 0.1 + i * 0.09, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.75, delay: 0.08 + i * 0.12, ease: [0.22, 1, 0.36, 1] }}
                     style={{
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                       cursor: 'default',

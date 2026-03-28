@@ -254,7 +254,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
   useEffect(() => {
     if (phase !== "landing") return;
 
-    // Step 1: Wait 2 seconds, then tilt the deck
+    // Step 1: Brief pause, then tilt the deck
     const tiltTimer = setTimeout(() => {
       setCardStates(["tilted", "tilted", "tilted", "tilted"]);
 
@@ -279,10 +279,10 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                 setTimeout(() => setShowTitle(true), 300);
               }
             }, 700);
-          }, i * 200);
+          }, i * 100);
         });
-      }, 500); // Wait for tilt animation
-    }, 2000);
+      }, 200); // Wait for tilt animation
+    }, 500);
 
     return () => clearTimeout(tiltTimer);
   }, [phase]);

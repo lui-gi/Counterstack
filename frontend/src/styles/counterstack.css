@@ -279,7 +279,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 /* Landing title - fades in after cards land */
 .landing-title{
   position:absolute;
-  top:22px;
+  top:80px;
   left:50%;
   display:flex;
   flex-direction:row;
