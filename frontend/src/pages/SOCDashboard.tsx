@@ -72,7 +72,7 @@ const TIER_INFO: Record<string, { name: string; icon: string; color: string }> =
 };
 
 
-export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChange, orgProfile, accountData }: SOCDashboardProps) {
+export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChange, orgProfile, accountData, videoTransition }: SOCDashboardProps) {
   const [ranks, setRanks] = useState(INIT_RANKS);
   const [prevPostureHand, setPrevPostureHand] = useState<string | null>(null);
   const [postureAnimate, setPostureAnimate] = useState(false);
@@ -333,7 +333,7 @@ useEffect(()=>{
     <>
       <div className="noise"/><div className="scanlines"/><div className="gridbg"/><div className="ambience"/>
 
-      {!onboarded && <Onboarding onDone={handleOnboard}/>}
+      {!onboarded && <Onboarding onDone={handleOnboard} videoTransition={videoTransition}/>}
 
       {onboarded && (
         <div className="app fade-in">
