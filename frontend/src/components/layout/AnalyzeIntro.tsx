@@ -72,7 +72,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
     const base: React.CSSProperties = {
       position: 'fixed',
       zIndex: 400,
-      width: 420,
+      width: 500,
     };
     if (!spotlightRect || step.modalPosition === 'center') {
       return { ...base, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' };
@@ -82,7 +82,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
       case 'below':
         return { ...base, top: r.bottom + PAD + 8, left: '50%', transform: 'translateX(-50%)' };
       case 'right': {
-        const left = Math.min(r.right + PAD + 8, window.innerWidth - 440);
+        const left = Math.min(r.right + PAD + 8, window.innerWidth - 520);
         return { ...base, top: r.top + (r.bottom - r.top) / 2, left, transform: 'translateY(-50%)' };
       }
       case 'left-of':
