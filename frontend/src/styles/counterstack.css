@@ -490,7 +490,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
    APP SHELL
 ══════════════════════════════════ */
 .app{position:relative;z-index:100;width:100vw;height:100vh;
-  display:grid;grid-template-rows:46px 1fr 172px;grid-template-columns:212px 1fr 244px;
+  display:grid;grid-template-rows:46px 1fr;grid-template-columns:212px 1fr 244px;
   gap:5px;padding:5px;overflow:hidden}
 
 /* ── TOP BAR ── */
@@ -579,6 +579,10 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   background:radial-gradient(circle,rgba(247,37,133,.1) 0%,rgba(247,37,133,.03) 50%,transparent 70%);
   animation:hbreathe 4s ease-in-out infinite}
 @keyframes hbreathe{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+
+/* Hub inner stage — keeps card cross centred when hub is taller than wide */
+.hub-stage{position:relative;height:100%;aspect-ratio:1;max-width:100%;
+  display:flex;align-items:center;justify-content:center}
 
 /* ── SUIT CARDS in hub ── */
 .suit-slot{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;
@@ -838,8 +842,6 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .ci-btn{background:rgba(180,79,255,.1);border:1px solid rgba(180,79,255,.28);
   border-radius:3px;color:var(--cyan);font-size:11px;padding:4px 8px;cursor:pointer}
 
-/* ── BOTTOM ── */
-.bottom-row{grid-column:1/-1;display:grid;grid-template-columns:210px 1fr 244px;gap:5px}
 
 .chart-panel{padding:8px 11px}
 .chart-legend{display:flex;gap:11px;margin-top:4px}

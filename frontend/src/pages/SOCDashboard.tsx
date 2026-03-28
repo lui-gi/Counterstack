@@ -90,33 +90,6 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
 
   // Gemini suit analysis cache (lazy loaded per suit)
   const [suitAnalysisCache, setSuitAnalysisCache] = useState<Record<string, SuitAnalysisCache>>({});
-  const [hoveredPort, setHoveredPort] = useState<string|null>(null);
-  const [portPcts, setPortPcts] = useState([31,19,16,12,10,7,5]);
-  const [updatedPortIdxs, setUpdatedPortIdxs] = useState<number[]>([]);
-
-useEffect(()=>{
-    const id = setInterval(()=>{
-      const len=7;
-      const a=Math.floor(Math.random()*len);
-      let b=Math.floor(Math.random()*(len-1));
-      if(b>=a) b++;
-      setPortPcts(prev=>{
-        const next=[...prev];
-        const delta=Math.floor(Math.random()*4)+1;
-        next[a]=Math.max(1,next[a]-delta);
-        next[b]=next[b]+delta;
-        const total=next.reduce((s,v)=>s+v,0);
-        const norm=next.map(v=>Math.max(1,Math.round(v/total*100)));
-        const diff=100-norm.reduce((s,v)=>s+v,0);
-        norm[0]+=diff;
-        return norm;
-      });
-      setUpdatedPortIdxs([a,b]);
-      setTimeout(()=>setUpdatedPortIdxs([]),3000);
-    },10000);
-    return ()=>clearInterval(id);
-  },[]);
-
 
   // Fetch live CISA KEV data on mount
   useEffect(() => {
@@ -410,6 +383,7 @@ useEffect(()=>{
 
           {/* ── CENTER HUB ── */}
           <div id="tour-hub" className="hub panel">
+            <div className="hub-stage">
             <div className="hub-ring-outer"/>
             <div className="hub-ring-mid"/>
             <div className="hub-ring-inner"/>
@@ -545,6 +519,7 @@ useEffect(()=>{
                 );
               })()}
             </div>
+            </div>{/* hub-stage */}
           </div>
 
           {/* ── RIGHT SIDEBAR ── */}
@@ -627,83 +602,6 @@ useEffect(()=>{
                       onClick={() => setShowMagicianReading(true)}>
                       VIEW MAGICIAN'S FULL READING
                     </button>
-                  </div>
-                );
-              })()}
-            </div>
-
-
-          </div>
-
-          {/* ── BOTTOM ── */}
-          <div className="bottom-row">
-            {/* Azure Defender */}
-            <div className="panel" style={{padding:"7px 11px"}}>
-              <div className="ptitle" style={{padding:"0 0 5px",marginBottom:6}}>Azure Defender</div>
-              {(()=>{
-                const ports=[
-                  {port:"HTTPS",label:"HTTPS (443)",pct:portPcts[0],color:"#00d4ff"},
-                  {port:"HTTP",label:"HTTP (80)",pct:portPcts[1],color:"#a259ff"},
-                  {port:"Ethernet/IP",label:"Ethernet/IP (44818)",pct:portPcts[2],color:"#4ecb71"},
-                  {port:"ISO Transport",label:"ISO Transport (102)",pct:portPcts[3],color:"#ffd700"},
-                  {port:"BACnet",label:"BACnet (47808)",pct:portPcts[4],color:"#ff9f43"},
-                  {port:"Telnet",label:"Telnet (23)",pct:portPcts[5],color:"#ff6b6b"},
-                  {port:"Other",label:"Other",pct:portPcts[6],color:"#888"},
-                ];
-                let offset=0;
-                const r=34,cx=50,cy=50,circ=2*Math.PI*r;
-                const hovered=ports.find(p=>p.port===hoveredPort)||null;
-                return(
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                    <div style={{fontSize:11,fontFamily:"var(--fm)",letterSpacing:1.2,color:"rgba(0,212,255,.5)",alignSelf:"flex-start"}}>TRAFFIC BY PORT</div>
-                    <svg width={110} height={110} viewBox="0 0 100 100" style={{overflow:"visible"}}>
-                      {ports.map(p=>{
-                        const dash=circ*(p.pct/100);
-                        const gap=circ-dash;
-                        const isHov=hoveredPort===p.port;
-                        const el=(
-                          <circle key={p.port}
-                            cx={cx} cy={cy} r={r}
-                            fill="none"
-                            stroke={p.color}
-                            strokeWidth={isHov?16:13}
-                            strokeDasharray={`${dash} ${gap}`}
-                            strokeDashoffset={-offset}
-                            style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%",filter:`drop-shadow(0 0 ${isHov?6:3}px ${p.color}${isHov?"cc":"88"})`,cursor:"pointer",transition:"stroke-width .15s,filter .15s"}}
-                            onMouseEnter={()=>setHoveredPort(p.port)}
-                            onMouseLeave={()=>setHoveredPort(null)}
-                          />
-                        );
-                        offset+=dash;
-                        return el;
-                      })}
-                      <circle cx={cx} cy={cy} r={26} fill="rgba(0,0,0,.6)"/>
-                      {hovered?(
-                        <>
-                          <text x={cx} y={cy-5} textAnchor="middle" fill={hovered.color} fontSize={8} fontFamily="var(--fh)" fontWeight={700}>{hovered.port}</text>
-                          <text x={cx} y={cy+7} textAnchor="middle" fill="#fff" fontSize={11} fontFamily="var(--fh)" fontWeight={900}>{hovered.pct}%</text>
-                        </>
-                      ):(
-                        <>
-                          <text x={cx} y={cy-4} textAnchor="middle" fill="#fff" fontSize={9} fontFamily="var(--fh)" fontWeight={700}>PORTS</text>
-                          <text x={cx} y={cy+7} textAnchor="middle" fill="rgba(0,212,255,.7)" fontSize={7} fontFamily="var(--fm)">{ports.length} types</text>
-                        </>
-                      )}
-                    </svg>
-                    <div style={{display:"flex",flexDirection:"column",gap:3,width:"100%"}}>
-                      {ports.map((p,i)=>(
-                        <div key={p.port}
-                          style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",opacity:hoveredPort&&hoveredPort!==p.port?.5:1,transition:"opacity .15s"}}
-                          onMouseEnter={()=>setHoveredPort(p.port)}
-                          onMouseLeave={()=>setHoveredPort(null)}
-                        >
-                          <div style={{width:6,height:6,borderRadius:"50%",background:p.color,flexShrink:0,boxShadow:`0 0 4px ${p.color}`}}/>
-                          <span style={{fontFamily:"var(--fm)",fontSize:11,color:"rgba(255,255,255,.7)",flex:1}}>{p.label}</span>
-                          <span style={{fontFamily:"var(--fh)",fontSize:11,fontWeight:700,color:p.color}}>{p.pct}%</span>
-                          {updatedPortIdxs.includes(i)&&<div style={{width:6,height:6,borderRadius:"50%",background:"#ff4444",flexShrink:0,boxShadow:"0 0 5px #ff4444"}}/>}
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 );
               })()}
