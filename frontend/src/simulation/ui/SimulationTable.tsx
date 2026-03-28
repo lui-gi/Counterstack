@@ -26,6 +26,7 @@ import CardArt         from '../../components/CardArt';
 import { MusicManager } from '../audio/MusicManager';
 import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
 import { ThankYouScreen } from './ThankYouScreen';
+import { FloatingIndicatorManager, type FloatingIndicatorProps } from '../../components/FloatingIndicator';
 import './pixel.css';
 
 // ── Tutorial ──────────────────────────────────────────────
@@ -132,6 +133,10 @@ interface CampaignCtxValue {
   playAdapterAttackAnimation: () => void;
   playAdapterDamageAnimation: () => void;
   playAdapterAdaptingAnimation: () => void;
+  playerIndicators:         FloatingIndicatorProps[];
+  setPlayerIndicators:      (indicators: FloatingIndicatorProps[] | ((prev: FloatingIndicatorProps[]) => FloatingIndicatorProps[])) => void;
+  bossIndicators:           FloatingIndicatorProps[];
+  setBossIndicators:        (indicators: FloatingIndicatorProps[] | ((prev: FloatingIndicatorProps[]) => FloatingIndicatorProps[])) => void;
 }
 
 const CampaignCtx = createContext<CampaignCtxValue | null>(null);
@@ -1968,7 +1973,8 @@ function BattleArena() {
   const {
     state, characterAnimation, weskerAnimation, adapterAnimation,
     playWeskerAttackAnimation, playWeskerDamageAnimation, playWeskerStunAnimation,
-    playAdapterAttackAnimation, playAdapterDamageAnimation, playAdapterAdaptingAnimation
+    playAdapterAttackAnimation, playAdapterDamageAnimation, playAdapterAdaptingAnimation,
+    playerIndicators, setPlayerIndicators, bossIndicators, setBossIndicators,
   } = useCampaignContext();
   const tut = useContext(TutorialCtx);
   const hideBossHp = tut.open || state.bossIndex === 0;
@@ -2262,6 +2268,16 @@ function BattleArena() {
         </div>
 
       </motion.div>
+
+      {/* Floating indicators for damage/healing/mana/extra-damage */}
+      <FloatingIndicatorManager
+        indicators={playerIndicators}
+        onRemove={(index) => setPlayerIndicators(prev => prev.filter((_, i) => i !== index))}
+      />
+      <FloatingIndicatorManager
+        indicators={bossIndicators}
+        onRemove={(index) => setBossIndicators(prev => prev.filter((_, i) => i !== index))}
+      />
     </div>
   );
 }
@@ -4578,6 +4594,10 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
   const { state } = campaign;
 
   const [navVisible, setNavVisible] = useState(false);
+  
+  // ── Floating Indicators (damage/healing/etc) ─────────────
+  const [playerIndicators, setPlayerIndicators] = useState<FloatingIndicatorProps[]>([]);
+  const [bossIndicators, setBossIndicators] = useState<FloatingIndicatorProps[]>([]);
 
   // ── Character Animation State ──────────────────────────────
   const [characterAnimation, setCharacterAnimation] = useState<CharacterAnimationState>({
@@ -4835,6 +4855,8 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
 
   // Track player HP for damage animations
   const prevPlayerHpRef = useRef(state.playerHp);
+  const prevManaRef = useRef(state.mana);
+  const prevBossHpRef = useRef(state.boss.hp);
   const damageAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   useEffect(() => {
@@ -4842,6 +4864,7 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
       // Player took damage — trigger damage animation with delay
       // Delay until damage is visually revealed (600ms after damage display update)
       const delay = state.adapterAdapting ? 1600 : 600; // adapter has 1s adapting delay + 600ms for damage reveal
+      const damageAmount = prevPlayerHpRef.current - state.playerHp;
       
       if (damageAnimationTimeoutRef.current) {
         clearTimeout(damageAnimationTimeoutRef.current);
@@ -4849,6 +4872,13 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
       
       damageAnimationTimeoutRef.current = setTimeout(() => {
         playDamageAnimation();
+        // Show damage indicator on player (center-left side)
+        setPlayerIndicators(prev => [...prev, {
+          value: damageAmount,
+          type: 'damage',
+          x: window.innerWidth * 0.15,
+          y: window.innerHeight * 0.55,
+        }]);
         damageAnimationTimeoutRef.current = null;
       }, delay);
     }
@@ -4859,7 +4889,38 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
         clearTimeout(damageAnimationTimeoutRef.current);
       }
     };
-  }, [state.playerHp, state.phase, state.adapterAdapting, playDamageAnimation]);
+  }, [state.playerHp, state.phase, state.adapterAdapting, playDamageAnimation, setPlayerIndicators]);
+
+  // Track mana changes and show blue indicator when mana increases
+  useEffect(() => {
+    if (state.mana > prevManaRef.current) {
+      const manaGain = state.mana - prevManaRef.current;
+      // Show mana indicator on player (top-right area)
+      setPlayerIndicators(prev => [...prev, {
+        value: manaGain,
+        type: 'mana',
+        x: window.innerWidth * 0.25,
+        y: window.innerHeight * 0.35,
+      }]);
+    }
+    prevManaRef.current = state.mana;
+  }, [state.mana, setPlayerIndicators]);
+
+  // Track boss HP changes and show damage indicator on boss
+  useEffect(() => {
+    if (state.boss.hp < prevBossHpRef.current && state.phase === 'resolve') {
+      // Boss took damage
+      const damageAmount = prevBossHpRef.current - state.boss.hp;
+      // Show damage indicator on boss (center-right side)
+      setBossIndicators(prev => [...prev, {
+        value: damageAmount,
+        type: 'damage',
+        x: window.innerWidth * 0.85,
+        y: window.innerHeight * 0.55,
+      }]);
+    }
+    prevBossHpRef.current = state.boss.hp;
+  }, [state.boss.hp, state.phase, setBossIndicators]);
 
   // Keep Wesker on stun sprite while stunned, revert to idle when stun expires
   useEffect(() => {
@@ -4903,6 +4964,10 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     playAdapterAttackAnimation,
     playAdapterDamageAnimation,
     playAdapterAdaptingAnimation,
+    playerIndicators,
+    setPlayerIndicators,
+    bossIndicators,
+    setBossIndicators,
   };
 
   // Tab hidden → mute
