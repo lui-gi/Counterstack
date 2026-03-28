@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { SUITS, SUIT_DATA, RANK_NAMES, RANK_FULL } from '../data/gameData';
+import SuitCard from './SuitCard';
 import type { SuitConfig } from '../interfaces/SuitConfig.interface';
 import type { SuitMetric } from '../interfaces/SuitMetric.interface';
 import type { SuitRisk } from '../interfaces/SuitRisk.interface';
@@ -139,6 +140,136 @@ function deriveMetrics(suitKey: string, profile: Record<string, unknown>): SuitM
   return null;
 }
 
+// ── Risk derivation (C + H) ────────────────────────────────────────────────
+
+type RiskLevel = 'high' | 'medium' | 'low';
+
+function classifyText(text: string): RiskLevel {
+  const t = text.toLowerCase();
+  if (/critical|unpatched|exploit|breach|no .*plan|not tested|not enforced/.test(t)) return 'high';
+  if (/missing|gap|exposed|incomplete|not .*implement|stale|old/.test(t)) return 'medium';
+  return 'low';
+}
+
+function textToSuit(text: string): string {
+  const t = text.toLowerCase();
+  if (/patch|cve|vuln|scan|asset|inventory/.test(t)) return 'clover';
+  if (/detect|siem|edr|alert|soc|hunt|incident|respond|lateral|exfil/.test(t)) return 'spade';
+  if (/mfa|password|access|privilege|account|key|token|encrypt|firewall|trust/.test(t)) return 'diamond';
+  if (/backup|recover|dr |restore|rto|rpo|continuity|ransomware/.test(t)) return 'heart';
+  return 'clover';
+}
+
+interface Incident {
+  date?: string;
+  type?: string;
+  impact?: string;
+  resolved?: boolean;
+  notes?: string;
+}
+
+function deriveRisks(suitKey: string, profile: Record<string, unknown>): SuitRisk[] | null {
+  const nist = profile.nistCsf as Record<string, unknown> | undefined;
+  if (!nist) return null;
+
+  const identify = nist.identify as Record<string, unknown> | undefined;
+  const protect  = nist.protect  as Record<string, unknown> | undefined;
+  const detect   = nist.detect   as Record<string, unknown> | undefined;
+  const respond  = nist.respond  as Record<string, unknown> | undefined;
+  const recover  = nist.recover  as Record<string, unknown> | undefined;
+
+  const anomalies: SuitRisk[] = [];
+
+  if (suitKey === 'clover' && identify && protect) {
+    if (!identify.assetInventoryComplete)
+      anomalies.push({ n: 'Asset inventory incomplete', lvl: 'high' });
+    if (typeof identify.riskAssessmentAgeMonths === 'number') {
+      const age = identify.riskAssessmentAgeMonths;
+      if (age > 18) anomalies.push({ n: `Risk assessment ${age}mo old (>18mo)`, lvl: 'high' });
+      else if (age > 12) anomalies.push({ n: `Risk assessment ${age}mo old`, lvl: 'medium' });
+    }
+    if (!identify.criticalAssetsDocumented)
+      anomalies.push({ n: 'Critical assets undocumented', lvl: 'medium' });
+    if (typeof protect.patchCadenceDays === 'number') {
+      const d = protect.patchCadenceDays;
+      if (d > 30) anomalies.push({ n: `Patch cadence: ${d}d (>30d target)`, lvl: 'high' });
+      else if (d > 14) anomalies.push({ n: `Patch cadence: ${d}d`, lvl: 'medium' });
+    }
+  }
+
+  if (suitKey === 'spade' && detect && respond) {
+    if (!detect.siemActive)
+      anomalies.push({ n: 'No SIEM deployed', lvl: 'high' });
+    if (typeof detect.edrCoveragePercent === 'number') {
+      const edr = detect.edrCoveragePercent;
+      if (edr < 60) anomalies.push({ n: `EDR coverage at ${edr}%`, lvl: 'high' });
+      else if (edr < 80) anomalies.push({ n: `EDR coverage at ${edr}%`, lvl: 'medium' });
+    }
+    if (typeof detect.meanTimeToDetectHours === 'number') {
+      const mttd = detect.meanTimeToDetectHours;
+      if (mttd > 24) anomalies.push({ n: `MTTD: ${mttd}h (>24h)`, lvl: 'high' });
+      else if (mttd > 8) anomalies.push({ n: `MTTD: ${mttd}h`, lvl: 'medium' });
+    }
+    if (!respond.irPlanExists)
+      anomalies.push({ n: 'No IR plan exists', lvl: 'high' });
+    else if (typeof respond.irPlanAgeMonths === 'number' && respond.irPlanAgeMonths > 18)
+      anomalies.push({ n: `IR plan ${respond.irPlanAgeMonths}mo old`, lvl: 'medium' });
+  }
+
+  if (suitKey === 'diamond' && protect) {
+    if (typeof protect.mfaAdoptionPercent === 'number') {
+      const mfa = protect.mfaAdoptionPercent;
+      if (mfa < 70) anomalies.push({ n: `MFA adoption at ${mfa}%`, lvl: 'high' });
+      else if (mfa < 95) anomalies.push({ n: `MFA adoption at ${mfa}% (<95%)`, lvl: 'medium' });
+    }
+    if (!protect.encryptionAtRest)
+      anomalies.push({ n: 'Encryption at rest not enabled', lvl: 'high' });
+    if (protect.zeroTrustMaturity === 'none' || protect.zeroTrustMaturity === 'not-started')
+      anomalies.push({ n: 'Zero trust not implemented', lvl: 'medium' });
+    if (typeof protect.patchCadenceDays === 'number' && protect.patchCadenceDays > 30)
+      anomalies.push({ n: `Patch cadence: ${protect.patchCadenceDays}d (>30d target)`, lvl: 'high' });
+  }
+
+  if (suitKey === 'heart' && recover) {
+    if (!recover.backupsTested)
+      anomalies.push({ n: 'Backups not tested', lvl: 'high' });
+    if (typeof recover.lastDrTestDays === 'number') {
+      const dr = recover.lastDrTestDays;
+      if (dr > 180) anomalies.push({ n: `DR untested for ${dr} days`, lvl: 'high' });
+      else if (dr > 90) anomalies.push({ n: `Last DR test: ${dr} days ago`, lvl: 'medium' });
+    }
+    if (typeof recover.rtoHours === 'number' && recover.rtoHours > 24)
+      anomalies.push({ n: `RTO target: ${recover.rtoHours}h (>24h)`, lvl: 'high' });
+    if (typeof recover.backupFrequencyHours === 'number' && recover.backupFrequencyHours > 48)
+      anomalies.push({ n: `Backup frequency: every ${recover.backupFrequencyHours}h`, lvl: 'medium' });
+  }
+
+  // openRisks — keyword-match to this suit (C)
+  const openRisks = profile.openRisks;
+  if (Array.isArray(openRisks)) {
+    for (const r of openRisks) {
+      if (typeof r === 'string' && textToSuit(r) === suitKey) {
+        anomalies.push({ n: r, lvl: classifyText(r) });
+      }
+    }
+  }
+
+  // recent_incidents — unresolved, keyword-matched to this suit (H)
+  const incidents = profile.recent_incidents;
+  if (Array.isArray(incidents)) {
+    for (const inc of incidents as Incident[]) {
+      if (inc.resolved) continue;
+      const text = `${inc.type ?? ''} ${inc.impact ?? ''}`;
+      if (textToSuit(text) === suitKey) {
+        const label = inc.type ? `Open incident: ${inc.type}` : 'Open incident';
+        anomalies.push({ n: label, lvl: 'high' });
+      }
+    }
+  }
+
+  return anomalies.length > 0 ? anomalies : [];
+}
+
 export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, aiAnalysis, onRequestAnalysis, hasOrgProfile, orgProfile }: SuitDashboardProps) {
   const data = SUIT_DATA[suitKey];
   const color = cfg.color;
@@ -148,6 +279,9 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
   const derivedMetrics = orgProfile ? deriveMetrics(suitKey, orgProfile) : null;
   const displayMetrics = derivedMetrics ?? data.metrics;
   const metricsFromProfile = !!derivedMetrics;
+
+  const derivedRisks = orgProfile ? deriveRisks(suitKey, orgProfile) : null;
+  const displayRisks = (derivedRisks && derivedRisks.length > 0) ? derivedRisks : data.risks;
 
   // Trigger Gemini analysis when panel opens (lazy loading)
   useEffect(() => {
@@ -159,12 +293,32 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
   // Use Gemini recommendations if available, otherwise fall back to static
   const displayRecs = aiAnalysis?.recommendations?.length ? aiAnalysis.recommendations : data.aiRecs;
   const isAiLoading = aiAnalysis?.loading ?? false;
-  const hasAiRecs = aiAnalysis?.recommendations?.length ? true : false;
+  const hasAiRecs = !!(aiAnalysis?.recommendations?.length);
+  const topAction = displayRecs[0];
+  const restRecs = displayRecs.slice(1);
 
   return (
     <div className="sd-overlay" onClick={onClose}>
       <div className="sd-panel slide-in" style={{border:`1px solid ${color}33`}} onClick={e=>e.stopPropagation()}>
         <button className="sd-close" onClick={onClose}>✕</button>
+
+        {/* Left: playing card column */}
+        <div className="sd-card-col" style={{boxShadow:`inset -2px 0 8px ${color}12`}}>
+          <div className="sd-panel-card">
+            <SuitCard
+              suitKey={suitKey}
+              cfg={cfg}
+              rank={rank}
+              active={false}
+              dimmed={false}
+              flipping={false}
+              onClick={()=>{}}
+            />
+          </div>
+        </div>
+
+        {/* Right: content column */}
+        <div className="sd-content-col">
 
         {/* Header */}
         <div className="sd-header">
@@ -220,11 +374,20 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
                 Analyzing your organization profile...
               </div>
             ) : (
-              displayRecs.map((r: string,i: number)=>(
-                <div key={i} className="ai-item" style={{borderColor:`${color}10`}}>
-                  <span className="ai-arr" style={{color}}>▶</span>{r}
-                </div>
-              ))
+              <>
+                {/* Top action — elevated (F) */}
+                {topAction && (
+                  <div style={{margin:"6px 0 4px",padding:"10px 12px",background:`${color}12`,border:`1px solid ${color}44`,borderRadius:6,display:"flex",alignItems:"flex-start",gap:8}}>
+                    <span style={{color,fontFamily:"var(--fm)",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginTop:1}}>▶ TOP</span>
+                    <span style={{fontSize:14,color:"var(--fg)",fontWeight:500}}>{topAction}</span>
+                  </div>
+                )}
+                {restRecs.map((r: string, i: number) => (
+                  <div key={i} className="ai-item" style={{borderColor:`${color}10`}}>
+                    <span className="ai-arr" style={{color}}>▶</span>{r}
+                  </div>
+                ))}
+              </>
             )}
             {aiAnalysis?.reasoning && (
               <div style={{marginTop:8,padding:"8px 10px",background:"rgba(0,212,255,.05)",borderRadius:4,fontSize:13,color:"var(--cyan)",fontStyle:"italic"}}>
@@ -246,13 +409,17 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
             </div>
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>Risk Exposure</div>
-              {data.risks.map((r: SuitRisk)=>(
-                <div key={r.n} className="risk-row" style={{background:`${sevColor[r.lvl as keyof typeof sevColor]}0a`,border:`1px solid ${sevColor[r.lvl as keyof typeof sevColor]}22`}}>
-                  <div className="risk-dot" style={{background:sevColor[r.lvl as keyof typeof sevColor]}}/>
-                  <span style={{flex:1,fontSize:13}}>{r.n}</span>
-                  <span style={{fontSize:12,fontFamily:"var(--fm)",color:sevColor[r.lvl as keyof typeof sevColor],textTransform:"uppercase"}}>{r.lvl}</span>
-                </div>
-              ))}
+              {displayRisks.length === 0 ? (
+                <div style={{fontSize:13,color:"var(--green)",padding:"6px 0"}}>✓ No anomalies detected</div>
+              ) : (
+                displayRisks.map((r: SuitRisk)=>(
+                  <div key={r.n} className="risk-row" style={{background:`${sevColor[r.lvl as keyof typeof sevColor]}0a`,border:`1px solid ${sevColor[r.lvl as keyof typeof sevColor]}22`}}>
+                    <div className="risk-dot" style={{background:sevColor[r.lvl as keyof typeof sevColor]}}/>
+                    <span style={{flex:1,fontSize:13}}>{r.n}</span>
+                    <span style={{fontSize:12,fontFamily:"var(--fm)",color:sevColor[r.lvl as keyof typeof sevColor],textTransform:"uppercase"}}>{r.lvl}</span>
+                  </div>
+                ))
+              )}
             </div>
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}</div>
@@ -278,6 +445,8 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
             </div>
           </div>
         </div>
+
+        </div>{/* end sd-content-col */}
       </div>
     </div>
   );
