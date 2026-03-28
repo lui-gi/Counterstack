@@ -475,7 +475,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
                 <>
                   <div className="sd-block-t" style={{color:"#f72585"}}>
                     ATTACKER'S VIEW
-                    <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span>
                   </div>
                   {aiAnalysis.attackerView.map((b: string, i: number)=>(
                     <div key={i} className="ai-item" style={{borderColor:"#f7258510"}}>
@@ -532,7 +531,6 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
                 <>
                   <div className="sd-block-t" style={{color:"#ff9f1c"}}>
                     BUSINESS IMPACT
-                    <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span>
                   </div>
                   {aiAnalysis.businessImpact.map((b: string, i: number)=>(
                     <div key={i} className="ai-item" style={{borderColor:"#ff9f1c10"}}>
@@ -567,8 +565,7 @@ export default function SuitDashboard({ suitKey, cfg, rank, onClose, allRanks, a
             <div className="sd-block" style={{borderColor:`${color}18`}}>
               <div className="sd-block-t" style={{color:`${color}88`}}>
                 Upgrade Path → {RANK_NAMES[Math.min(rank+2,13)]}
-                {aiAnalysis?.upgradePath?.length ? <span style={{fontSize:10,marginLeft:4,color:"var(--cyan)"}}>AI</span> : null}
-              </div>
+                              </div>
               {displayUpgradePath.map((u: string,i: number)=>(
                 <div key={i} className="upg-step">
                   <div className="upg-n" style={{background:`${color}18`,border:`1px solid ${color}30`,color}}>{i+1}</div>
