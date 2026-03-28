@@ -21,6 +21,7 @@ import {
 } from '../gameplay/useCampaign';
 import MagicianSprite  from './MagicianSprite';
 import { CharacterSprite, type CharacterAnimationState } from './CharacterSprite';
+import { WeskerSprite, type WeskerAnimationState } from './WeskerSprite';
 import CardArt         from '../../components/CardArt';
 import { MusicManager } from '../audio/MusicManager';
 import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
@@ -97,7 +98,7 @@ const TUTORIAL_STEPS: Array<{
 ];
 
 // ── Asset paths ───────────────────────────────────────────
-const WESKER_IMG               = '/assets/sprites/wesker.png';
+const WESKER_IMG               = '/assets/sprites/wesker/idle.png';
 const WESKER_FALLBACK          = '/assets/sprites/0C9FD310-B1BA-44F0-A4CD-750793CA35C6.png';
 const AI_ADAPTER_IMG           = '/assets/sprites/aiadapter.png';
 const AI_ADAPTER_FALLBACK      = '/assets/sprites/C0C94271-FAB8-44EA-985C-CB472E57708D.png';
@@ -111,18 +112,22 @@ const JACKPOT_ICON             = '/assets/sprites/jackpoticon.png';
 
 // ── Campaign Context ──────────────────────────────────────
 interface CampaignCtxValue {
-  state:               CampaignState;
-  continueIntro:       () => void;
-  drawCard:            () => void;
-  drawSuit:            (suit: Suit) => void;
-  selectCard:          (id: string) => void;
-  advance:             () => void;
-  triggerJackpot:      () => void;
-  restart:             () => void;
-  weskerTimeLeft:      number;   // seconds remaining (0 when not a Wesker fight)
-  onBack?:             () => void;
-  characterAnimation:  CharacterAnimationState;
-  playDamageAnimation: () => void;
+  state:                    CampaignState;
+  continueIntro:            () => void;
+  drawCard:                 () => void;
+  drawSuit:                 (suit: Suit) => void;
+  selectCard:               (id: string) => void;
+  advance:                  () => void;
+  triggerJackpot:           () => void;
+  restart:                  () => void;
+  weskerTimeLeft:           number;   // seconds remaining (0 when not a Wesker fight)
+  onBack?:                  () => void;
+  characterAnimation:       CharacterAnimationState;
+  playDamageAnimation:      () => void;
+  weskerAnimation:          WeskerAnimationState;
+  playWeskerAttackAnimation: () => void;
+  playWeskerDamageAnimation: () => void;
+  playWeskerStunAnimation:   () => void;
 }
 
 const CampaignCtx = createContext<CampaignCtxValue | null>(null);
@@ -337,40 +342,12 @@ function SystemPatchBoss() {
 }
 
 // ── Boss sprite selector ──────────────────────────────────
-function BossSprite({ bossIndex, adapting }: { bossIndex: number; adapting?: boolean }) {
+function BossSprite({ bossIndex, adapting, weskerAnimationState }: { bossIndex: number; adapting?: boolean; weskerAnimationState?: WeskerAnimationState }) {
   const [fallback, setFallback] = useState(false);
   if (bossIndex === 0) return <SystemPatchBoss />;
 
-  const primary   = bossIndex === 1 ? WESKER_IMG      : AI_ADAPTER_IMG;
-  const backup    = bossIndex === 1 ? WESKER_FALLBACK : AI_ADAPTER_FALLBACK;
-  const glowColor = bossIndex === 1 ? 'rgba(180,40,40,0.5)' : 'rgba(40,200,220,0.45)';
-  const spriteHeight = bossIndex === 1 ? 280 : 400;
-
-  const sprite = (
-    <motion.img
-      src={fallback ? backup : primary}
-      onError={() => setFallback(true)}
-      animate={adapting && bossIndex === 2 ? { y: 0 } : { y: [0, -10, 0] }}
-      transition={adapting && bossIndex === 2
-        ? { duration: 0 }
-        : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
-      }
-      style={{
-        height: spriteHeight,
-        width: 'auto',
-        imageRendering: 'pixelated',
-        mixBlendMode: 'screen',
-        objectFit: 'contain',
-        animation: adapting && bossIndex === 2 ? 'rainbowHue 0.4s linear infinite' : undefined,
-        filter: adapting && bossIndex === 2
-          ? 'brightness(1.5) saturate(3) contrast(1.2)'
-          : `brightness(1.2) contrast(1.15) drop-shadow(0 0 32px ${glowColor})`,
-      }}
-    />
-  );
-
+  // Wesker with sprite animations
   if (bossIndex === 1) {
-    const CROP = 70; // px to remove from top of wesker sprite (chess knight artifact)
     return (
       <motion.div
         animate={{ y: [0, -10, 0] }}
@@ -385,22 +362,38 @@ function BossSprite({ bossIndex, adapting }: { bossIndex: number; adapting?: boo
           background: 'radial-gradient(circle, rgba(220,30,30,0.22) 0%, rgba(180,10,10,0.12) 45%, transparent 70%)',
           pointerEvents: 'none',
         }} />
-        <img
-          src={fallback ? backup : primary}
-          onError={() => setFallback(true)}
-          style={{
-            height: spriteHeight,
-            width: 'auto',
-            imageRendering: 'pixelated',
-            mixBlendMode: 'screen',
-            objectFit: 'contain',
-            clipPath: `inset(${CROP}px 0 0 0)`,
-            filter: `brightness(1.2) contrast(1.15)`,
-          }}
-        />
+        <WeskerSprite animationState={weskerAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
       </motion.div>
     );
   }
+
+  const primary   = AI_ADAPTER_IMG;
+  const backup    = AI_ADAPTER_FALLBACK;
+  const glowColor = 'rgba(40,200,220,0.45)';
+  const spriteHeight = 400;
+
+  const sprite = (
+    <motion.img
+      src={fallback ? backup : primary}
+      onError={() => setFallback(true)}
+      animate={adapting ? { y: 0 } : { y: [0, -10, 0] }}
+      transition={adapting
+        ? { duration: 0 }
+        : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+      }
+      style={{
+        height: spriteHeight,
+        width: 'auto',
+        imageRendering: 'pixelated',
+        mixBlendMode: 'screen',
+        objectFit: 'contain',
+        animation: adapting ? 'rainbowHue 0.4s linear infinite' : undefined,
+        filter: adapting
+          ? 'brightness(1.5) saturate(3) contrast(1.2)'
+          : `brightness(1.2) contrast(1.15) drop-shadow(0 0 32px ${glowColor})`,
+      }}
+    />
+  );
 
   return sprite;
 }
@@ -1952,7 +1945,10 @@ function StatBar({ value, max, color, label, showNums = true, height = 10 }: {
 
 // ── Battle arena (characters tall in background) ──────────
 function BattleArena() {
-  const { state, characterAnimation } = useCampaignContext();
+  const {
+    state, characterAnimation, weskerAnimation,
+    playWeskerAttackAnimation, playWeskerDamageAnimation, playWeskerStunAnimation
+  } = useCampaignContext();
   const tut = useContext(TutorialCtx);
   const hideBossHp = tut.open || state.bossIndex === 0;
 
@@ -1964,6 +1960,12 @@ function BattleArena() {
   // Diamond strength flash
   const [showStrengthFlash, setShowStrengthFlash] = useState(false);
   const prevChargeRef = useRef(state.diamondCharge);
+
+  // Track Wesker HP for damage animation
+  const prevWeskerHpRef = useRef(state.boss.hp);
+
+  // Track Wesker exposed state for stun animation
+  const prevWeskerExposedRef = useRef(state.weskerExposed);
 
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -1983,6 +1985,10 @@ function BattleArena() {
       const delay = state.adapterAdapting ? 1000 : 0;
       const t = setTimeout(() => {
         setBossAtk(true);
+        // Trigger Wesker attack animation
+        if (state.bossIndex === 1) {
+          playWeskerAttackAnimation();
+        }
         setTimeout(() => setBossAtk(false), 400);
       }, delay);
       prevPhaseRef.current = curPhase;
@@ -1990,7 +1996,7 @@ function BattleArena() {
     }
 
     prevPhaseRef.current = curPhase;
-  }, [state.phase]);
+  }, [state.phase, state.bossIndex, state.adapterAdapting, playWeskerAttackAnimation]);
 
   // Diamond charge increase → flash "STRENGTH INCREASE +"
   useEffect(() => {
@@ -2004,6 +2010,22 @@ function BattleArena() {
     }
     prevChargeRef.current = cur;
   }, [state.diamondCharge]);
+
+  // Wesker damage animation when he takes damage
+  useEffect(() => {
+    if (state.bossIndex === 1 && state.boss.hp < prevWeskerHpRef.current) {
+      playWeskerDamageAnimation();
+    }
+    prevWeskerHpRef.current = state.boss.hp;
+  }, [state.boss.hp, state.bossIndex, playWeskerDamageAnimation]);
+
+  // Wesker stun animation when exposed (diamonds break isolation)
+  useEffect(() => {
+    if (state.bossIndex === 1 && !prevWeskerExposedRef.current && state.weskerExposed) {
+      playWeskerStunAnimation();
+    }
+    prevWeskerExposedRef.current = state.weskerExposed;
+  }, [state.weskerExposed, state.bossIndex, playWeskerStunAnimation]);
 
   if (state.phase === 'boss-intro') return null;
 
@@ -2135,7 +2157,7 @@ function BattleArena() {
         }}
       >
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} />
+          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} />
           {/* AI Adapter ADAPTING flash */}
           <AnimatePresence>
             {state.adapterAdapting && (
@@ -3804,7 +3826,6 @@ function BossIntroOverlay() {
                   width: 'auto',
                   imageRendering: 'pixelated',
                   mixBlendMode: 'screen',
-                  clipPath: 'inset(65px 0 0 0)',
                   filter: 'brightness(1.25) contrast(1.1)',
                 }}
               />
@@ -4539,6 +4560,72 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     }, 700);
   }, []);
 
+  // ── Wesker Animation State ──────────────────────────────
+  const [weskerAnimation, setWeskerAnimation] = useState<WeskerAnimationState>({
+    currentSprite: 'idle',
+    isAnimating: false,
+    shakeDirection: null,
+    animationStartTime: 0,
+    animationDuration: 600,
+  });
+
+  const playWeskerAttackAnimation = useCallback(() => {
+    setWeskerAnimation({
+      currentSprite: 'attack',
+      isAnimating: true,
+      shakeDirection: 'forward',
+      animationStartTime: Date.now(),
+      animationDuration: 600,
+    });
+
+    setTimeout(() => {
+      setWeskerAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 600);
+  }, []);
+
+  const playWeskerDamageAnimation = useCallback(() => {
+    setWeskerAnimation({
+      currentSprite: 'damage',
+      isAnimating: true,
+      shakeDirection: 'backward',
+      animationStartTime: Date.now(),
+      animationDuration: 700,
+    });
+
+    setTimeout(() => {
+      setWeskerAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 700);
+  }, []);
+
+  const playWeskerStunAnimation = useCallback(() => {
+    setWeskerAnimation({
+      currentSprite: 'stun',
+      isAnimating: true,
+      shakeDirection: 'backward',
+      animationStartTime: Date.now(),
+      animationDuration: 800,
+    });
+
+    setTimeout(() => {
+      setWeskerAnimation(prev => ({
+        ...prev,
+        isAnimating: false,
+        shakeDirection: null,
+        // Keep sprite as 'stun' - it will stay stunned until state.weskerStunTurnsLeft expires
+      }));
+    }, 800);
+  }, []);
+
   // ── Wesker 7-minute countdown ──────────────────────────
   const [weskerTimeLeft, setWeskerTimeLeft] = useState(WESKER_DURATION);
   const weskerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -4615,6 +4702,27 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     prevPlayerHpRef.current = state.playerHp;
   }, [state.playerHp, state.phase, playDamageAnimation]);
 
+  // Keep Wesker on stun sprite while stunned, revert to idle when stun expires
+  useEffect(() => {
+    if (state.bossIndex === 1) {
+      if (state.weskerExposed && state.weskerStunTurnsLeft > 0) {
+        // While stunned, keep sprite as 'stun'
+        setWeskerAnimation(prev => {
+          if (prev.currentSprite !== 'stun') {
+            return { ...prev, currentSprite: 'stun' };
+          }
+          return prev;
+        });
+      } else if (state.weskerStunTurnsLeft === 0 && weskerAnimation.currentSprite === 'stun') {
+        // Stun expired, revert to idle
+        setWeskerAnimation(prev => ({
+          ...prev,
+          currentSprite: 'idle',
+        }));
+      }
+    }
+  }, [state.weskerStunTurnsLeft, state.bossIndex, state.weskerExposed, weskerAnimation.currentSprite]);
+
   const ctx: CampaignCtxValue = {
     state,
     continueIntro:      campaign.continueIntro,
@@ -4628,6 +4736,10 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     onBack,
     characterAnimation,
     playDamageAnimation,
+    weskerAnimation,
+    playWeskerAttackAnimation,
+    playWeskerDamageAnimation,
+    playWeskerStunAnimation,
   };
 
   // Tab hidden → mute
