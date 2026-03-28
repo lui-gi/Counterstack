@@ -623,7 +623,7 @@ useEffect(()=>{
           <div className="right-col">
             {/* Joker Analysis */}
             <div className="panel" style={{flexShrink:0}}>
-              <div className="ptitle">Joker Analysis {orgProfile && <span style={{fontSize:12,color:"var(--cyan)",marginLeft:4}}>AI</span>}</div>
+              <div className="ptitle">Joker Analysis</div>
               <div className="ja-panel">
                 <div className="ja-name">{activeCve?.cveId || "No CVE Selected"}</div>
                 <div className="ja-subname">{activeCve?.name || ""}</div>
