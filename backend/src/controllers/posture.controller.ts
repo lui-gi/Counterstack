@@ -117,6 +117,25 @@ export async function askMagicianHandler(req: Request, res: Response): Promise<v
   }
 }
 
+export async function analyzeBattleDebriefHandler(req: Request, res: Response): Promise<void> {
+  const { log, outcome } = req.body as { log: unknown; outcome: unknown };
+  if (!Array.isArray(log)) {
+    res.status(400).json({ error: 'log must be an array' });
+    return;
+  }
+  if (outcome !== 'victory' && outcome !== 'defeat') {
+    res.status(400).json({ error: 'outcome must be "victory" or "defeat"' });
+    return;
+  }
+  try {
+    const result = await gemini.analyzeBattleDebrief(log as Array<{ msg: string; kind: string }>, outcome);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('analyzeBattleDebriefHandler error:', err);
+    res.status(500).json({ error: 'Failed to generate battle debrief' });
+  }
+}
+
 export function healthCheck(_req: Request, res: Response): void {
   res.status(200).json({ status: 'ok' });
 }

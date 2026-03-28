@@ -25,6 +25,7 @@ import CardArt         from '../../components/CardArt';
 import { MusicManager } from '../audio/MusicManager';
 import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
 import { ThankYouScreen } from './ThankYouScreen';
+import { analyzeBattleDebrief, type BattleDebriefResult } from '../../services/geminiPosture';
 import './pixel.css';
 
 // ── Tutorial ──────────────────────────────────────────────
@@ -4028,7 +4029,23 @@ function PhaseClearOverlay() {
 }
 
 // ── Battle Log Overlay ─────────────────────────────────────
-function BattleLogOverlay({ log, onClose }: { log: CampaignLogEntry[]; onClose: () => void }) {
+function BattleLogOverlay({ log, onClose, outcome }: { log: CampaignLogEntry[]; onClose: () => void; outcome?: 'victory' | 'game-over' }) {
+  const [debriefState, setDebriefState] = useState<'loading' | 'done' | 'error'>('loading');
+  const [debrief, setDebrief] = useState<BattleDebriefResult | null>(null);
+
+  useEffect(() => {
+    if (!outcome) return;
+    const apiOutcome = outcome === 'victory' ? 'victory' : 'defeat';
+    analyzeBattleDebrief(
+      log.map(e => ({ msg: e.msg, kind: e.kind })),
+      apiOutcome
+    )
+      .then(result => { setDebrief(result); setDebriefState('done'); })
+      .catch(() => setDebriefState('error'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const accentColor = outcome === 'victory' ? '#33dd77' : '#ff8844';
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -4043,6 +4060,75 @@ function BattleLogOverlay({ log, onClose }: { log: CampaignLogEntry[]; onClose: 
       <div style={{ fontFamily: 'var(--px-font)', fontSize: 14, color: '#ffd700', letterSpacing: 5, marginBottom: 24, textShadow: '0 0 20px #ffd70066' }}>
         BATTLE LOG
       </div>
+
+      {/* AI Debrief panel */}
+      {outcome && (
+        <div style={{
+          width: '100%', maxWidth: 760, padding: '0 32px',
+          marginBottom: 20,
+        }}>
+          <div style={{
+            border: `1px solid ${accentColor}44`,
+            borderRadius: 3, padding: '16px 20px',
+            background: `${accentColor}08`,
+          }}>
+            <div style={{
+              fontFamily: 'var(--px-font)', fontSize: 8, color: accentColor,
+              letterSpacing: 4, marginBottom: 12, textShadow: `0 0 12px ${accentColor}66`,
+            }}>
+              ★ AI DEBRIEF
+            </div>
+
+            {debriefState === 'loading' && (
+              <motion.div
+                animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.2, repeat: Infinity }}
+                style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: 'rgba(255,255,255,0.45)', letterSpacing: 2 }}
+              >
+                ANALYZING BATTLE DATA...
+              </motion.div>
+            )}
+
+            {debriefState === 'error' && (
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: 'rgba(255,100,100,0.5)', letterSpacing: 2 }}>
+                DEBRIEF UNAVAILABLE
+              </div>
+            )}
+
+            {debriefState === 'done' && debrief && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{
+                  fontFamily: 'var(--px-font)', fontSize: 10, color: 'rgba(255,255,255,0.85)',
+                  letterSpacing: 1, lineHeight: 1.6,
+                }}>
+                  {debrief.headline}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {debrief.steps.map((step, i) => (
+                    <div key={i} style={{
+                      fontFamily: 'var(--px-font)', fontSize: 9,
+                      color: accentColor, letterSpacing: 1, lineHeight: 1.7,
+                      display: 'flex', gap: 8, alignItems: 'flex-start',
+                    }}>
+                      <span style={{ opacity: 0.6, flexShrink: 0 }}>{i + 1}.</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+                {debrief.summary && (
+                  <div style={{
+                    fontFamily: 'var(--px-font)', fontSize: 8,
+                    color: 'rgba(255,255,255,0.35)', letterSpacing: 1, lineHeight: 1.8,
+                    borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8, marginTop: 4,
+                  }}>
+                    {debrief.summary}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{
         flex: 1, overflowY: 'auto', width: '100%', maxWidth: 760,
         padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 2,
@@ -4127,7 +4213,7 @@ function VictoryOverlay() {
           NEXT ENEMY →
         </motion.button>
       </motion.div>
-      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
+      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} outcome="victory" />}
     </>
   );
 }
@@ -4168,7 +4254,7 @@ function GameOverOverlay() {
           )}
         </div>
       </motion.div>
-      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
+      {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} outcome="game-over" />}
     </>
   );
 }

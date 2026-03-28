@@ -167,6 +167,32 @@ export async function askMagician(
   return data;
 }
 
+export interface BattleDebriefResult {
+  headline: string;
+  steps: string[];
+  summary: string;
+}
+
+export async function analyzeBattleDebrief(
+  log: Array<{ msg: string; kind: string }>,
+  outcome: 'victory' | 'defeat'
+): Promise<BattleDebriefResult> {
+  const res = await fetch(`${API_URL}/api/posture/battle-debrief`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ log, outcome }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `API error ${res.status}`);
+  }
+  const data: BattleDebriefResult = await res.json();
+  if (typeof data.headline !== 'string' || !Array.isArray(data.steps)) {
+    throw new Error('Invalid response format from server');
+  }
+  return data;
+}
+
 export async function analyzeSuitDomain(
   suit: SuitAnalysisInput,
   orgProfile: Record<string, unknown>

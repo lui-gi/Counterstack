@@ -6,6 +6,7 @@ import {
   analyzeMagicianReadingHandler,
   analyzeFiveYearPlanHandler,
   askMagicianHandler,
+  analyzeBattleDebriefHandler,
   healthCheck,
 } from '../controllers/posture.controller.js';
 
@@ -16,5 +17,6 @@ router.post('/suit-analysis', analyzeSuitDomain);
 router.post('/magician-reading', analyzeMagicianReadingHandler);
 router.post('/five-year-plan', analyzeFiveYearPlanHandler);
 router.post('/ask-magician', askMagicianHandler);
+router.post('/battle-debrief', analyzeBattleDebriefHandler);
 router.get('/health', healthCheck);
 export default router;

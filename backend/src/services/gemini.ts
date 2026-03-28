@@ -338,3 +338,50 @@ YEAR 2: THEME
   const timeline = raw.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
   return { timeline };
 }
+
+export interface BattleDebriefResult {
+  headline: string;
+  steps: string[];
+  summary: string;
+}
+
+export async function analyzeBattleDebrief(
+  log: Array<{ msg: string; kind: string }>,
+  outcome: 'victory' | 'defeat'
+): Promise<BattleDebriefResult> {
+  const logText = log.map((e, i) => `${i + 1}. [${e.kind.toUpperCase()}] ${e.msg}`).join('\n');
+  const outcomeLabel = outcome === 'victory' ? 'VICTORY (all threats defeated)' : 'DEFEAT (organization compromised)';
+
+  const prompt = `You are a cybersecurity incident debrief analyst. A security simulation has just ended with outcome: ${outcomeLabel}.
+
+Below is the full battle log showing each action taken during the simulation:
+
+${logText}
+
+Based on this log, provide a concise debrief for the organization. Respond ONLY with a JSON object in this exact format:
+{
+  "headline": "One punchy sentence summarizing the key lesson from this engagement",
+  "steps": [
+    "Actionable step 1 — concrete and specific",
+    "Actionable step 2 — concrete and specific",
+    "Actionable step 3 — concrete and specific",
+    "Actionable step 4 — concrete and specific (optional)",
+    "Actionable step 5 — concrete and specific (optional)"
+  ],
+  "summary": "2-3 sentence executive summary tying the outcome to real-world security posture improvements"
+}
+
+Rules:
+- steps must have 3 to 5 items, each under 120 characters
+- Steps should reflect what actually happened in the log (damage taken, cards used, threats defeated or not)
+- Frame steps as real organizational actions (patch cycles, detection rules, IR playbooks, access controls, backup testing)
+- Do not reference game mechanics literally — translate them into real security practices`;
+
+  const raw = await callGemini(prompt);
+  const parsed = parseJsonFromText(raw) as Record<string, unknown>;
+  return {
+    headline: String(parsed.headline ?? 'Debrief complete.'),
+    steps: Array.isArray(parsed.steps) ? (parsed.steps as unknown[]).map(String) : [],
+    summary: String(parsed.summary ?? ''),
+  };
+}
