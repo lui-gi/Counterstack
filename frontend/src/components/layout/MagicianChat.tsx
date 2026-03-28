@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { askMagician } from '../../services/geminiPosture';
 import type { AccountData } from '../../interfaces/AccountData.interface';
+import MagicianBubble from './MagicianBubble';
 
 interface MagicianChatProps {
   orgProfile: Record<string, unknown> | null;
@@ -10,16 +11,25 @@ interface MagicianChatProps {
 export default function MagicianChat({ orgProfile, accountData }: MagicianChatProps) {
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
+  const [bubbleOpen, setBubbleOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSend() {
-    if (!input.trim() || loading) return;
+  const suggestions = [
+    'What is my biggest threat right now?',
+    'Which CVEs need immediate action?',
+    'How can I improve my security posture?',
+  ];
+
+  async function handleSend(question?: string) {
+    const q = question ?? input.trim();
+    if (!q || loading) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await askMagician(input.trim(), orgProfile, accountData);
+      const result = await askMagician(q, orgProfile, accountData);
       setAnswer(result.answer);
+      setBubbleOpen(true);
       setInput('');
     } catch {
       setError('The Magician could not answer. Try again.');
@@ -36,7 +46,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
   }
 
   return (
-    <div className="panel" style={{ flexShrink: 0 }}>
+    <div className="panel" style={{ flex: 1 }}>
       <div className="ptitle" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <img src="/magician-icon.png" style={{ height: 16, objectFit: 'contain', flexShrink: 0 }} />
         Ask The Magician
@@ -65,21 +75,29 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
           <button
             className="btn-ir"
             style={{ marginTop: 8, width: '100%' }}
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || loading}
           >
             {loading ? 'CONSULTING…' : 'SEND'}
           </button>
+          <div className="mc-suggestions">
+            {suggestions.map(s => (
+              <button
+                key={s}
+                className="mc-suggestion"
+                onClick={() => handleSend(s)}
+                disabled={loading}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
           {error && (
             <div className="mc-error">{error}</div>
           )}
-          {answer && !error && (
-            <div className="mc-answer">
-              <span className="mc-answer-marker">&#9664;</span> {answer}
-            </div>
-          )}
         </div>
       )}
+      <MagicianBubble answer={bubbleOpen ? answer : null} onClose={() => setBubbleOpen(false)} />
     </div>
   );
 }

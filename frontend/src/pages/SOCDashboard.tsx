@@ -622,7 +622,7 @@ useEffect(()=>{
           {/* ── RIGHT SIDEBAR ── */}
           <div className="right-col">
             {/* Joker Analysis */}
-            <div className="panel" style={{flexShrink:0}}>
+            <div className="panel" style={{flex:1}}>
               <div className="ptitle">Joker Analysis</div>
               <div className="ja-panel">
                 <div className="ja-name">{activeCve?.cveId || "No CVE Selected"}</div>
@@ -642,7 +642,7 @@ useEffect(()=>{
             </div>
 
             {/* Magician's Reading */}
-            <div id="tour-magician" className="panel" style={{flexShrink:0}}>
+            <div id="tour-magician" className="panel" style={{flex:1}}>
               <div className="ptitle" style={{display:'flex',alignItems:'center',gap:6}}><img src="/magician-icon.png" style={{height:16,objectFit:'contain',flexShrink:0}} />Magician's Reading</div>
               {!orgProfile ? (
                 <div style={{padding:'14px 12px',textAlign:'center'}}>
