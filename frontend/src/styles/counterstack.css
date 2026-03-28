@@ -581,11 +581,66 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 @keyframes hbreathe{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
 
 /* ── SUIT CARDS in hub ── */
-.suit-slot{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px}
+.suit-slot{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;
+  transition:transform .42s cubic-bezier(.22,1,.36,1),opacity .24s ease,filter .24s ease;
+  z-index:24}
 .suit-slot.top   {top:14px;left:50%;transform:translateX(-50%)}
 .suit-slot.left  {left:14px;top:50%;transform:translateY(-50%)}
 .suit-slot.right {right:14px;top:50%;transform:translateY(-50%)}
 .suit-slot.bottom{bottom:14px;left:50%;transform:translateX(-50%)}
+
+/* Initial Analyze opening: stack all suits in center, then deal to slots */
+.suit-slot.is-stacked{
+  top:50% !important;
+  left:50% !important;
+  right:auto !important;
+  bottom:auto !important;
+  opacity:.98;
+  pointer-events:none;
+  filter:saturate(.88) brightness(.95);
+  gap:0;
+}
+.suit-slot.is-stacked.stack-rank-0{z-index:34}
+.suit-slot.is-stacked.stack-rank-1{z-index:33}
+.suit-slot.is-stacked.stack-rank-2{z-index:32}
+.suit-slot.is-stacked.stack-rank-3{z-index:31}
+.suit-slot.is-stacked.top,
+.suit-slot.is-stacked.left,
+.suit-slot.is-stacked.right,
+.suit-slot.is-stacked.bottom{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+.suit-slot.is-stacked .suit-card{
+  width:88px;
+  height:124px;
+  transform:none !important;
+}
+.suit-slot.dealt{opacity:1;pointer-events:auto;filter:none}
+
+/* Organic one-by-one deal with slight overshoot */
+.suit-slot.dealt.top{animation:dealTop .52s cubic-bezier(.16,1,.3,1) both}
+.suit-slot.dealt.right{animation:dealRight .5s cubic-bezier(.16,1,.3,1) both}
+.suit-slot.dealt.bottom{animation:dealBottom .52s cubic-bezier(.16,1,.3,1) both}
+.suit-slot.dealt.left{animation:dealLeft .5s cubic-bezier(.16,1,.3,1) both}
+
+@keyframes dealTop{
+  0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  62%{transform:translateX(-50%) translateY(-6px) scale(1.05) rotate(1deg)}
+  100%{transform:translateX(-50%) translateY(0) scale(1) rotate(0deg)}
+}
+@keyframes dealRight{
+  0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  62%{transform:translateY(-50%) translateX(8px) scale(1.05) rotate(-1deg)}
+  100%{transform:translateY(-50%) translateX(0) scale(1) rotate(0deg)}
+}
+@keyframes dealBottom{
+  0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  62%{transform:translateX(-50%) translateY(8px) scale(1.05) rotate(-1deg)}
+  100%{transform:translateX(-50%) translateY(0) scale(1) rotate(0deg)}
+}
+@keyframes dealLeft{
+  0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  62%{transform:translateY(-50%) translateX(-8px) scale(1.05) rotate(1deg)}
+  100%{transform:translateY(-50%) translateX(0) scale(1) rotate(0deg)}
+}
 
 .suit-slot-label{
   font-family:'Rajdhani','DM Sans',sans-serif;
@@ -597,6 +652,13 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   text-shadow:0 1px 6px rgba(0,0,0,0.8);
   -webkit-font-smoothing:antialiased}
 .suit-slot-label.active{color:inherit}
+.suit-slot-label.deal-hidden{display:none;opacity:0;transform:translateY(4px) scale(.84);pointer-events:none}
+.suit-slot-label.deal-reveal{animation:suitLabelReveal .46s cubic-bezier(.16,1,.3,1) both}
+@keyframes suitLabelReveal{
+  0%{opacity:0;transform:translateY(4px) scale(.84)}
+  70%{opacity:1;transform:translateY(0) scale(1.07)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
 
 /* The actual playing card */
 .suit-card{
@@ -639,16 +701,42 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   z-index:2;position:relative;margin-top:3px;opacity:.8}
 
 /* ── JOKER card ── */
-.joker-container{display:flex;flex-direction:column;align-items:center;z-index:15;position:relative}
+.joker-container{display:flex;flex-direction:column;align-items:center;z-index:12;position:relative}
+.joker-container.is-dealing{gap:0}
+.joker-container.is-dealing .tp-label,
+.joker-container.is-dealing .jc-pct,
+.joker-container.is-dealing .jc-ring-label{display:none}
+.joker-container.deal-joker-hidden{opacity:0;transform:translateY(12px) scale(.72);pointer-events:none}
+.joker-container.deal-joker-reveal{animation:jokerDealReveal .42s cubic-bezier(.16,1,.3,1) both}
+@keyframes jokerDealReveal{
+  0%{opacity:0;transform:translateY(12px) scale(.72)}
+  60%{opacity:1;transform:translateY(-4px) scale(1.18)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
 .joker-row{display:flex;align-items:center;gap:12px;position:relative}
 .joker-card-wrapper{width:110px;height:154px;cursor:pointer;z-index:15}
+.joker-card-wrapper.is-dealing{width:88px;height:124px;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) !important;z-index:30}
+.joker-card-wrapper.joker-alert{animation:jokerAlertShake 1s ease-in-out}
+@keyframes jokerAlertShake{
+  0%{transform:scale(1)}
+  10%{transform:translateX(-2px) rotate(-2deg) scale(1.18)}
+  20%{transform:translateX(3px) rotate(2deg) scale(1.2)}
+  30%{transform:translateX(-4px) rotate(-3deg) scale(1.2)}
+  40%{transform:translateX(4px) rotate(3deg) scale(1.18)}
+  50%{transform:translateX(-3px) rotate(-2deg) scale(1.16)}
+  60%{transform:translateX(2px) rotate(2deg) scale(1.12)}
+  70%{transform:translateX(-1px) rotate(-1deg) scale(1.08)}
+  100%{transform:scale(1)}
+}
 .joker-card-inner{position:relative;width:100%;height:100%;
   transition:transform .2s}
 .joker-card-wrapper:hover .joker-card-inner:not(.expanded){
   transform:scale(1.06) translateY(-4px)}
 .joker-card-inner.expanded{transform:scale(1.25) translateY(-8px)}
+.joker-card-wrapper.is-dealing .joker-card-inner{width:100%;height:100%}
 
 .joker-face{position:absolute;inset:0;border-radius:10px;overflow:hidden}
+.joker-card-wrapper.is-dealing .joker-face{transform:scale(0.8);transform-origin:center}
 .joker-face-front{
   background:linear-gradient(145deg,#0c0008 0%,#200016 45%,#0c0008 100%);
   border:2px solid rgba(247,37,133,.65);
