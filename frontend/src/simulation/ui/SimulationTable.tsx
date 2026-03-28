@@ -3704,88 +3704,83 @@ function HandDemoPanel() {
     }}>
       {/* Live Signal Feed */}
       <div style={{
-        background: 'rgba(204,136,255,0.04)',
-        border: '1px solid rgba(204,136,255,0.15)',
-        borderRadius: 5,
+        background: 'rgba(8,6,18,0.7)',
+        border: '1px solid rgba(204,136,255,0.22)',
+        borderRadius: 6,
         overflow: 'hidden',
         flex: 1,
         display: 'flex', flexDirection: 'column',
       }}>
+        {/* Title */}
         <div style={{
-          fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 3,
-          color: 'rgba(204,136,255,0.55)',
-          padding: '8px 12px 6px',
-          borderBottom: '1px solid rgba(204,136,255,0.1)',
+          fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 4,
+          color: '#cc88ff',
+          padding: '9px 14px 7px',
+          borderBottom: '1px solid rgba(204,136,255,0.18)',
           flexShrink: 0,
+          textShadow: '0 0 10px rgba(204,136,255,0.5)',
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          ★ SIGNAL FEED
+          <span style={{ color: '#00e5ff', fontSize: 9 }}>◈</span> SIGNAL FEED
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {/* Scroll area */}
+        <div style={{ overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <AnimatePresence initial={false}>
-            {[...state.log].reverse().slice(0, 20).map((entry, i) => {
-              const color =
-                entry.kind === 'damage'  ? '#cc88ff' :
-                entry.kind === 'enemy'   ? '#ff8877' :
-                entry.kind === 'boss'    ? '#dd99ff' :
-                entry.kind === 'jackpot' ? '#ffd700' :
-                'rgba(200,185,230,0.45)';
-              const isNewest = i === 0;
+            {[...state.log].reverse().slice(0, 30).map((entry, i) => {
+              const isPlayer  = entry.kind === 'damage' || entry.kind === 'info';
+              const isThreat  = entry.kind === 'enemy'  || entry.kind === 'boss';
+              const isJackpot = entry.kind === 'jackpot';
+              const isNewest  = i === 0;
+
+              const accentColor = isJackpot ? '#ffd700' : isThreat ? '#ff5544' : isPlayer ? '#00d4ff' : '#aa88cc';
+              const labelText   = isJackpot ? 'JACKPOT' : isThreat ? 'THREAT' : isPlayer ? 'YOU' : 'SYS';
+              const labelBg     = isJackpot ? 'rgba(255,215,0,0.18)' : isThreat ? 'rgba(255,60,40,0.2)' : isPlayer ? 'rgba(0,200,240,0.15)' : 'rgba(160,120,255,0.1)';
+
               return (
                 <motion.div
                   key={entry.id}
-                  initial={isNewest
-                    ? { opacity: 0, x: -8, scaleX: 0.97 }
-                    : { opacity: 0 }
-                  }
-                  animate={isNewest
-                    ? {
-                        opacity: 1,
-                        x: 0,
-                        scaleX: 1,
-                        color: ['#ff2233', '#ff3344', '#ff2233', color],
-                        fontWeight: [800, 800, 800, 500],
-                        textShadow: [
-                          '0 0 18px rgba(255,34,51,1), 0 0 6px rgba(255,34,51,0.8)',
-                          '0 0 22px rgba(255,34,51,1), 0 0 8px rgba(255,34,51,0.9)',
-                          '0 0 14px rgba(255,34,51,0.7)',
-                          '0 0 0px transparent',
-                        ],
-                        fontSize: ['13px', '13px', '13px', '11px'],
-                      }
-                    : { opacity: 1 - i * 0.07, x: 0, scaleX: 1, color, fontWeight: 500, fontSize: '11px', textShadow: '0 0 0px transparent' }
-                  }
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0,
+                    ...(isNewest ? { backgroundColor: [labelBg, 'rgba(0,0,0,0)'] } : { backgroundColor: 'rgba(0,0,0,0)' })
+                  }}
                   transition={isNewest
-                    ? {
-                        duration: 2.2,
-                        times: [0, 0.15, 0.5, 1],
-                        opacity: { duration: 0.15 },
-                        x: { duration: 0.18, ease: 'easeOut' },
-                        scaleX: { duration: 0.18, ease: 'easeOut' },
-                      }
-                    : { duration: 0.25 }
+                    ? { duration: 1.8, times: [0, 1], opacity: { duration: 0.15 }, y: { duration: 0.15 } }
+                    : { duration: 0.2 }
                   }
                   style={{
-                    fontFamily: 'var(--px-body-font)',
-                    lineHeight: 1.45,
-                    transformOrigin: 'left center',
-                    ...(isNewest ? {
-                      borderLeft: '2px solid rgba(255,34,51,0.7)',
-                      paddingLeft: 7,
-                      marginLeft: -9,
-                    } : {
-                      borderLeft: '2px solid transparent',
-                      paddingLeft: 7,
-                      marginLeft: -9,
-                    }),
+                    borderLeft: `3px solid ${accentColor}`,
+                    paddingLeft: 8,
+                    paddingTop: 5,
+                    paddingBottom: 5,
+                    borderRadius: 3,
                   }}
                 >
-                  {entry.msg}
+                  {/* Label row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{
+                      fontFamily: 'var(--px-font)', fontSize: 6, letterSpacing: 2,
+                      color: accentColor, background: labelBg,
+                      padding: '2px 5px', borderRadius: 2,
+                    }}>
+                      {labelText}
+                    </span>
+                  </div>
+                  {/* Message */}
+                  <div style={{
+                    fontFamily: 'var(--px-body-font)',
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: isNewest ? '#ffffff' : 'rgba(220,210,240,0.85)',
+                    fontWeight: isNewest ? 600 : 400,
+                  }}>
+                    {entry.msg}
+                  </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
           {state.log.length === 0 && (
-            <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 11, color: 'rgba(204,136,255,0.25)', fontStyle: 'italic' }}>
+            <div style={{ fontFamily: 'var(--px-body-font)', fontSize: 13, color: 'rgba(204,136,255,0.3)', fontStyle: 'italic' }}>
               Awaiting activity...
             </div>
           )}
