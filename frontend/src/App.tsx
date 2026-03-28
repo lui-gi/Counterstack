@@ -23,7 +23,7 @@ export default function App() {
     if (tutorial) setIsTutorial(true);
     if (account) {
       setAccountData(account);
-    } else {
+    } else if (!profile) {
       setMode('simulation');
     }
   };

@@ -560,12 +560,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 </div>
                 <div className="spread">CVSS: <span>{activeCve?.cvssScore ?? "N/A"}</span> | Risk: <span>{(geminiThreatPct ?? activeCve?.threatPct ?? 0) > 70 ? "High" : (geminiThreatPct ?? activeCve?.threatPct ?? 0) > 50 ? "Medium" : "Low"}</span></div>
                 <div className="ja-vendor">{activeCve?.affectedVendor} — {activeCve?.affectedProduct}</div>
-                {geminiReasoning && (
-                  <div style={{marginTop:6,display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--cyan)"}}>
-                    <span>🔮</span>
-                    <span style={{opacity:.7}}>AI analysis ready — open Threat Analysis for details</span>
-                  </div>
-                )}
+
                 <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN THREAT ANALYSIS</button>
               </div>
             </div>
