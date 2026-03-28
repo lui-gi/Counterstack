@@ -148,6 +148,25 @@ export async function analyzeFiveYearPlan(input: {
   return res.json();
 }
 
+export async function askMagician(
+  question: string,
+  orgProfile: Record<string, unknown> | null,
+  accountData: { orgName?: string; industry?: string; integrations?: string[] } | null
+): Promise<{ answer: string }> {
+  const res = await fetch(`${API_URL}/api/posture/ask-magician`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, profile: orgProfile, accountData }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `API error ${res.status}`);
+  }
+  const data = await res.json() as { answer: string };
+  if (typeof data.answer !== 'string') throw new Error('Invalid response format from server');
+  return data;
+}
+
 export async function analyzeSuitDomain(
   suit: SuitAnalysisInput,
   orgProfile: Record<string, unknown>

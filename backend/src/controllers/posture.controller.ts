@@ -94,6 +94,29 @@ export async function analyzeFiveYearPlanHandler(req: Request, res: Response): P
   }
 }
 
+export async function askMagicianHandler(req: Request, res: Response): Promise<void> {
+  const { question, profile, accountData } = req.body as {
+    question: unknown;
+    profile: unknown;
+    accountData: { orgName?: string; industry?: string; integrations?: string[] } | null;
+  };
+  if (!question || typeof question !== 'string' || question.trim().length === 0) {
+    res.status(400).json({ error: 'question is required' });
+    return;
+  }
+  if (question.length > 500) {
+    res.status(400).json({ error: 'question must be 500 characters or fewer' });
+    return;
+  }
+  try {
+    const result = await gemini.askMagician(question.trim(), profile ?? null, accountData ?? null);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('askMagicianHandler error:', err);
+    res.status(500).json({ error: 'Failed to get answer from The Magician' });
+  }
+}
+
 export function healthCheck(_req: Request, res: Response): void {
   res.status(200).json({ status: 'ok' });
 }

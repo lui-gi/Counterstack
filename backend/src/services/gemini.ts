@@ -269,6 +269,29 @@ Respond ONLY with a JSON object:
   };
 }
 
+export async function askMagician(
+  question: string,
+  orgProfile: unknown,
+  accountData: { orgName?: string; industry?: string; integrations?: string[] } | null
+): Promise<{ answer: string }> {
+  const orgContext = accountData
+    ? `Organization: ${accountData.orgName || 'Unknown'}, Industry: ${accountData.industry || 'Unknown'}, Integrations: ${(accountData.integrations || []).join(', ') || 'None'}.`
+    : 'No organization profile available.';
+
+  const prompt = `You are The Magician — a friendly, plain-language SOC advisor embedded in the CounterStack security dashboard. Your role is to help analysts who are confused or need a quick explanation.
+
+Context about this organization:
+${orgContext}
+${orgProfile ? `\nOrganization security profile:\n${JSON.stringify(orgProfile, null, 2)}` : ''}
+
+Answer the following question in 2-4 sentences. Use simple, jargon-free language. If relevant, tie the answer to this organization's specific context. Do not use bullet points or headings — just plain prose.
+
+Question: ${question}`;
+
+  const raw = await callGemini(prompt);
+  return { answer: raw.trim() };
+}
+
 export async function analyzeFiveYearPlan(input: Record<string, unknown>): Promise<{ timeline: string }> {
   const { ranks, targetRanks, currentHand, targetHand, currentScore, targetScore, orgName, industry } = input as {
     ranks: Record<string, number>;
