@@ -11,6 +11,7 @@ import React, {
   createContext, useContext, useCallback,
   useEffect, useRef, useState,
 } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { computePosture } from '../../engine/computePosture';
 import {
@@ -352,7 +353,7 @@ function SystemPatchBoss() {
 }
 
 // ── Boss sprite selector ──────────────────────────────────
-function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimationState }: { bossIndex: number; adapting?: boolean; weskerAnimationState?: WeskerAnimationState; adapterAnimationState?: AIAdapterAnimationState }) {
+function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimationState, jackpotAvailable }: { bossIndex: number; adapting?: boolean; weskerAnimationState?: WeskerAnimationState; adapterAnimationState?: AIAdapterAnimationState; jackpotAvailable?: boolean }) {
   const [fallback, setFallback] = useState(false);
   if (bossIndex === 0) return <SystemPatchBoss />;
 
@@ -381,19 +382,35 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
   if (bossIndex === 2) {
     return (
       <motion.div
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        animate={jackpotAvailable ? { x: [0, -2, 1, -1, 2, 0] } : { y: [0, -10, 0] }}
+        transition={jackpotAvailable
+          ? { duration: 0.35, repeat: Infinity, ease: 'linear' }
+          : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+        }
         style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        {/* Cyan radial aura */}
-        <div style={{
-          position: 'absolute',
-          width: 260, height: 260,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(40,200,220,0.22) 0%, rgba(0,180,220,0.12) 45%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        <AIAdapterSprite animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
+        {/* Default cyan radial aura — hidden when jackpot active */}
+        {!jackpotAvailable && (
+          <div style={{
+            position: 'absolute',
+            width: 260, height: 260,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(40,200,220,0.22) 0%, rgba(0,180,220,0.12) 45%, transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+        )}
+        {/* Doom outline aura — drop-shadow traces sprite silhouette */}
+        <motion.div
+          animate={jackpotAvailable ? { filter: [
+            'drop-shadow(0 0 6px rgba(220,0,0,1)) drop-shadow(0 0 14px rgba(160,0,0,0.8)) drop-shadow(0 0 28px rgba(80,0,0,0.5))',
+            'drop-shadow(0 0 10px rgba(255,20,20,1)) drop-shadow(0 0 22px rgba(180,0,0,0.9)) drop-shadow(0 0 40px rgba(100,0,0,0.6))',
+            'drop-shadow(0 0 4px rgba(180,0,0,0.7)) drop-shadow(0 0 10px rgba(100,0,0,0.5)) drop-shadow(0 0 20px rgba(40,0,0,0.3))',
+            'drop-shadow(0 0 8px rgba(230,10,10,1)) drop-shadow(0 0 18px rgba(150,0,0,0.85)) drop-shadow(0 0 32px rgba(70,0,0,0.55))',
+          ] } : { filter: 'none' }}
+          transition={jackpotAvailable ? { duration: 0.8, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
+        >
+          <AIAdapterSprite animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }} size={0.95} />
+        </motion.div>
       </motion.div>
     );
   }
@@ -2223,7 +2240,7 @@ function BattleArena() {
         }}
       >
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} adapterAnimationState={adapterAnimation} />
+          <BossSprite bossIndex={state.bossIndex} adapting={state.adapterAdapting} weskerAnimationState={weskerAnimation} adapterAnimationState={adapterAnimation} jackpotAvailable={state.bossIndex === 2 && state.jackpotAvailable && !state.jackpotUsed && state.phase === 'player-draw'} />
           {/* AI Adapter ADAPTING flash */}
           <AnimatePresence>
             {state.adapterAdapting && (
@@ -2500,8 +2517,8 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
     );
   };
 
-  // ── Popup modal ───────────────────────────────────────────
-  return (
+  // ── Popup modal — portalled to document.body to escape stacking context ──
+  return ReactDOM.createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -2509,10 +2526,10 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
       transition={{ duration: 0.15 }}
       onClick={onCancel}
       style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
         display: 'flex', alignItems: 'center',
         justifyContent: tutView ? 'flex-start' : 'center',
-        paddingBottom: 100,
+        paddingBottom: 0,
         paddingLeft: tutView ? 'calc(50% - 412px)' : 0,
       }}
     >
@@ -2595,7 +2612,8 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
         </div>
 
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
@@ -3112,7 +3130,7 @@ function HandPhasePanel({ setOpenPanel, onShowInfo }: { setOpenPanel: (v: 'missi
         PHASE {state.bossIndex + 1} / 3
       </div>
       <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: `${ac}88`, letterSpacing: 2 }}>
-        DECK &nbsp;{state.deck.length}
+        DECK &nbsp;{Object.values(state.handRanks).reduce((a, b) => a + b, 0)}
       </div>
 
       {state.boss.id === 'wesker' && (
