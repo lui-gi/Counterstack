@@ -634,10 +634,10 @@ useEffect(()=>{
           </div>
 
           {/* ── RIGHT SIDEBAR ── */}
-          <div className="right-col">
+          <div id="tour-right-col" className="right-col">
             {/* Joker Analysis */}
             <div className="panel" style={{flex:1,display:'flex',flexDirection:'column'}}>
-              <div className="ptitle">Joker Analysis</div>
+              <div className="ptitle" style={{color:'#f72585',borderBottom:'1px solid rgba(247,37,133,.15)'}}>Joker Analysis</div>
               <div className="ja-panel" style={{display:'flex',flexDirection:'column',flex:1}}>
                 <div className="ja-name">{activeCve?.cveId || "No CVE Selected"}</div>
                 <div className="ja-subname">{activeCve?.name || ""}</div>
@@ -662,7 +662,7 @@ useEffect(()=>{
 
             {/* Magician's Reading */}
             <div id="tour-magician" className="panel" style={{flex:1,display:'flex',flexDirection:'column'}}>
-              <div className="ptitle" style={{display:'flex',alignItems:'center',gap:6}}><img src="/magician-icon.png" style={{height:16,objectFit:'contain',flexShrink:0}} />Magician's Reading</div>
+              <div className="ptitle" style={{display:'flex',alignItems:'center',gap:6,color:'#ffd700',borderBottom:'1px solid rgba(255,215,0,.15)'}}><img src="/magician-icon.png" style={{height:16,objectFit:'contain',flexShrink:0}} />Magician's Reading</div>
               {!orgProfile ? (
                 <div style={{padding:'14px 12px',textAlign:'center'}}>
                   <div style={{fontSize:12,color:'rgba(205,217,229,0.22)',fontFamily:'var(--fm)',letterSpacing:'.5px',lineHeight:1.6,fontStyle:'italic'}}>
@@ -737,7 +737,10 @@ useEffect(()=>{
                       </div>
                     </div>
                     <div style={{padding:'9px 11px',borderTop:'1px solid rgba(180,79,255,.08)'}}>
-                      <button className="btn-ir" style={{width:'100%'}}
+                      <button className="btn-ir" style={{width:'100%',
+                          background:'linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,215,0,.08))',
+                          border:'1px solid rgba(255,215,0,.5)',color:'#ffd700',
+                          textShadow:'0 0 8px rgba(255,215,0,.5)',boxShadow:'0 0 15px rgba(255,215,0,.1)'}}
                         onClick={() => setShowMagicianReading(true)}>
                         VIEW MAGICIAN'S FULL READING
                       </button>

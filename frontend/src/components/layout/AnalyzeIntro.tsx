@@ -23,8 +23,7 @@ const TOUR_STEPS: TourStep[] = [
   { id: 'tour-hub',            modalPosition: 'right',   title: 'THE FOUR SUITS',        subtitle: 'YOUR SECURITY DOMAINS' },
   { id: 'tour-joker',          modalPosition: 'right',   title: 'THE JOKER',             subtitle: 'YOUR THREAT PRESSURE' },
   { id: 'tour-integrations',   modalPosition: 'right',   title: 'INTEGRATIONS',          subtitle: 'YOUR LIVE TELEMETRY' },
-  { id: 'tour-magician',       modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
-  { id: null, modalPosition: 'center', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
+  { id: 'tour-right-col',      modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
   { id: 'tour-mode-toggle', modalPosition: 'below', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
 ];
 
@@ -73,7 +72,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
     const base: React.CSSProperties = {
       position: 'fixed',
       zIndex: 400,
-      width: 420,
+      width: 500,
     };
     if (!spotlightRect || step.modalPosition === 'center') {
       return { ...base, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' };
@@ -83,7 +82,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
       case 'below':
         return { ...base, top: r.bottom + PAD + 8, left: '50%', transform: 'translateX(-50%)' };
       case 'right': {
-        const left = Math.min(r.right + PAD + 8, window.innerWidth - 440);
+        const left = Math.min(r.right + PAD + 8, window.innerWidth - 520);
         return { ...base, top: r.top + (r.bottom - r.top) / 2, left, transform: 'translateY(-50%)' };
       }
       case 'left-of':
@@ -211,7 +210,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
                 The Magician reads your entire posture holistically — across all four domains — and delivers <strong style={{ color: '#a78bfa' }}>AI-driven recommendations</strong> tailored to your organization.
               </div>
               <div className="tour-text" style={{ marginTop: 10 }}>
-                It covers your executive <strong style={{ color: '#00d4ff' }}>Reading</strong>, your <strong style={{ color: '#39d353' }}>Strengths</strong>, your <strong style={{ color: '#f72585' }}>Gaps</strong>, and a phased <strong style={{ color: '#a78bfa' }}>5-Year Plan</strong> projecting how investments elevate your hand tier.
+                It delivers an AI <strong style={{ color: '#00d4ff' }}>Summary</strong>, a <strong style={{ color: '#f59e0b' }}>Critical Finding</strong>, your <strong style={{ color: '#39d353' }}>Strengths</strong>, and prioritized <strong style={{ color: '#f72585' }}>Weaknesses</strong> — each tagged IMMEDIATE, SHORT TERM, or LONG TERM.
               </div>
             </>
           )}
@@ -228,17 +227,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
             </>
           )}
 
-          {/* Step 6 — Analyze vs Simulate */}
-          {currentStep === 6 && (
-            <>
-              <div className="tour-text">
-                <strong style={{ color: '#00d4ff' }}>● ANALYZE</strong> gives you a live view of your organization's security posture across all four domains — and shows how vulnerable you are to different known threats in the wild.
-              </div>
-              <div className="tour-text" style={{ marginTop: 10 }}>
-                <strong style={{ color: '#a78bfa' }}>○ SIMULATE</strong> pits your organization directly against a known threat. If your hand rank isn't strong enough to defeat it, you lose the simulation — exposing exactly where you need to improve.
-              </div>
-            </>
-          )}
+
         </div>
 
         <div className="tour-footer">

@@ -858,15 +858,15 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   max-width:calc(100vw - 40px);
   max-height:calc(100vh - 40px);
   display:flex;flex-direction:column;
-  background:rgba(7,0,14,0.97);border:1px solid rgba(180,79,255,0.35);
+  background:rgba(7,0,14,0.97);border:1px solid rgba(57,211,83,0.35);
   border-radius:12px;padding:14px 16px 16px;
-  box-shadow:0 0 40px rgba(180,79,255,0.18),0 8px 32px rgba(0,0,0,0.6);
+  box-shadow:0 0 40px rgba(57,211,83,0.18),0 8px 32px rgba(0,0,0,0.6);
   z-index:5000}
 /* tail pointing right toward the panel */
 .mc-bubble::after{content:'';position:absolute;top:22px;right:-10px;
   width:0;height:0;
   border-top:10px solid transparent;border-bottom:10px solid transparent;
-  border-left:10px solid rgba(180,79,255,0.35)}
+  border-left:10px solid rgba(57,211,83,0.35)}
 .mc-bubble::before{content:'';position:absolute;top:23px;right:-8px;
   width:0;height:0;
   border-top:9px solid transparent;border-bottom:9px solid transparent;
@@ -875,7 +875,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   margin-bottom:10px}
 .mc-bubble-title{display:inline-flex;align-items:center;gap:6px;
   font-family:var(--fm);font-size:11px;letter-spacing:1.5px;
-  text-transform:uppercase;color:var(--cyan)}
+  text-transform:uppercase;color:#39d353}
 .mc-bubble-close{background:none;border:none;color:rgba(220,200,240,0.4);
   font-size:13px;cursor:pointer;padding:0 2px;line-height:1;transition:color .15s}
 .mc-bubble-close:hover{color:var(--pink)}
@@ -1410,26 +1410,26 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .tour-modal{
   background:var(--panel);border:1px solid rgba(0,212,255,.28);
   box-shadow:0 0 48px rgba(0,212,255,.14),0 0 120px rgba(0,0,0,.6);
-  backdrop-filter:blur(14px);border-radius:6px;padding:26px 28px 22px;
-  min-width:320px;max-width:440px;pointer-events:all
+  backdrop-filter:blur(14px);border-radius:6px;padding:30px 34px 26px;
+  min-width:360px;max-width:520px;pointer-events:all
 }
 
 /* Header row */
 .tour-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
-.tour-title{font-family:var(--fh);font-size:18px;letter-spacing:3px;color:var(--cyan);
+.tour-title{font-family:var(--fh);font-size:20px;letter-spacing:3px;color:var(--cyan);
   text-shadow:0 0 14px rgba(0,212,255,.45)}
 .tour-skip{background:none;border:none;color:var(--dim);font-family:var(--fm);
-  font-size:11px;letter-spacing:1.5px;cursor:pointer;opacity:.55;
+  font-size:12px;letter-spacing:1.5px;cursor:pointer;opacity:.7;
   padding:2px 0;transition:opacity .15s}
 .tour-skip:hover{opacity:1;color:var(--cyan)}
-.tour-step-count{font-family:var(--fm);font-size:10px;letter-spacing:1.5px;
-  color:var(--dim);opacity:.45;margin-bottom:14px}
+.tour-step-count{font-family:var(--fm);font-size:11px;letter-spacing:1.5px;
+  color:var(--dim);opacity:.6;margin-bottom:14px}
 
 /* Body */
 .tour-body{margin-bottom:18px}
-.tour-subtitle{font-family:var(--fm);font-size:11px;letter-spacing:2.5px;
-  color:var(--cyan);opacity:.65;margin-bottom:10px}
-.tour-text{font-family:var(--fm);font-size:13px;color:var(--dim);line-height:1.65;opacity:.88}
+.tour-subtitle{font-family:var(--fm);font-size:12px;letter-spacing:2.5px;
+  color:var(--cyan);opacity:.82;margin-bottom:10px}
+.tour-text{font-family:var(--fm);font-size:14px;color:#c8ccd4;line-height:1.7}
 
 /* Welcome suit grid */
 .tour-suit-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1437,15 +1437,15 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   border:1px solid var(--border);border-radius:4px;padding:10px 12px;
   background:rgba(255,255,255,.02)}
 .tour-suit-sym{font-size:22px;line-height:1}
-.tour-suit-name{font-family:var(--fh);font-size:11px;letter-spacing:1.5px;font-weight:700}
-.tour-suit-desc{font-family:var(--fm);font-size:11px;color:var(--dim);line-height:1.35;opacity:.75}
+.tour-suit-name{font-family:var(--fh);font-size:12px;letter-spacing:1.5px;font-weight:700}
+.tour-suit-desc{font-family:var(--fm);font-size:12px;color:#b0b6c0;line-height:1.4}
 
 /* Notice box (integrations step) */
 .tour-notice{display:flex;align-items:flex-start;gap:10px;
   border:1px solid rgba(255,199,28,.25);border-radius:4px;
   padding:10px 12px;background:rgba(255,199,28,.04)}
 .tour-notice-icon{font-size:15px;flex-shrink:0;line-height:1.4;color:var(--yellow)}
-.tour-notice-text{font-family:var(--fm);font-size:12px;color:var(--yellow);line-height:1.5;opacity:.85}
+.tour-notice-text{font-family:var(--fm);font-size:13px;color:var(--yellow);line-height:1.5;opacity:.92}
 
 /* Footer nav */
 .tour-footer{display:flex;align-items:center;justify-content:space-between}

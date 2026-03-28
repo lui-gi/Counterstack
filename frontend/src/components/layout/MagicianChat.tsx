@@ -48,7 +48,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
 
   return (
     <div ref={panelRef} className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <div className="ptitle" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="ptitle" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#39d353', borderBottom: '1px solid rgba(57,211,83,.15)' }}>
         <img src="/magician-icon.png" style={{ height: 16, objectFit: 'contain', flexShrink: 0 }} />
         Ask The Magician
       </div>
@@ -78,6 +78,7 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
               <button
                 key={s}
                 className="mc-suggestion"
+                style={{ background: 'rgba(57,211,83,.06)', borderColor: 'rgba(57,211,83,.18)', color: 'rgba(57,211,83,.55)' }}
                 onClick={() => handleSend(s)}
                 disabled={loading}
               >
@@ -87,7 +88,10 @@ export default function MagicianChat({ orgProfile, accountData }: MagicianChatPr
           </div>
           <button
             className="btn-ir"
-            style={{ marginTop: 'auto', paddingTop: 8, width: '100%' }}
+            style={{ marginTop: 'auto', paddingTop: 8, width: '100%',
+              background: 'linear-gradient(135deg,rgba(57,211,83,.18),rgba(57,211,83,.08))',
+              border: '1px solid rgba(57,211,83,.5)', color: '#39d353',
+              textShadow: '0 0 8px rgba(57,211,83,.5)', boxShadow: '0 0 15px rgba(57,211,83,.1)' }}
             onClick={() => handleSend()}
             disabled={!input.trim() || loading}
           >
