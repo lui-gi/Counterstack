@@ -380,7 +380,7 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
         }} />
         <WeskerSprite
           animationState={weskerAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }}
-          size={weskerSprite !== 'idle' ? 0.95 : 0.60}
+          size={weskerSprite !== 'idle' ? 0.72 : 0.60}
         />
       </motion.div>
     );
@@ -421,7 +421,7 @@ function BossSprite({ bossIndex, adapting, weskerAnimationState, adapterAnimatio
         >
           <AIAdapterSprite
             animationState={adapterAnimationState || { currentSprite: 'idle', isAnimating: false, shakeDirection: null, animationStartTime: 0, animationDuration: 0 }}
-            size={adapterAnimationState && adapterAnimationState.currentSprite !== 'idle' ? 0.95 : 0.75}
+            size={adapterAnimationState && adapterAnimationState.currentSprite !== 'idle' ? 0.99 : 1.1}
           />
         </motion.div>
       </motion.div>
@@ -4190,114 +4190,160 @@ function BattleLogOverlay({ log, onClose, outcome }: { log: CampaignLogEntry[]; 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{
         position: 'fixed', inset: 0, zIndex: 600,
-        background: 'rgba(0,0,0,0.96)',
+        background: 'rgba(2,1,10,0.97)',
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center',
-        padding: '40px 0 20px',
+        padding: '32px 32px 20px',
+        gap: 16,
       }}
     >
-      <div style={{ fontFamily: 'var(--px-font)', fontSize: 14, color: '#ffd700', letterSpacing: 5, marginBottom: 24, textShadow: '0 0 20px #ffd70066' }}>
-        BATTLE LOG
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ fontFamily: 'var(--px-font)', fontSize: 13, color: '#ffd700', letterSpacing: 5, textShadow: '0 0 20px #ffd70066' }}>
+          BATTLE LOG
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose}
+          style={{
+            fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 3,
+            padding: '8px 24px', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.2)',
+            color: 'rgba(255,255,255,0.55)', boxShadow: '3px 3px 0 #000', borderRadius: 2,
+          }}
+        >
+          [ CLOSE ]
+        </motion.button>
       </div>
 
-      {/* AI Debrief panel */}
-      {outcome && (
-        <div style={{
-          width: '100%', maxWidth: 760, padding: '0 32px',
-          marginBottom: 20,
-        }}>
-          <div style={{
-            border: `1px solid ${accentColor}44`,
-            borderRadius: 3, padding: '16px 20px',
-            background: `${accentColor}08`,
-          }}>
-            <div style={{
-              fontFamily: 'var(--px-font)', fontSize: 8, color: accentColor,
-              letterSpacing: 4, marginBottom: 12, textShadow: `0 0 12px ${accentColor}66`,
-            }}>
-              ★ AI DEBRIEF
-            </div>
+      {/* Two-panel body */}
+      <div style={{ flex: 1, display: 'flex', gap: 16, minHeight: 0 }}>
 
+        {/* ── Panel 1: AI Priority List ── */}
+        <div style={{
+          flex: '0 0 380px', display: 'flex', flexDirection: 'column',
+          border: `1px solid ${accentColor}44`, borderRadius: 6,
+          background: `${accentColor}06`, overflow: 'hidden',
+        }}>
+          {/* Panel title */}
+          <div style={{
+            fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 4,
+            color: accentColor, padding: '10px 16px 8px',
+            borderBottom: `1px solid ${accentColor}22`,
+            textShadow: `0 0 10px ${accentColor}66`,
+            flexShrink: 0,
+          }}>
+            ★ AI PRIORITY DEBRIEF
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             {debriefState === 'loading' && (
               <motion.div
                 animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.2, repeat: Infinity }}
-                style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: 'rgba(255,255,255,0.45)', letterSpacing: 2 }}
+                style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,255,255,0.4)', letterSpacing: 2 }}
               >
                 ANALYZING BATTLE DATA...
               </motion.div>
             )}
-
             {debriefState === 'error' && (
-              <div style={{ fontFamily: 'var(--px-font)', fontSize: 9, color: 'rgba(255,100,100,0.5)', letterSpacing: 2 }}>
+              <div style={{ fontFamily: 'var(--px-font)', fontSize: 8, color: 'rgba(255,100,100,0.5)', letterSpacing: 2 }}>
                 DEBRIEF UNAVAILABLE
               </div>
             )}
-
             {debriefState === 'done' && debrief && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <>
+                {/* Headline */}
                 <div style={{
-                  fontFamily: 'var(--px-font)', fontSize: 10, color: 'rgba(255,255,255,0.85)',
-                  letterSpacing: 1, lineHeight: 1.6,
+                  fontFamily: 'var(--px-body-font)', fontSize: 16, fontWeight: 700,
+                  color: '#ffffff', lineHeight: 1.5,
+                  borderLeft: `3px solid ${accentColor}`, paddingLeft: 10,
                 }}>
                   {debrief.headline}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {/* Steps */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {debrief.steps.map((step, i) => (
-                    <div key={i} style={{
-                      fontFamily: 'var(--px-font)', fontSize: 9,
-                      color: accentColor, letterSpacing: 1, lineHeight: 1.7,
-                      display: 'flex', gap: 8, alignItems: 'flex-start',
-                    }}>
-                      <span style={{ opacity: 0.6, flexShrink: 0 }}>{i + 1}.</span>
-                      <span>{step}</span>
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{
+                        fontFamily: 'var(--px-font)', fontSize: 7,
+                        color: accentColor, background: `${accentColor}18`,
+                        padding: '3px 6px', borderRadius: 2, flexShrink: 0, lineHeight: 1.4,
+                      }}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--px-body-font)', fontSize: 14,
+                        color: 'rgba(230,220,255,0.9)', lineHeight: 1.6,
+                      }}>
+                        {step}
+                      </span>
                     </div>
                   ))}
                 </div>
+                {/* Summary */}
                 {debrief.summary && (
                   <div style={{
-                    fontFamily: 'var(--px-font)', fontSize: 8,
-                    color: 'rgba(255,255,255,0.35)', letterSpacing: 1, lineHeight: 1.8,
-                    borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8, marginTop: 4,
+                    fontFamily: 'var(--px-body-font)', fontSize: 13,
+                    color: 'rgba(200,185,230,0.55)', lineHeight: 1.7,
+                    borderTop: `1px solid ${accentColor}18`, paddingTop: 12,
                   }}>
                     {debrief.summary}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>
-      )}
 
-      <div style={{
-        flex: 1, overflowY: 'auto', width: '100%', maxWidth: 760,
-        padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 2,
-      }}>
-        {[...log].reverse().map(entry => {
-          const col = entry.kind === 'damage' ? '#ff4455' : entry.kind === 'boss' ? '#ffd700' : '#4da6ff';
-          return (
-            <div key={entry.id} style={{
-              fontFamily: 'var(--px-font)', fontSize: 12,
-              color: col, letterSpacing: 1, lineHeight: 1.7,
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              padding: '5px 0',
-              opacity: 0.9,
-            }}>
-              {entry.msg}
-            </div>
-          );
-        })}
+        {/* ── Panel 2: Full Battle Log ── */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          border: '1px solid rgba(204,136,255,0.2)', borderRadius: 6,
+          background: 'rgba(8,6,18,0.6)', overflow: 'hidden',
+        }}>
+          {/* Panel title */}
+          <div style={{
+            fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 4,
+            color: 'rgba(204,136,255,0.7)', padding: '10px 16px 8px',
+            borderBottom: '1px solid rgba(204,136,255,0.12)',
+            flexShrink: 0,
+          }}>
+            ◈ FULL BATTLE LOG
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {[...log].reverse().map(entry => {
+              const isPlayer  = entry.kind === 'damage' || entry.kind === 'info';
+              const isThreat  = entry.kind === 'enemy'  || entry.kind === 'boss';
+              const isJackpot = entry.kind === 'jackpot';
+              const entryColor = isJackpot ? '#ffd700' : isThreat ? '#ff5544' : isPlayer ? '#00d4ff' : 'rgba(200,185,230,0.6)';
+              const borderCol  = isJackpot ? '#ffd700' : isThreat ? '#ff5544' : isPlayer ? '#00d4ff' : 'rgba(204,136,255,0.25)';
+              const label      = isJackpot ? 'JACKPOT' : isThreat ? 'THREAT' : isPlayer ? 'YOU' : 'SYS';
+              const labelBg    = isJackpot ? 'rgba(255,215,0,0.15)' : isThreat ? 'rgba(255,60,40,0.18)' : isPlayer ? 'rgba(0,200,240,0.13)' : 'rgba(160,120,255,0.1)';
+              return (
+                <div key={entry.id} style={{
+                  borderLeft: `3px solid ${borderCol}`,
+                  paddingLeft: 10, paddingTop: 5, paddingBottom: 5,
+                  borderRadius: 2,
+                }}>
+                  <span style={{
+                    fontFamily: 'var(--px-font)', fontSize: 6, letterSpacing: 2,
+                    color: entryColor, background: labelBg,
+                    padding: '2px 5px', borderRadius: 2, marginRight: 8,
+                  }}>
+                    {label}
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--px-body-font)', fontSize: 13,
+                    color: 'rgba(225,215,245,0.88)', lineHeight: 1.55,
+                  }}>
+                    {entry.msg}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
-      <motion.button
-        whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onClose}
-        style={{
-          marginTop: 24, fontFamily: 'var(--px-font)', fontSize: 8, letterSpacing: 3,
-          padding: '10px 32px', cursor: 'pointer',
-          background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.25)',
-          color: 'rgba(255,255,255,0.6)', boxShadow: '3px 3px 0 #000', borderRadius: 2,
-        }}
-      >
-        [ CLOSE ]
-      </motion.button>
     </motion.div>
   );
 }

@@ -32,10 +32,10 @@ export function FloatingIndicator({ value, type, x, y, onComplete }: FloatingInd
 
   return (
     <motion.div
-      initial={{ opacity: 1, y: 0 }}
-      animate={{ opacity: 0, y: -60 }}
+      initial={{ opacity: 1, y: 0, scale: 1.3 }}
+      animate={{ opacity: 0, y: -90, scale: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 1.6, ease: 'easeOut' }}
+      transition={{ duration: 2.0, ease: 'easeOut' }}
       onAnimationComplete={onComplete}
       style={{
         position: 'fixed',
@@ -48,11 +48,11 @@ export function FloatingIndicator({ value, type, x, y, onComplete }: FloatingInd
       <div
         style={{
           fontFamily: 'var(--px-font)',
-          fontSize: type === 'extra-damage' ? 14 : 12,
+          fontSize: type === 'extra-damage' ? 22 : type === 'damage' ? 26 : 20,
           fontWeight: 700,
           color,
           letterSpacing: 2,
-          textShadow: `0 0 8px ${color}cc, 0 0 16px ${color}77, 2px 2px 0 #000`,
+          textShadow: `0 0 12px ${color}, 0 0 28px ${color}bb, 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000`,
           whiteSpace: 'nowrap',
         }}
       >
