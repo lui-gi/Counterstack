@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faShuffle, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import '../styles/counterstack.css';
-import { SUITS, INIT_RANKS, RANK_NAMES } from '../data/gameData';
+import { SUITS, INIT_RANKS } from '../data/gameData';
 import { computePosture, computeOptimalHand } from '../engine/computePosture';
 import { fetchCisaKevData } from '../data/cisaKev';
 import { scoreAllCves, shuffleCve, DEFAULT_ORG_PROFILE } from '../engine/cveScorer';
-import { analyzeCveThreat, analyzeSuitDomain } from '../services/geminiPosture';
+import { analyzeCveThreat, analyzeSuitDomain, analyzeMagicianReading } from '../services/geminiPosture';
 import type { ScoredCve } from '../interfaces/ScoredCve.interface';
 import type { SuitAnalysisCache } from '../interfaces/SuitDashboardProps.interface';
 import FiveYearPlan from '../components/layout/FiveYearPlan';
@@ -18,7 +18,7 @@ import PostureExplainer from '../components/layout/PostureExplainer';
 import MagicianReading from '../components/layout/MagicianReading';
 import IntegrationsPanel from '../components/layout/IntegrationsPanel';
 import AnalyzeIntro from '../components/layout/AnalyzeIntro';
-import CardArt from '../components/CardArt';
+import SecurityCommandBrief from '../components/layout/SecurityCommandBrief';
 import { MOCK_SPLUNK_DATA, MOCK_CROWDSTRIKE_DATA } from '../data/integrationMockData';
 
 import type { SOCDashboardProps } from '../interfaces/SOCDashboardProps.interface';
@@ -66,15 +66,14 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
   const [showIR, setShowIR] = useState(false);
   const [showPostureExplainer, setShowPostureExplainer] = useState(false);
   const [showMagicianReading, setShowMagicianReading] = useState(false);
-  const [selectedHandCards, setSelectedHandCards] = useState<string[]>([]);
   const [showFiveYearPlan, setShowFiveYearPlan] = useState(false);
   const [showAnalyzeIntro, setShowAnalyzeIntro] = useState(false);
 
-  function toggleHandCard(key: string) {
-    setSelectedHandCards(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
-  }
+  // Security Command Brief — Magician Reading state (eagerly fetched)
+  const [briefSummary, setBriefSummary] = useState('');
+  const [briefTopPriority, setBriefTopPriority] = useState('');
+  const [briefWeaknesses, setBriefWeaknesses] = useState<{ text: string; urgency: 'immediate' | 'short_term' | 'long_term' }[]>([]);
+  const [briefLoading, setBriefLoading] = useState(false);
   const [time, setTime] = useState(new Date().toLocaleTimeString("en-US",{hour12:false}));
 
   // CVE/Joker state
@@ -275,6 +274,32 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
       });
   }, [orgProfile, suitAnalysisCache, ranks, activeCve]);
 
+
+  // Eagerly fetch Magician Reading for the Brief when org profile loads
+  useEffect(() => {
+    if (!orgProfile) return;
+    let mounted = true;
+    setBriefLoading(true);
+    analyzeMagicianReading(orgProfile, {
+      clover: ranks.clover,
+      spade: ranks.spade,
+      diamond: ranks.diamond,
+      heart: ranks.heart,
+    })
+      .then((data) => {
+        if (!mounted) return;
+        setBriefSummary(data.summary ?? '');
+        setBriefTopPriority(data.topPriority ?? '');
+        setBriefWeaknesses(data.weaknesses ?? []);
+      })
+      .catch((err) => {
+        console.error('Brief Magician Reading failed:', err);
+      })
+      .finally(() => {
+        if (mounted) setBriefLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [orgProfile]);
 
   useEffect(()=>{
     const t = setInterval(()=>setTime(new Date().toLocaleTimeString("en-US",{hour12:false})),1000);
@@ -744,208 +769,23 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
               })()}
             </div>
 
-            {/* Hand Tray */}
-            {(()=>{
-              const CARD_H = 92, CARD_W = Math.round(CARD_H * 5 / 7); // ~65px
-              const suitEntries = Object.entries(SUITS) as [string, typeof SUITS[keyof typeof SUITS]][];
-              const TIER_LADDER = [
-                { label: 'HC', tier: 0 },
-                { label: '1P', tier: 1 },
-                { label: '2P', tier: 2 },
-                { label: '3K', tier: 3 },
-                { label: 'ST', tier: 4 },
-                { label: '4K', tier: 6 },
-                { label: 'RF', tier: 7 },
-              ];
-              const currentTierIdx = TIER_LADDER.findIndex(t => t.tier === posture.tier);
-              return (
-                <div id="tour-hand-tray" className="panel" style={{ padding: "10px 12px" }}>
-                  <div className="ptitle" style={{ marginBottom: 8 }}>Hand</div>
-                  {/* Content area: tier ladder absolutely on left, cards truly centered, DEAL HAND on right */}
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: CARD_H }}>
-                    {/* Vertical tier ladder — left side */}
-                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
-                      {TIER_LADDER.map((t, idx) => {
-                        const isReached = idx <= currentTierIdx;
-                        const isCurrent = idx === currentTierIdx;
-                        return (
-                          <div key={t.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <div style={{
-                                width: isCurrent ? 9 : 6,
-                                height: isCurrent ? 9 : 6,
-                                borderRadius: '50%',
-                                background: isReached ? 'var(--cyan)' : 'transparent',
-                                border: isReached ? '1.5px solid var(--cyan)' : '1.5px solid rgba(205,217,229,.2)',
-                                boxShadow: isCurrent ? '0 0 7px var(--cyan), 0 0 3px var(--cyan)' : 'none',
-                                transition: 'all .2s',
-                                flexShrink: 0,
-                              }} />
-                              <span style={{
-                                fontFamily: 'var(--fm)', fontSize: 8, letterSpacing: 0.5,
-                                color: isReached ? 'var(--cyan)' : 'rgba(205,217,229,.25)',
-                                fontWeight: isCurrent ? 900 : 600,
-                                lineHeight: 1,
-                              }}>{t.label}</span>
-                            </div>
-                            {idx < TIER_LADDER.length - 1 && (
-                              <div style={{
-                                width: 1, height: 8, marginLeft: -14,
-                                background: idx < currentTierIdx ? 'var(--cyan)' : 'rgba(205,217,229,.12)',
-                                flexShrink: 0,
-                              }} />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {/* Cards centered across full panel width */}
-                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {suitEntries.map(([k, cfg]) => {
-                        const isSelected = selectedHandCards.includes(k);
-                        const targetRank = optimalHand.targetRanks[k];
-                        const label = RANK_NAMES[targetRank];
-                        return (
-                          <div
-                            key={k}
-                            onClick={() => toggleHandCard(k)}
-                            style={{
-                              width: CARD_W, height: CARD_H,
-                              cursor: 'pointer',
-                              borderRadius: 8,
-                              border: isSelected ? `1.5px solid ${cfg.color}99` : '1px dashed rgba(205,217,229,.14)',
-                              background: isSelected ? `${cfg.color}18` : 'rgba(205,217,229,.025)',
-                              boxShadow: isSelected ? `0 0 14px ${cfg.color}44, inset 0 0 8px ${cfg.color}0c` : 'none',
-                              display: 'flex', flexDirection: 'column',
-                              alignItems: 'center', justifyContent: 'space-between',
-                              padding: '5px 3px',
-                              transition: 'border .15s, background .15s, box-shadow .15s',
-                              flexShrink: 0,
-                            }}
-                          >
-                            {isSelected ? (
-                              <>
-                                <div style={{ fontSize: 10, fontFamily: 'var(--fh)', fontWeight: 900, color: cfg.color, lineHeight: 1, alignSelf: 'flex-start', paddingLeft: 1 }}>
-                                  {label}
-                                </div>
-                                <div style={{ fontSize: 20, lineHeight: 1 }}>{cfg.sym}</div>
-                                <div style={{ fontSize: 10, fontFamily: 'var(--fh)', fontWeight: 900, color: cfg.color, lineHeight: 1, alignSelf: 'flex-end', paddingRight: 1, transform: 'rotate(180deg)' }}>
-                                  {label}
-                                </div>
-                              </>
-                            ) : (
-                              <div style={{ fontSize: 15, color: 'rgba(205,217,229,.10)', margin: 'auto' }}>+</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {/* DEAL HAND button — right side */}
-                    {selectedHandCards.length > 0 && (
-                      <>
-                        {/* Arrow pointing toward DEAL HAND button */}
-                        <div style={{
-                          position: 'absolute',
-                          right: 74,
-                          top: '50%', transform: 'translateY(-50%)',
-                          display: 'flex', alignItems: 'center',
-                          pointerEvents: 'none',
-                        }}>
-                          <div style={{ width: 18, height: 1, background: 'rgba(0,212,255,.4)' }} />
-                          <div style={{
-                            width: 0, height: 0,
-                            borderTop: '4px solid transparent',
-                            borderBottom: '4px solid transparent',
-                            borderLeft: '5px solid rgba(0,212,255,.5)',
-                          }} />
-                        </div>
-                        <button
-                          onClick={() => setShowFiveYearPlan(true)}
-                          style={{
-                            position: 'absolute', right: 0,
-                            padding: '6px 22px',
-                            background: 'rgba(0,212,255,.06)',
-                            border: '1px solid rgba(0,212,255,.35)',
-                            borderRadius: 5, cursor: 'pointer',
-                            fontFamily: 'var(--fm)', fontSize: 10,
-                            letterSpacing: 1.5, color: 'var(--cyan)',
-                            fontWeight: 700, whiteSpace: 'nowrap',
-                          }}
-                        >
-                          DEAL<br/>HAND
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Magician's Hand */}
-            <div id="tour-magicians-hand" className="panel" style={{padding:"8px 10px", display:'flex', flexDirection:'column', gap:6, overflow:'hidden'}}>
-              <div className="ptitle" style={{marginBottom:0, padding:'0 0 4px',display:'flex',alignItems:'center',gap:6}}><img src="/magician-icon.png" style={{height:16,objectFit:'contain',flexShrink:0}} />Magician's Hand</div>
-              <div style={{fontFamily:"var(--fm)",fontSize:8,letterSpacing:1.5,color:"var(--dim)"}}>OPTIMAL TARGET HAND</div>
-              <div style={{display:"flex",gap:4,justifyContent:"center", overflow:'hidden', padding:'2px 0 4px'}}>
-                {(Object.entries(SUITS) as [string,typeof SUITS[keyof typeof SUITS]][]).map(([k,cfg])=>{
-                  const targetRank = optimalHand.targetRanks[k];
-                  const currentRank = ranks[k];
-                  const diff = targetRank - currentRank;
-                  const isSelected = selectedHandCards.includes(k);
-                  return(
-                    <div key={k}
-                      onClick={() => toggleHandCard(k)}
-                      className={`suit-card ${isSelected ? 'active' : ''}`}
-                      style={{
-                        width: 'auto', flex: 1, height: 62,
-                        borderColor: `${cfg.color}${isSelected ? 'bb' : '44'}`,
-                        background: '#050a10',
-                        boxShadow: isSelected
-                          ? `0 0 18px ${cfg.color}55, 0 0 36px ${cfg.color}22, inset 0 0 14px ${cfg.color}08`
-                          : `0 0 8px ${cfg.color}22`,
-                        color: cfg.color,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{position:'absolute',inset:0,zIndex:0}}>
-                        <CardArt suitKey={k} color={cfg.color} rank={targetRank} />
-                      </div>
-                      <div className="card-holo" style={{zIndex:1}} />
-                      {diff > 0 && (
-                        <div style={{
-                          position:'absolute', bottom:2, right:3, zIndex:2,
-                          fontSize:7, fontFamily:'var(--fm)', color:'#39d353',
-                          textShadow:'0 0 6px #39d35388',
-                          background:'rgba(0,0,0,0.65)', borderRadius:2, padding:'1px 2px',
-                        }}>+{diff}</div>
-                      )}
-                      {diff === 0 && !optimalHand.isAlreadyOptimal && (
-                        <div style={{
-                          position:'absolute', bottom:2, right:3, zIndex:2,
-                          fontSize:7, fontFamily:'var(--fm)', color:'var(--dim)',
-                          background:'rgba(0,0,0,0.65)', borderRadius:2, padding:'1px 2px',
-                        }}>✓</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => setSelectedHandCards(Object.keys(SUITS))}
-                style={{
-                  width: '100%', padding: '5px 8px',
-                  background: 'rgba(0,212,255,.06)',
-                  border: '1px solid rgba(0,212,255,.35)',
-                  borderRadius: 5, cursor: 'pointer',
-                  fontFamily: 'var(--fm)', fontSize: 11,
-                  letterSpacing: 2, color: 'var(--cyan)',
-                  fontWeight: 700, flexShrink: 0,
-                }}
-              >
-                APPLY HAND
-              </button>
-            </div>
+            {/* Security Command Brief */}
+            <SecurityCommandBrief
+              ranks={ranks}
+              optimalHand={optimalHand}
+              posture={posture}
+              accountData={accountData}
+              activeCve={activeCve}
+              geminiThreatPct={geminiThreatPct}
+              geminiAttackVectors={geminiAttackVectors}
+              magicianSummary={briefSummary}
+              magicianTopPriority={briefTopPriority}
+              magicianWeaknesses={briefWeaknesses}
+              magicianLoading={briefLoading}
+              onOpenReading={() => setShowMagicianReading(true)}
+              onOpenRoadmap={() => setShowFiveYearPlan(true)}
+              onOpenIncidentRoom={() => setShowIR(true)}
+            />
 
           </div>
 

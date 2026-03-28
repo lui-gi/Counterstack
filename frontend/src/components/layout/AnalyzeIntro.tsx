@@ -24,7 +24,7 @@ const TOUR_STEPS: TourStep[] = [
   { id: 'tour-joker',          modalPosition: 'right',   title: 'THE JOKER',             subtitle: 'YOUR THREAT PRESSURE' },
   { id: 'tour-integrations',   modalPosition: 'right',   title: 'INTEGRATIONS',          subtitle: 'YOUR LIVE TELEMETRY' },
   { id: 'tour-magician',       modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
-  { id: 'tour-hand-tray', combineId: 'tour-magicians-hand', modalPosition: 'above', title: 'YOUR HAND', subtitle: 'YOUR OVERALL POSTURE' },
+  { id: 'tour-command-brief', modalPosition: 'above', title: 'COMMAND BRIEF', subtitle: 'YOUR BIG PICTURE' },
   { id: 'tour-mode-toggle', modalPosition: 'below', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
 ];
 
@@ -216,14 +216,14 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
             </>
           )}
 
-          {/* Step 5 — Hand */}
+          {/* Step 5 — Command Brief */}
           {currentStep === 5 && (
             <>
               <div className="tour-text">
-                The <strong style={{ color: '#00d4ff' }}>Hand Tray</strong> lets you select suits and preview how targeted investments would change your poker hand tier. Select cards, then hit DEAL HAND to model a Five Year plan.
+                The <strong style={{ color: '#00d4ff' }}>Security Command Brief</strong> is your big-picture summary — showing the domain gap matrix, active threat exposure, AI situation assessment, and top priority action all in one place.
               </div>
               <div className="tour-text" style={{ marginTop: 10 }}>
-                The <strong style={{ color: '#a78bfa' }}><span style={{display:'inline-flex',alignItems:'center',gap:3}}><img src="/magician-icon.png" style={{height:11,objectFit:'contain',flexShrink:0}} />Magician's Hand</span></strong> shows the AI-recommended optimal target ranks across all four domains — your roadmap to a stronger hand.
+                Use it to quickly orient yourself, then drill into the <strong style={{ color: '#a78bfa' }}>Full Reading</strong>, the <strong style={{ color: '#00d4ff' }}>5-Year Roadmap</strong>, or the <strong style={{ color: '#f72585' }}>Threat Analysis</strong> from the action buttons at the bottom.
               </div>
             </>
           )}
