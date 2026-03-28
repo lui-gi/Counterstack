@@ -549,7 +549,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
       {/* Create Account Wizard Modal */}
       {showCreateModal && (
         <div className="modal-ov" onClick={() => { setShowCreateModal(false); setWizardStep("tier"); setIsJokerMode(false); }}>
-          <div className="wizard-modal" onClick={e => e.stopPropagation()}>
+          <div className="wizard-modal" onClick={e => e.stopPropagation()} style={isJokerMode ? { width: 640 } : undefined}>
             <div className="wizard-header">
               <span className="wizard-title">{isJokerMode ? "🃏 JOKER MODE" : "✦ CREATE ACCOUNT"}</span>
               <button className="wizard-close" onClick={() => { setShowCreateModal(false); setWizardStep("tier"); setIsJokerMode(false); }}>×</button>
@@ -870,12 +870,12 @@ export default function Onboarding({ onDone }: OnboardingProps) {
 
                   {isJokerMode ? (
                     <>
-                      <div className="wizard-step-sub" style={{ marginBottom: 16 }}>
+                      <div className="wizard-step-sub" style={{ marginBottom: 16, fontSize: 14, color: "#b0b8d4" }}>
                         You are operating as <span style={{ color: "var(--violet)", fontWeight: 700 }}>Grayson and Co.</span>, a multinational conglomerate.
                       </div>
                       <div style={{
-                        fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
-                        lineHeight: 1.6, marginBottom: 20,
+                        fontFamily: "var(--fm)", fontSize: 13, color: "#8a93b0",
+                        lineHeight: 1.7, marginBottom: 20,
                         padding: "12px 16px",
                         background: "rgba(167,139,250,.06)",
                         border: "1px solid rgba(167,139,250,.2)",
@@ -910,7 +910,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                           {/* View NIST CSF Profile */}
                           <div
                             className="posture-choice-card"
-                            onClick={() => setShowJokerProfile(p => !p)}
+                            onClick={() => setShowJokerProfile(true)}
                             style={{
                               background: "linear-gradient(145deg, rgba(167,139,250,.08), rgba(4,13,26,.95))",
                               border: "2px solid rgba(167,139,250,.35)",
@@ -944,21 +944,8 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                             </div>
                             <div style={{
                               fontFamily: "var(--fm)", fontSize: 14, color: "var(--violet)", opacity: .6
-                            }}>{showJokerProfile ? "▲" : "▼"}</div>
+                            }}>↗</div>
                           </div>
-
-                          {showJokerProfile && (
-                            <pre style={{
-                              fontFamily: "var(--fm)", fontSize: 11, color: "rgba(200,200,220,.8)",
-                              background: "rgba(4,13,26,.95)", border: "1px solid rgba(167,139,250,.2)",
-                              borderRadius: 8, padding: "14px 16px",
-                              maxHeight: 220, overflowY: "auto",
-                              lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word",
-                              margin: 0,
-                            }}>
-                              {JSON.stringify(graysonProfile, null, 2)}
-                            </pre>
-                          )}
 
                           {/* Continue */}
                           <div
@@ -1208,6 +1195,38 @@ export default function Onboarding({ onDone }: OnboardingProps) {
                 Authentication will be available soon.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* NIST CSF Profile Viewer Modal */}
+      {showJokerProfile && (
+        <div className="modal-ov" onClick={() => setShowJokerProfile(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{
+            borderColor: "rgba(167,139,250,.3)",
+            width: "min(860px, 92vw)",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
+          }}>
+            <div className="modal-h">
+              <span className="modal-t" style={{ color: "var(--violet)" }}>📋 GRAYSON AND CO. — NIST CSF PROFILE</span>
+              <button className="modal-x" style={{ borderColor: "rgba(167,139,250,.25)", color: "var(--violet)" }} onClick={() => setShowJokerProfile(false)}>×</button>
+            </div>
+            <pre style={{
+              fontFamily: "monospace",
+              fontSize: 14,
+              color: "#d4d8f0",
+              lineHeight: 1.7,
+              overflowY: "auto",
+              margin: 0,
+              padding: "16px 4px 4px",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              flex: 1,
+            }}>
+              {JSON.stringify(graysonProfile, null, 2)}
+            </pre>
           </div>
         </div>
       )}
