@@ -547,7 +547,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
 
               {/* Posture label below card */}
               <div
-                className={`suit-slot-label ${showDealLabels ? (dealPhase === 'joker' ? 'deal-reveal' : '') : 'deal-hidden'}`}
+                className="suit-slot-label"
                 style={{color: '#f72585', marginTop: 8}}
               >
                 <div style={{fontSize: 14, fontWeight: 600, letterSpacing: '0.5px'}}>{posture.hand}</div>

@@ -810,10 +810,7 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
             initial={{ x: 0, y: 300, scale: 0.35, opacity: 0, rotate: -10 }}
             animate={{ x: 0, y: 0, scale: 2.0, opacity: 1, rotate: 15 }}
             exit={{ scale: 0, opacity: 0, rotate: 30, filter: 'drop-shadow(0 0 80px #fffbe0) drop-shadow(0 0 40px #d4a843)' }}
-            transition={{
-              default: { duration: 0.68, ease: [0.16, 1, 0.3, 1] },
-              exit: { duration: 0.22, ease: [0.6, 0, 1, 0.4] },
-            }}
+            transition={{ duration: 0.68, ease: [0.16, 1, 0.3, 1] }}
             style={{ filter: 'drop-shadow(0 0 28px #d4a843) drop-shadow(0 0 56px #d4a84355)', position: 'absolute', zIndex: 10 }}
           >
             <img src={JACKPOT_ICON} alt="" style={{ width: 88, height: 88, objectFit: 'contain' }} />
