@@ -7,4 +7,5 @@ export interface SOCDashboardProps {
   onModeChange: (mode: 'soc' | 'simulation') => void;
   orgProfile: Record<string, unknown> | null;
   accountData: AccountData | null;
+  videoTransition?: boolean;
 }

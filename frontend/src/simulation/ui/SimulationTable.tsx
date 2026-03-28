@@ -2782,6 +2782,35 @@ function JackpotButton() {
           pointerEvents: videoOpen ? 'auto' : 'none',
         }}
       />
+
+      {/* Skip button */}
+      {videoOpen && (
+        <button
+          onClick={() => { videoRef.current?.pause(); handleVideoDone(); }}
+          style={{
+            position: 'fixed', bottom: 36, right: 36, zIndex: 902,
+            fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3,
+            color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.22)', borderRadius: 4,
+            padding: '7px 18px', cursor: 'pointer',
+            transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+          }}
+          onMouseEnter={e => {
+            const b = e.currentTarget;
+            b.style.color = '#fff';
+            b.style.borderColor = 'rgba(255,255,255,0.6)';
+            b.style.background = 'rgba(0,0,0,0.8)';
+          }}
+          onMouseLeave={e => {
+            const b = e.currentTarget;
+            b.style.color = 'rgba(255,255,255,0.7)';
+            b.style.borderColor = 'rgba(255,255,255,0.22)';
+            b.style.background = 'rgba(0,0,0,0.55)';
+          }}
+        >
+          SKIP ▶▶
+        </button>
+      )}
     </>
   );
 }
@@ -5090,6 +5119,7 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     // ── Boss intro starts → silence music, fire intro SFX immediately ──
     if (phase === 'boss-intro' && prevPhase !== 'boss-intro') {
       MusicManager.stop(); // no music overlapping the dialogue textbox
+      if (bossIndex === 0) SfxPlayer.playThreatAlert(); // alert stinger for System Patch only
       if (bossIndex === 1) {
         // Wesker: "7 minutes" plays the instant his textbox appears
         SfxPlayer.playId('wesker7mins');

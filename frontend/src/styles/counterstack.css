@@ -166,6 +166,24 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   transition:none;
   pointer-events:none}
 
+/* Video-to-landing: cards drop from the floating video space and land on the table */
+@keyframes videoCardDrop {
+  0%   { transform:translateY(-220px) scale(1.2);  opacity:0; filter:blur(4px); }
+  60%  { transform:translateY(10px)   scale(0.97); opacity:1; filter:blur(0px); }
+  100% { transform:translateY(0)      scale(1);    opacity:1; filter:blur(0px); }
+}
+
+.landing-card.video-dropping {
+  animation:videoCardDrop 0.44s cubic-bezier(0.22,1,0.36,1) both;
+  pointer-events:none;
+  transition:none;
+}
+
+/* Staggered delays so each card drops like it's breaking free from the video */
+.landing-card[data-pos="1"].video-dropping { animation-delay:65ms; }
+.landing-card[data-pos="2"].video-dropping { animation-delay:130ms; }
+.landing-card[data-pos="3"].video-dropping { animation-delay:195ms; }
+
 /* Landed — uses the CSS vars set in JSX inline styles so throw & final position always match */
 .landing-card.landed{
   pointer-events:auto;opacity:1;

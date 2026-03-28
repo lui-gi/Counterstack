@@ -8,7 +8,7 @@ import type { AccountData } from './interfaces';
 // Stop the video after this many seconds (adjust to taste)
 const VIDEO_DURATION_S = 1.4;
 
-function VideoSplash({ onDone }: { onDone: () => void }) {
+function VideoSplash({ onDone, onFadingStart }: { onDone: () => void; onFadingStart: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [fading, setFading] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -18,8 +18,9 @@ function VideoSplash({ onDone }: { onDone: () => void }) {
     if (didEnd.current) return;
     didEnd.current = true;
     setFading(true);
+    onFadingStart();
     setTimeout(onDone, 800);
-  }, [onDone]);
+  }, [onDone, onFadingStart]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -76,6 +77,7 @@ function VideoSplash({ onDone }: { onDone: () => void }) {
 
 export default function App() {
   const [videoDone, setVideoDone]   = useState(false);
+  const [videoFading, setVideoFading] = useState(false);
   const [onboarded, setOnboarded]   = useState(false);
   const [mode, setMode]             = useState<'soc' | 'simulation'>('soc');
   const [orgProfile, setOrgProfile] = useState<Record<string, unknown> | null>(null);
@@ -127,32 +129,42 @@ export default function App() {
   }, []);
 
   // Step 1: video splash (portal — renders on top of everything)
+  // SOCDashboard (Onboarding) is mounted as soon as the video starts fading so the
+  // card-drop animation can play behind the fade, creating a seamless handoff.
   return (
     <>
       {/* Video plays first via portal, then unmounts */}
-      {!videoDone && <VideoSplash onDone={() => setVideoDone(true)} />}
+      {!videoDone && (
+        <VideoSplash
+          onDone={() => setVideoDone(true)}
+          onFadingStart={() => setVideoFading(true)}
+        />
+      )}
 
-      {/* Only mount the app after the video is fully done so the
-          Onboarding card-shuffle animation starts at the right time */}
-      {videoDone && (
-        (!onboarded || mode === 'soc') ? (
-          <SOCDashboard
-            onboarded={onboarded}
-            onOnboarded={handleOnboarded}
-            mode={mode}
-            onModeChange={setMode}
-            orgProfile={orgProfile}
-            accountData={accountData}
-          />
-        ) : (
-          <SimulationMode
-            mode={mode}
-            onModeChange={setMode}
-            initialRanks={socRanks}
-            isGuest={!accountData}
-            isTutorial={isTutorial}
-          />
-        )
+      {/* SOCDashboard mounts as soon as the video begins fading (videoFading=true),
+          rendering behind the fade so Onboarding cards are already in motion
+          when the video finishes disappearing. */}
+      {(videoDone || videoFading) && (!onboarded || mode === 'soc') && (
+        <SOCDashboard
+          onboarded={onboarded}
+          onOnboarded={handleOnboarded}
+          mode={mode}
+          onModeChange={setMode}
+          orgProfile={orgProfile}
+          accountData={accountData}
+          videoTransition={videoFading && !videoDone}
+        />
+      )}
+
+      {/* SimulationMode only after video is fully gone */}
+      {videoDone && onboarded && mode !== 'soc' && (
+        <SimulationMode
+          mode={mode}
+          onModeChange={setMode}
+          initialRanks={socRanks}
+          isGuest={!accountData}
+          isTutorial={isTutorial}
+        />
       )}
     </>
   );

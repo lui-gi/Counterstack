@@ -7,6 +7,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'; // useRef kept for introTimers
 import { motion, AnimatePresence } from 'framer-motion';
 import { MusicManager } from '../audio/MusicManager';
+import { SfxPlayer } from '../audio/SfxPlayer';
 import CardArt from '../../components/CardArt';
 import JokerCardSVG from '../../components/JokerCardSVG';
 import './pixel.css';
@@ -103,7 +104,8 @@ export default function SimulationIntro({ onStart, initialRanks }: Props) {
   }, []);
 
   const handleStart = useCallback(() => {
-    MusicManager.init();
+    MusicManager.stop();
+    SfxPlayer.playThreatAlert();
     onStart();
   }, [onStart]);
 
