@@ -210,7 +210,7 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
                 The Magician reads your entire posture holistically — across all four domains — and delivers <strong style={{ color: '#a78bfa' }}>AI-driven recommendations</strong> tailored to your organization.
               </div>
               <div className="tour-text" style={{ marginTop: 10 }}>
-                It covers your executive <strong style={{ color: '#00d4ff' }}>Reading</strong>, your <strong style={{ color: '#39d353' }}>Strengths</strong>, your <strong style={{ color: '#f72585' }}>Gaps</strong>, and a phased <strong style={{ color: '#a78bfa' }}>5-Year Plan</strong> projecting how investments elevate your hand tier.
+                It delivers an AI <strong style={{ color: '#00d4ff' }}>Summary</strong>, a <strong style={{ color: '#f59e0b' }}>Critical Finding</strong>, your <strong style={{ color: '#39d353' }}>Strengths</strong>, and prioritized <strong style={{ color: '#f72585' }}>Weaknesses</strong> — each tagged IMMEDIATE, SHORT TERM, or LONG TERM.
               </div>
             </>
           )}
