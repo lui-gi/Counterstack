@@ -1022,6 +1022,13 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 .modal-box{background:rgba(3,10,22,.99);border:1px solid rgba(247,37,133,.28);
   border-radius:11px;width:680px;max-width:95vw;max-height:88vh;overflow-y:auto;padding:28px;
   box-shadow:0 0 80px rgba(180,79,255,.18)}
+
+.ir-overlay{position:fixed;inset:0;z-index:4000;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
+  display:flex;flex-direction:row;align-items:center;justify-content:center;gap:24px}
+.ir-panel{background:rgba(3,10,22,.99);border:1px solid rgba(247,37,133,.28);
+  border-radius:11px;width:min(920px,96vw);max-height:88vh;overflow-y:auto;padding:28px;
+  box-shadow:0 0 80px rgba(180,79,255,.18);position:relative}
 .modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 .modal-t{font-family:var(--fh);font-size:17px;font-weight:700;color:var(--pink)}
 .modal-x{background:transparent;border:1px solid rgba(247,37,133,.25);
