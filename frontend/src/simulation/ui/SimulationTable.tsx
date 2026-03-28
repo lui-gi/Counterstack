@@ -459,27 +459,102 @@ export function SlotMachineCSS({ flip }: { flip?: boolean }) {
 }
 
 // ── Jackpot cinematic ────────────────────────────────────
-const REEL_SYMS = ['♠', '7', '♣', '★', '♦', '7', '♥', '7', '★', '7', '♠', '♣'];
+const REEL_SYMS  = ['♠', '7', '♣', '★', '♦', '7', '♥', '7', '★', '7', '♠', '♣'];
+const ROW_H      = 64;  // px per reel row — 3 rows visible = 192px window
+// Symbols shown above/below the center 7 when a reel stops (gives a realistic 3-row look)
+const REEL_ABOVE = ['♣', '★', '♠'];
+const REEL_BELOW = ['♦', '♥', '♣'];
 
-/** Synthesise a casino-bell DING tone (count = 1/2/3). No audio file needed. */
-function playDing(count: number): void {
+type WebAudioContext = AudioContext;
+const mkACtx = (): WebAudioContext =>
+  new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+
+/** Burst of mechanical ticking sounds — plays when the reels start spinning. */
+function playSpinTicks(): void {
   try {
-    const ctx  = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    for (let i = 0; i < count; i++) {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const t = ctx.currentTime + i * 0.38;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1318.5, t);
-      osc.frequency.exponentialRampToValueAtTime(880, t + 0.55);
-      gain.gain.setValueAtTime(0.75, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
-      osc.start(t);
-      osc.stop(t + 0.85);
+    const ctx   = mkACtx();
+    const ticks = 20;
+    const span  = 1.55; // seconds of ticking (covers the spin window)
+    // One shared noise buffer, reused per tick via separate BufferSource nodes
+    const len = Math.floor(ctx.sampleRate * 0.038);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let j = 0; j < len; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / (len * 0.18));
+    for (let i = 0; i < ticks; i++) {
+      const t    = ctx.currentTime + (i / ticks) * span;
+      const src  = ctx.createBufferSource();
+      src.buffer = buf;
+      const filt = ctx.createBiquadFilter();
+      filt.type  = 'bandpass';
+      filt.frequency.value = 850;
+      filt.Q.value = 0.6;
+      const g = ctx.createGain();
+      // Fade ticks out as the spin ends
+      g.gain.setValueAtTime(0.3 * Math.max(0.08, 1 - (i / ticks) * 0.75), t);
+      src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+      src.start(t); src.stop(t + 0.038);
     }
-  } catch { /* AudioContext unavailable — skip */ }
+  } catch { /* AudioContext unavailable */ }
+}
+
+/** Low mechanical thud + metallic ping — plays when each reel locks. */
+function playReelStop(): void {
+  try {
+    const ctx = mkACtx();
+    const t0  = ctx.currentTime;
+    // Low thud (filtered noise)
+    const len = Math.floor(ctx.sampleRate * 0.1);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d   = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.2));
+    const src  = ctx.createBufferSource();
+    src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type  = 'lowpass';
+    filt.frequency.value = 320;
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0.65, t0);
+    src.connect(filt); filt.connect(g1); g1.connect(ctx.destination);
+    src.start(t0); src.stop(t0 + 0.1);
+    // Metallic ping after thud
+    const osc = ctx.createOscillator();
+    const g2  = ctx.createGain();
+    osc.connect(g2); g2.connect(ctx.destination);
+    osc.type  = 'sine';
+    osc.frequency.setValueAtTime(1100, t0 + 0.03);
+    osc.frequency.exponentialRampToValueAtTime(550, t0 + 0.42);
+    g2.gain.setValueAtTime(0.38, t0 + 0.03);
+    g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
+    osc.start(t0 + 0.03); osc.stop(t0 + 0.55);
+  } catch { /* AudioContext unavailable */ }
+}
+
+/** Cascading coin tones + bell — plays when all 3 reels hit 777. */
+function playJackpotBells(): void {
+  try {
+    const ctx   = mkACtx();
+    const freqs = [1318, 1568, 1760, 2093, 1760, 2637, 2093, 3136];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.09;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t); osc.stop(t + 0.55);
+    });
+    // Warm bell undertone
+    const bell = ctx.createOscillator();
+    const bg   = ctx.createGain();
+    bell.connect(bg); bg.connect(ctx.destination);
+    bell.type = 'sine'; bell.frequency.value = 523;
+    bg.gain.setValueAtTime(0.28, ctx.currentTime + 0.12);
+    bg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.6);
+    bell.start(ctx.currentTime + 0.12); bell.stop(ctx.currentTime + 1.6);
+  } catch { /* AudioContext unavailable */ }
 }
 
 /** Shiny glitter sparkle burst — plays when jackpot button slams in. */
@@ -518,56 +593,86 @@ function playGlitter(): void {
   } catch { /* AudioContext unavailable */ }
 }
 
-function SlotReel({ stopped, jackpotFlash }: { stopped: boolean; jackpotFlash: boolean }) {
+function SlotReel({ stopped, jackpotFlash, reelIndex }: { stopped: boolean; jackpotFlash: boolean; reelIndex: number }) {
+  const WINDOW_H = ROW_H * 3; // 192px — 3 visible rows
   return (
     <div style={{
-      width: 104, height: 134, overflow: 'hidden',
+      width: 104, height: WINDOW_H, overflow: 'hidden',
       background: 'linear-gradient(180deg, #06010f 0%, #0b0220 100%)',
       border: `3px solid ${jackpotFlash ? '#ffd700' : 'rgba(255,200,40,0.5)'}`,
       borderRadius: 12,
       boxShadow: jackpotFlash
         ? '0 0 50px #ffd700, 0 0 100px #ffd70055, inset 0 0 20px rgba(255,215,0,0.1)'
         : '0 0 14px rgba(255,200,40,0.22), inset 0 0 10px rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative',
     }}>
-      {/* top shine */}
+      {/* Win-line center row highlight */}
+      <div style={{
+        position: 'absolute',
+        top: ROW_H, left: 0, right: 0, height: ROW_H,
+        background: 'rgba(255,215,0,0.045)',
+        borderTop:    `1px solid rgba(255,215,0,${jackpotFlash ? 0.7 : 0.3})`,
+        borderBottom: `1px solid rgba(255,215,0,${jackpotFlash ? 0.7 : 0.3})`,
+        pointerEvents: 'none', zIndex: 2,
+        transition: 'border-color 0.3s',
+      }} />
+      {/* Top fade — symbols blur out above win line */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: '38%',
-        background: 'linear-gradient(to bottom, rgba(255,255,255,0.08), transparent)',
-        pointerEvents: 'none', borderRadius: '10px 10px 0 0',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.78), transparent)',
+        pointerEvents: 'none', zIndex: 3, borderRadius: '10px 10px 0 0',
       }} />
-      {/* bottom shadow */}
+      {/* Bottom fade — symbols blur out below win line */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '28%',
-        background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
-        pointerEvents: 'none', borderRadius: '0 0 10px 10px',
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.78), transparent)',
+        pointerEvents: 'none', zIndex: 3, borderRadius: '0 0 10px 10px',
       }} />
+
       {stopped ? (
+        // 3-row still: above-sym (dim) | 7 (bright center) | below-sym (dim)
         <motion.div
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          style={{
-            fontSize: 64, lineHeight: 1, fontWeight: 900,
-            color: '#ffd700', fontFamily: 'monospace',
+          initial={{ y: -ROW_H * 0.45 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: 'flex', flexDirection: 'column', width: '100%' }}
+        >
+          {/* Row above */}
+          <div style={{
+            height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 34, fontFamily: 'monospace', color: '#cc88ff', opacity: 0.38,
+          }}>
+            {REEL_ABOVE[reelIndex]}
+          </div>
+          {/* Center win-line row */}
+          <div style={{
+            height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 62, fontWeight: 900, fontFamily: 'monospace', color: '#ffd700',
             textShadow: jackpotFlash
               ? '0 0 30px #ffd700, 0 0 60px #ffd700, 0 0 90px #ffaa00'
-              : '0 0 12px #ffd70099',
-          }}
-        >
-          7
+              : '0 0 14px #ffd70099',
+          }}>
+            7
+          </div>
+          {/* Row below */}
+          <div style={{
+            height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 34, fontFamily: 'monospace', color: '#4da6ff', opacity: 0.38,
+          }}>
+            {REEL_BELOW[reelIndex]}
+          </div>
         </motion.div>
       ) : (
+        // Spinning — full-height strip scrolls through the 3-row window
         <motion.div
-          animate={{ y: [0, -67 * REEL_SYMS.length] }}
-          transition={{ duration: 0.38, repeat: Infinity, ease: 'linear' }}
-          style={{ display: 'flex', flexDirection: 'column', position: 'absolute', top: 0 }}
+          animate={{ y: [0, -(ROW_H * REEL_SYMS.length)] }}
+          transition={{ duration: 0.42, repeat: Infinity, ease: 'linear' }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
         >
           {[...REEL_SYMS, ...REEL_SYMS].map((s, i) => (
             <div key={i} style={{
-              height: 67, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 40,
+              height: ROW_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 40, fontFamily: 'monospace',
               color: i % 4 === 0 ? '#ffd700' : i % 4 === 1 ? '#cc88ff' : i % 4 === 2 ? '#ff6644' : '#4da6ff',
             }}>
               {s}
@@ -585,11 +690,11 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
   const [stopped, setStopped] = useState([false, false, false]);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setStage('reels'), 900);
-    const t2 = setTimeout(() => { setStopped([true, false, false]); playDing(1); }, 1600);
-    const t3 = setTimeout(() => { setStopped([true, true,  false]); playDing(2); }, 2300);
-    const t4 = setTimeout(() => { setStopped([true, true,  true]);  playDing(3); }, 3100);
-    const t5 = setTimeout(() => setStage('jackpot'), 3200);
+    const t1 = setTimeout(() => { setStage('reels'); playSpinTicks(); }, 900);
+    const t2 = setTimeout(() => { setStopped([true, false, false]); playReelStop(); }, 1600);
+    const t3 = setTimeout(() => { setStopped([true, true,  false]); playReelStop(); }, 2300);
+    const t4 = setTimeout(() => { setStopped([true, true,  true]);  playReelStop(); }, 3100);
+    const t5 = setTimeout(() => { setStage('jackpot'); playJackpotBells(); }, 3200);
     const t6 = setTimeout(onDone, 5700);
     return () => [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
   }, []);
@@ -666,7 +771,7 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
 
             {/* Reels row with chrome dividers */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ width: 4, height: 134, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
+              <div style={{ width: 4, height: ROW_H * 3, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
               {[0, 1, 2].map(i => (
                 <motion.div
                   key={i}
@@ -674,10 +779,10 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: i * 0.12, duration: 0.3, ease: 'backOut' }}
                 >
-                  <SlotReel stopped={stopped[i]} jackpotFlash={stage === 'jackpot'} />
+                  <SlotReel stopped={stopped[i]} jackpotFlash={stage === 'jackpot'} reelIndex={i} />
                 </motion.div>
               ))}
-              <div style={{ width: 4, height: 134, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
+              <div style={{ width: 4, height: ROW_H * 3, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
             </div>
 
             {/* Bottom chrome strip */}
