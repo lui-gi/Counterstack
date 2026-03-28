@@ -93,8 +93,13 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
 
   // Gemini threat analysis state
   const [geminiThreatPct, setGeminiThreatPct] = useState<number | null>(null);
-  const [geminiReasoning, setGeminiReasoning] = useState<string>('');
+  const [geminiSummary, setGeminiSummary] = useState<string>('');
+  const [geminiExposure, setGeminiExposure] = useState<string>('');
+  const [geminiControls, setGeminiControls] = useState<string>('');
+  const [geminiVerdict, setGeminiVerdict] = useState<string>('');
   const [geminiAnalyzing, setGeminiAnalyzing] = useState(false);
+  const [geminiAttackVectors, setGeminiAttackVectors] = useState<string[]>([]);
+  const [geminiRemediationSteps, setGeminiRemediationSteps] = useState<string[]>([]);
 
   // Gemini suit analysis cache (lazy loaded per suit)
   const [suitAnalysisCache, setSuitAnalysisCache] = useState<Record<string, SuitAnalysisCache>>({});
@@ -158,14 +163,20 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
     return () => { mounted = false; };
   }, []);
 
-  // Call Gemini to analyze CVE threat when activeCve changes (only if orgProfile exists)
+  // Call Gemini to analyze CVE threat when activeCve changes
   useEffect(() => {
-    if (!activeCve || !orgProfile) {
+    if (!activeCve) {
       setGeminiThreatPct(null);
-      setGeminiReasoning('');
+      setGeminiSummary('');
+      setGeminiExposure('');
+      setGeminiControls('');
+      setGeminiVerdict('');
+      setGeminiAttackVectors([]);
+      setGeminiRemediationSteps([]);
       return;
     }
 
+    const profileToUse = orgProfile ?? DEFAULT_ORG_PROFILE;
     let mounted = true;
     setGeminiAnalyzing(true);
 
@@ -178,19 +189,28 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
         affectedVendor: activeCve.affectedVendor,
         affectedProduct: activeCve.affectedProduct,
       },
-      orgProfile
+      profileToUse
     )
       .then((result) => {
         if (!mounted) return;
         setGeminiThreatPct(result.threatPct);
-        setGeminiReasoning(result.reasoning);
+        setGeminiSummary(result.summary ?? '');
+        setGeminiExposure(result.exposure ?? '');
+        setGeminiControls(result.controls ?? '');
+        setGeminiVerdict(result.verdict ?? '');
+        setGeminiAttackVectors(result.attackVectors ?? []);
+        setGeminiRemediationSteps(result.remediationSteps ?? []);
       })
       .catch((err) => {
         console.error('Gemini CVE analysis failed:', err);
         if (mounted) {
-          // Fall back to formula-based score
           setGeminiThreatPct(null);
-          setGeminiReasoning('');
+          setGeminiSummary('');
+          setGeminiExposure('');
+          setGeminiControls('');
+          setGeminiVerdict('');
+          setGeminiAttackVectors([]);
+          setGeminiRemediationSteps([]);
         }
       })
       .finally(() => {
@@ -243,6 +263,11 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
           [suitKey]: {
             recommendations: result.recommendations,
             reasoning: result.reasoning,
+            benchmarks: result.benchmarks,
+            upgradePath: result.upgradePath,
+            complianceGaps: result.complianceGaps,
+            attackerView: result.attackerView,
+            businessImpact: result.businessImpact,
             loading: false
           }
         }));
@@ -633,12 +658,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 </div>
                 <div className="spread">CVSS: <span>{activeCve?.cvssScore ?? "N/A"}</span> | Risk: <span>{(geminiThreatPct ?? activeCve?.threatPct ?? 0) > 70 ? "High" : (geminiThreatPct ?? activeCve?.threatPct ?? 0) > 50 ? "Medium" : "Low"}</span></div>
                 <div className="ja-vendor">{activeCve?.affectedVendor} — {activeCve?.affectedProduct}</div>
-                {geminiReasoning && (
-                  <div style={{marginTop:6,display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--cyan)"}}>
-                    <span>🔮</span>
-                    <span style={{opacity:.7}}>AI analysis ready — open Threat Analysis for details</span>
-                  </div>
-                )}
+
                 <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN THREAT ANALYSIS</button>
               </div>
             </div>
@@ -1013,6 +1033,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
               aiAnalysis={suitAnalysisCache[activeSuit] || null}
               onRequestAnalysis={() => handleRequestSuitAnalysis(activeSuit)}
               hasOrgProfile={!!orgProfile}
+              orgProfile={orgProfile}
             />
           )}
 
@@ -1027,13 +1048,16 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
           {/* ── INCIDENT ROOM ── */}
           {showIR && (
             <IncidentRoom
-              ranks={ranks}
               posture={posture}
-              threatPressure={animPressure}
               activeCve={activeCve}
               geminiThreatPct={geminiThreatPct}
-              geminiReasoning={geminiReasoning}
+              geminiSummary={geminiSummary}
+              geminiExposure={geminiExposure}
+              geminiControls={geminiControls}
+              geminiVerdict={geminiVerdict}
               geminiAnalyzing={geminiAnalyzing}
+              geminiAttackVectors={geminiAttackVectors}
+              geminiRemediationSteps={geminiRemediationSteps}
               onClose={()=>setShowIR(false)}
             />
           )}

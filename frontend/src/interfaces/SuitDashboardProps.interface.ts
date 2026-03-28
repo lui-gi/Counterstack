@@ -4,6 +4,11 @@ export interface SuitAnalysisCache {
   recommendations: string[];
   reasoning: string;
   loading: boolean;
+  benchmarks?: Record<string, string>;
+  upgradePath?: string[];
+  complianceGaps?: string[];
+  attackerView?: string[];
+  businessImpact?: string[];
 }
 
 export interface SuitDashboardProps {
@@ -15,4 +20,5 @@ export interface SuitDashboardProps {
   aiAnalysis?: SuitAnalysisCache | null;
   onRequestAnalysis?: () => void;
   hasOrgProfile?: boolean;
+  orgProfile?: Record<string, unknown> | null;
 }
