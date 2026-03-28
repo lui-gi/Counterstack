@@ -6,6 +6,7 @@ import type { SuitConfig } from '../../interfaces/SuitConfig.interface';
 import { analyzeOrgProfile } from '../../services/geminiPosture';
 import type { OnboardingProps } from '../../interfaces/OnboardingProps.interface';
 import type { AccountData } from '../../interfaces/AccountData.interface';
+import graysonProfile from '../../../public/data/grayson-and-co-org-profile.json';
 
 const OB_STEPS = [
   { suit:"clover",  q:"How is your baseline security health?",    opts:["No visibility","Basic monitoring","Full SIEM deployed","AI-driven monitoring"]},
@@ -196,6 +197,7 @@ export default function Onboarding({ onDone }: OnboardingProps) {
 
   // Track if user is in joker mode (bypass account creation)
   const [isJokerMode, setIsJokerMode] = useState(false);
+  const [showJokerProfile, setShowJokerProfile] = useState(false);
 
   // Complete wizard with manual questionnaire
   const completeWithQuestionnaire = () => {
@@ -204,6 +206,30 @@ export default function Onboarding({ onDone }: OnboardingProps) {
     setWizardStep("tier");
     setPhase("questions");
     setQi(0);
+  };
+
+  // Joker mode: analyze pre-loaded Grayson and Co. profile and launch
+  const handleJokerContinue = async () => {
+    setWizardAnalyzing(true);
+    setWizardImportError(null);
+    try {
+      const json = graysonProfile as unknown as Record<string, unknown>;
+      const geminiResult = await analyzeOrgProfile(json);
+      const ranks: Record<string, number> = {
+        clover: geminiResult.clover,
+        diamond: geminiResult.diamond,
+        heart: geminiResult.heart,
+        spade: geminiResult.spade,
+      };
+      const accountData = buildAccountData();
+      setShowCreateModal(false);
+      setWizardStep("tier");
+      setWizardAnalyzing(false);
+      launchSequence(ranks, json, accountData);
+    } catch (err: unknown) {
+      setWizardImportError(err instanceof Error ? err.message : "Failed to load NIST CSF profile.");
+      setWizardAnalyzing(false);
+    }
   };
 
   // Handle wizard file import
@@ -841,139 +867,278 @@ export default function Onboarding({ onDone }: OnboardingProps) {
               {wizardStep === "posture-choice" && (
                 <div className="fade-in">
                   <div className="wizard-step-title">SECURITY POSTURE</div>
-                  <div className="wizard-step-sub">How would you like to assess your security posture?</div>
 
-                  {/* Hidden file input */}
-                  <input
-                    ref={wizardFileRef}
-                    type="file"
-                    accept=".json"
-                    style={{ display: "none" }}
-                    onChange={handleWizardFileChange}
-                  />
-
-                  {wizardAnalyzing ? (
-                    <div style={{ textAlign: "center", padding: "40px 0" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                        <span style={{
-                          display: "inline-block", width: 10, height: 10, borderRadius: "50%",
-                          background: "#a855f7", boxShadow: "0 0 10px #a855f7",
-                          animation: "pulse 1s ease-in-out infinite"
-                        }} />
-                        <div style={{
-                          fontFamily: "var(--fh)", fontSize: 14, color: "#a855f7", letterSpacing: 2
-                        }}>
-                          THE MAGICIAN IS ANALYZING...
-                        </div>
+                  {isJokerMode ? (
+                    <>
+                      <div className="wizard-step-sub" style={{ marginBottom: 16 }}>
+                        You are operating as <span style={{ color: "var(--violet)", fontWeight: 700 }}>Grayson and Co.</span>, a multinational conglomerate.
                       </div>
                       <div style={{
                         fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
-                        letterSpacing: 2, marginTop: 12
+                        lineHeight: 1.6, marginBottom: 20,
+                        padding: "12px 16px",
+                        background: "rgba(167,139,250,.06)",
+                        border: "1px solid rgba(167,139,250,.2)",
+                        borderRadius: 8,
                       }}>
-                        EVALUATING NIST CSF COMPLIANCE
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="posture-choice-cards">
-                      {/* Import JSON Option */}
-                      <div
-                        className="posture-choice-card"
-                        onClick={handleWizardImportClick}
-                        style={{
-                          background: "linear-gradient(145deg, rgba(167,139,250,.08), rgba(4,13,26,.95))",
-                          border: "2px solid rgba(167,139,250,.35)",
-                          borderRadius: 12,
-                          padding: "24px 20px",
-                          cursor: "pointer",
-                          marginBottom: 12,
-                          transition: "all .25s",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 16,
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = "rgba(167,139,250,.6)";
-                          e.currentTarget.style.boxShadow = "0 0 25px rgba(167,139,250,.2)";
-                          e.currentTarget.style.transform = "translateY(-2px)";
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = "rgba(167,139,250,.35)";
-                          e.currentTarget.style.boxShadow = "none";
-                          e.currentTarget.style.transform = "translateY(0)";
-                        }}
-                      >
-                        <div style={{
-                          fontSize: 36,
-                          filter: "drop-shadow(0 0 10px rgba(167,139,250,.6))"
-                        }}>📄</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
-                            color: "var(--violet)", letterSpacing: 1, marginBottom: 4
-                          }}>
-                            IMPORT NIST CSF PROFILE
-                          </div>
-                          <div style={{
-                            fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
-                            lineHeight: 1.4
-                          }}>
-                            Upload your existing NIST CSF JSON file for AI-powered analysis
-                          </div>
-                        </div>
-                        <div style={{
-                          fontFamily: "var(--fm)", fontSize: 18, color: "var(--violet)", opacity: .6
-                        }}>→</div>
+                        CounterStack will use the Grayson and Co. NIST CSF profile to configure your threat environment and security posture for this session.
                       </div>
 
-                      {/* Manual Questionnaire Option */}
-                      <div
-                        className="posture-choice-card"
-                        onClick={completeWithQuestionnaire}
-                        style={{
-                          background: "linear-gradient(145deg, rgba(0,212,255,.08), rgba(4,13,26,.95))",
-                          border: "2px solid rgba(0,212,255,.35)",
-                          borderRadius: 12,
-                          padding: "24px 20px",
-                          cursor: "pointer",
-                          transition: "all .25s",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 16,
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = "rgba(0,212,255,.6)";
-                          e.currentTarget.style.boxShadow = "0 0 25px rgba(0,212,255,.2)";
-                          e.currentTarget.style.transform = "translateY(-2px)";
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = "rgba(0,212,255,.35)";
-                          e.currentTarget.style.boxShadow = "none";
-                          e.currentTarget.style.transform = "translateY(0)";
-                        }}
-                      >
-                        <div style={{
-                          fontSize: 36,
-                          filter: "drop-shadow(0 0 10px rgba(0,212,255,.6))"
-                        }}>📝</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
-                            color: "var(--cyan)", letterSpacing: 1, marginBottom: 4
-                          }}>
-                            ANSWER QUESTIONNAIRE
+                      {wizardAnalyzing ? (
+                        <div style={{ textAlign: "center", padding: "40px 0" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                            <span style={{
+                              display: "inline-block", width: 10, height: 10, borderRadius: "50%",
+                              background: "#a855f7", boxShadow: "0 0 10px #a855f7",
+                              animation: "pulse 1s ease-in-out infinite"
+                            }} />
+                            <div style={{
+                              fontFamily: "var(--fh)", fontSize: 14, color: "#a855f7", letterSpacing: 2
+                            }}>
+                              THE MAGICIAN IS ANALYZING...
+                            </div>
                           </div>
                           <div style={{
                             fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
-                            lineHeight: 1.4
+                            letterSpacing: 2, marginTop: 12
                           }}>
-                            Complete a quick 4-question assessment of your security posture
+                            EVALUATING NIST CSF COMPLIANCE
                           </div>
                         </div>
-                        <div style={{
-                          fontFamily: "var(--fm)", fontSize: 18, color: "var(--cyan)", opacity: .6
-                        }}>→</div>
-                      </div>
-                    </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          {/* View NIST CSF Profile */}
+                          <div
+                            className="posture-choice-card"
+                            onClick={() => setShowJokerProfile(p => !p)}
+                            style={{
+                              background: "linear-gradient(145deg, rgba(167,139,250,.08), rgba(4,13,26,.95))",
+                              border: "2px solid rgba(167,139,250,.35)",
+                              borderRadius: 12,
+                              padding: "20px 20px",
+                              cursor: "pointer",
+                              transition: "all .25s",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = "rgba(167,139,250,.6)";
+                              e.currentTarget.style.boxShadow = "0 0 25px rgba(167,139,250,.2)";
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = "rgba(167,139,250,.35)";
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                          >
+                            <div style={{ fontSize: 28, filter: "drop-shadow(0 0 10px rgba(167,139,250,.6))" }}>📋</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
+                                color: "var(--violet)", letterSpacing: 1
+                              }}>
+                                VIEW NIST CSF PROFILE
+                              </div>
+                            </div>
+                            <div style={{
+                              fontFamily: "var(--fm)", fontSize: 14, color: "var(--violet)", opacity: .6
+                            }}>{showJokerProfile ? "▲" : "▼"}</div>
+                          </div>
+
+                          {showJokerProfile && (
+                            <pre style={{
+                              fontFamily: "var(--fm)", fontSize: 11, color: "rgba(200,200,220,.8)",
+                              background: "rgba(4,13,26,.95)", border: "1px solid rgba(167,139,250,.2)",
+                              borderRadius: 8, padding: "14px 16px",
+                              maxHeight: 220, overflowY: "auto",
+                              lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                              margin: 0,
+                            }}>
+                              {JSON.stringify(graysonProfile, null, 2)}
+                            </pre>
+                          )}
+
+                          {/* Continue */}
+                          <div
+                            className="posture-choice-card"
+                            onClick={handleJokerContinue}
+                            style={{
+                              background: "linear-gradient(145deg, rgba(0,212,255,.08), rgba(4,13,26,.95))",
+                              border: "2px solid rgba(0,212,255,.35)",
+                              borderRadius: 12,
+                              padding: "20px 20px",
+                              cursor: "pointer",
+                              transition: "all .25s",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = "rgba(0,212,255,.6)";
+                              e.currentTarget.style.boxShadow = "0 0 25px rgba(0,212,255,.2)";
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = "rgba(0,212,255,.35)";
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                          >
+                            <div style={{ fontSize: 28, filter: "drop-shadow(0 0 10px rgba(0,212,255,.6))" }}>▶</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
+                                color: "var(--cyan)", letterSpacing: 1
+                              }}>
+                                CONTINUE
+                              </div>
+                            </div>
+                            <div style={{
+                              fontFamily: "var(--fm)", fontSize: 18, color: "var(--cyan)", opacity: .6
+                            }}>→</div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="wizard-step-sub">How would you like to assess your security posture?</div>
+
+                      {/* Hidden file input */}
+                      <input
+                        ref={wizardFileRef}
+                        type="file"
+                        accept=".json"
+                        style={{ display: "none" }}
+                        onChange={handleWizardFileChange}
+                      />
+
+                      {wizardAnalyzing ? (
+                        <div style={{ textAlign: "center", padding: "40px 0" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                            <span style={{
+                              display: "inline-block", width: 10, height: 10, borderRadius: "50%",
+                              background: "#a855f7", boxShadow: "0 0 10px #a855f7",
+                              animation: "pulse 1s ease-in-out infinite"
+                            }} />
+                            <div style={{
+                              fontFamily: "var(--fh)", fontSize: 14, color: "#a855f7", letterSpacing: 2
+                            }}>
+                              THE MAGICIAN IS ANALYZING...
+                            </div>
+                          </div>
+                          <div style={{
+                            fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
+                            letterSpacing: 2, marginTop: 12
+                          }}>
+                            EVALUATING NIST CSF COMPLIANCE
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="posture-choice-cards">
+                          {/* Import JSON Option */}
+                          <div
+                            className="posture-choice-card"
+                            onClick={handleWizardImportClick}
+                            style={{
+                              background: "linear-gradient(145deg, rgba(167,139,250,.08), rgba(4,13,26,.95))",
+                              border: "2px solid rgba(167,139,250,.35)",
+                              borderRadius: 12,
+                              padding: "24px 20px",
+                              cursor: "pointer",
+                              marginBottom: 12,
+                              transition: "all .25s",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = "rgba(167,139,250,.6)";
+                              e.currentTarget.style.boxShadow = "0 0 25px rgba(167,139,250,.2)";
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = "rgba(167,139,250,.35)";
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                          >
+                            <div style={{
+                              fontSize: 36,
+                              filter: "drop-shadow(0 0 10px rgba(167,139,250,.6))"
+                            }}>📄</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
+                                color: "var(--violet)", letterSpacing: 1, marginBottom: 4
+                              }}>
+                                IMPORT NIST CSF PROFILE
+                              </div>
+                              <div style={{
+                                fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
+                                lineHeight: 1.4
+                              }}>
+                                Upload your existing NIST CSF JSON file for AI-powered analysis
+                              </div>
+                            </div>
+                            <div style={{
+                              fontFamily: "var(--fm)", fontSize: 18, color: "var(--violet)", opacity: .6
+                            }}>→</div>
+                          </div>
+
+                          {/* Manual Questionnaire Option */}
+                          <div
+                            className="posture-choice-card"
+                            onClick={completeWithQuestionnaire}
+                            style={{
+                              background: "linear-gradient(145deg, rgba(0,212,255,.08), rgba(4,13,26,.95))",
+                              border: "2px solid rgba(0,212,255,.35)",
+                              borderRadius: 12,
+                              padding: "24px 20px",
+                              cursor: "pointer",
+                              transition: "all .25s",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = "rgba(0,212,255,.6)";
+                              e.currentTarget.style.boxShadow = "0 0 25px rgba(0,212,255,.2)";
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = "rgba(0,212,255,.35)";
+                              e.currentTarget.style.boxShadow = "none";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                          >
+                            <div style={{
+                              fontSize: 36,
+                              filter: "drop-shadow(0 0 10px rgba(0,212,255,.6))"
+                            }}>📝</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontFamily: "var(--fh)", fontSize: 14, fontWeight: 700,
+                                color: "var(--cyan)", letterSpacing: 1, marginBottom: 4
+                              }}>
+                                ANSWER QUESTIONNAIRE
+                              </div>
+                              <div style={{
+                                fontFamily: "var(--fm)", fontSize: 12, color: "var(--dim)",
+                                lineHeight: 1.4
+                              }}>
+                                Complete a quick 4-question assessment of your security posture
+                              </div>
+                            </div>
+                            <div style={{
+                              fontFamily: "var(--fm)", fontSize: 18, color: "var(--cyan)", opacity: .6
+                            }}>→</div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {wizardImportError && (
