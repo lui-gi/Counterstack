@@ -20,6 +20,7 @@ import {
   type CampaignState, type CampaignLogEntry, type Suit,
 } from '../gameplay/useCampaign';
 import MagicianSprite  from './MagicianSprite';
+import { CharacterSprite, type CharacterAnimationState } from './CharacterSprite';
 import CardArt         from '../../components/CardArt';
 import { MusicManager } from '../audio/MusicManager';
 import { SfxPlayer, SFX, CARD_SFX } from '../audio/SfxPlayer';
@@ -110,16 +111,18 @@ const JACKPOT_ICON             = '/assets/sprites/jackpoticon.png';
 
 // ── Campaign Context ──────────────────────────────────────
 interface CampaignCtxValue {
-  state:           CampaignState;
-  continueIntro:   () => void;
-  drawCard:        () => void;
-  drawSuit:        (suit: Suit) => void;
-  selectCard:      (id: string) => void;
-  advance:         () => void;
-  triggerJackpot:  () => void;
-  restart:         () => void;
-  weskerTimeLeft:  number;   // seconds remaining (0 when not a Wesker fight)
-  onBack?:         () => void;
+  state:               CampaignState;
+  continueIntro:       () => void;
+  drawCard:            () => void;
+  drawSuit:            (suit: Suit) => void;
+  selectCard:          (id: string) => void;
+  advance:             () => void;
+  triggerJackpot:      () => void;
+  restart:             () => void;
+  weskerTimeLeft:      number;   // seconds remaining (0 when not a Wesker fight)
+  onBack?:             () => void;
+  characterAnimation:  CharacterAnimationState;
+  playDamageAnimation: () => void;
 }
 
 const CampaignCtx = createContext<CampaignCtxValue | null>(null);
@@ -808,10 +811,7 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
             initial={{ x: 0, y: 300, scale: 0.35, opacity: 0, rotate: -10 }}
             animate={{ x: 0, y: 0, scale: 2.0, opacity: 1, rotate: 15 }}
             exit={{ scale: 0, opacity: 0, rotate: 30, filter: 'drop-shadow(0 0 80px #fffbe0) drop-shadow(0 0 40px #d4a843)' }}
-            transition={{
-              default: { duration: 0.68, ease: [0.16, 1, 0.3, 1] },
-              exit: { duration: 0.22, ease: [0.6, 0, 1, 0.4] },
-            }}
+            transition={{ duration: 0.68, ease: [0.16, 1, 0.3, 1] }}
             style={{ filter: 'drop-shadow(0 0 28px #d4a843) drop-shadow(0 0 56px #d4a84355)', position: 'absolute', zIndex: 10 }}
           >
             <img src={JACKPOT_ICON} alt="" style={{ width: 88, height: 88, objectFit: 'contain' }} />
@@ -1952,7 +1952,7 @@ function StatBar({ value, max, color, label, showNums = true, height = 10 }: {
 
 // ── Battle arena (characters tall in background) ──────────
 function BattleArena() {
-  const { state } = useCampaignContext();
+  const { state, characterAnimation } = useCampaignContext();
   const tut = useContext(TutorialCtx);
   const hideBossHp = tut.open || state.bossIndex === 0;
 
@@ -2065,7 +2065,7 @@ function BattleArena() {
         }}
       >
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <MagicianSprite size={0.82} />
+          <CharacterSprite animationState={characterAnimation} size={0.82} />
         </div>
 
         {/* Player label */}
@@ -2853,7 +2853,6 @@ function PostureStatusPopup({ onClose }: { onClose: () => void }) {
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         onClick={e => e.stopPropagation()}
         style={{
-          width: 340,
           background: 'linear-gradient(160deg, #0a0618 0%, #060310 100%)',
           border: '1px solid rgba(0,212,255,0.25)',
           borderRadius: 10,
@@ -4484,6 +4483,62 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
 
   const [navVisible, setNavVisible] = useState(false);
 
+  // ── Character Animation State ──────────────────────────────
+  const [characterAnimation, setCharacterAnimation] = useState<CharacterAnimationState>({
+    currentSprite: 'idle',
+    isAnimating: false,
+    shakeDirection: null,
+    animationStartTime: 0,
+    animationDuration: 800,
+  });
+
+  const playActionAnimation = useCallback((suit: 'clover' | 'diamond' | 'heart' | 'spade' | 'clubs' | 'diamonds' | 'hearts' | 'spades') => {
+    // Map simulation suit names to action sprite names
+    const suitMap: Record<string, any> = {
+      clubs: 'clover',
+      diamonds: 'diamond',
+      hearts: 'heart',
+      spades: 'spade',
+    };
+    const spriteSuit = suitMap[suit] || suit;
+
+    setCharacterAnimation({
+      currentSprite: spriteSuit as any,
+      isAnimating: true,
+      shakeDirection: 'forward',
+      animationStartTime: Date.now(),
+      animationDuration: 800,
+    });
+
+    setTimeout(() => {
+      setCharacterAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 800);
+  }, []);
+
+  const playDamageAnimation = useCallback(() => {
+    setCharacterAnimation({
+      currentSprite: 'damage',
+      isAnimating: true,
+      shakeDirection: 'backward',
+      animationStartTime: Date.now(),
+      animationDuration: 700,
+    });
+
+    setTimeout(() => {
+      setCharacterAnimation(prev => ({
+        ...prev,
+        currentSprite: 'idle',
+        isAnimating: false,
+        shakeDirection: null,
+      }));
+    }, 700);
+  }, []);
+
   // ── Wesker 7-minute countdown ──────────────────────────
   const [weskerTimeLeft, setWeskerTimeLeft] = useState(WESKER_DURATION);
   const weskerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -4536,25 +4591,43 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     if (card) {
       const sfxId = CARD_SFX[card.suit];
       if (sfxId) SfxPlayer.playId(sfxId);
+      // Trigger action animation
+      if (card.suit !== 'spades') {
+        playActionAnimation(card.suit as 'clubs' | 'diamonds' | 'hearts');
+      } else {
+        playActionAnimation('spades');
+      }
     }
     campaign.selectCard(id);
-  }, [campaign, state.cardOptions]);
+  }, [campaign, state.cardOptions, playActionAnimation]);
 
   const triggerJackpotWithSfx = useCallback(() => {
     campaign.triggerJackpot();
   }, [campaign]);
 
+  // Track player HP for damage animations
+  const prevPlayerHpRef = useRef(state.playerHp);
+  useEffect(() => {
+    if (state.playerHp < prevPlayerHpRef.current && state.phase === 'enemy-attack') {
+      // Player took damage — trigger damage animation
+      playDamageAnimation();
+    }
+    prevPlayerHpRef.current = state.playerHp;
+  }, [state.playerHp, state.phase, playDamageAnimation]);
+
   const ctx: CampaignCtxValue = {
     state,
-    continueIntro:  campaign.continueIntro,
-    drawCard:       campaign.drawCard,
-    drawSuit:       campaign.drawSuit,
-    selectCard:     selectCardWithSfx,
-    advance:        campaign.advance,
-    triggerJackpot: triggerJackpotWithSfx,
-    restart:        campaign.restart,
+    continueIntro:      campaign.continueIntro,
+    drawCard:           campaign.drawCard,
+    drawSuit:           campaign.drawSuit,
+    selectCard:         selectCardWithSfx,
+    advance:            campaign.advance,
+    triggerJackpot:     triggerJackpotWithSfx,
+    restart:            campaign.restart,
     weskerTimeLeft,
     onBack,
+    characterAnimation,
+    playDamageAnimation,
   };
 
   // Tab hidden → mute

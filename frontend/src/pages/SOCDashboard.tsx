@@ -183,7 +183,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
         affectedVendor: activeCve.affectedVendor,
         affectedProduct: activeCve.affectedProduct,
       },
-      profileToUse
+      profileToUse as Record<string, unknown>
     )
       .then((result) => {
         if (!mounted) return;
@@ -543,6 +543,15 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Posture label below card */}
+              <div
+                className="suit-slot-label"
+                style={{color: '#f72585', marginTop: 8}}
+              >
+                <div style={{fontSize: 14, fontWeight: 600, letterSpacing: '0.5px'}}>{posture.hand}</div>
+                <div style={{fontSize: 11, color: 'rgba(247,37,133,0.7)', marginTop: 2, letterSpacing: '0.5px'}}>{Math.round(posture.score)}%</div>
               </div>
 
               {(() => {
