@@ -19,7 +19,6 @@ import MagicianReading from '../components/layout/MagicianReading';
 import IntegrationsPanel from '../components/layout/IntegrationsPanel';
 import AnalyzeIntro from '../components/layout/AnalyzeIntro';
 import SecurityCommandBrief from '../components/layout/SecurityCommandBrief';
-import ThreatGapOverlay from '../components/layout/ThreatGapOverlay';
 import { MOCK_SPLUNK_DATA, MOCK_CROWDSTRIKE_DATA } from '../data/integrationMockData';
 
 import type { SOCDashboardProps } from '../interfaces/SOCDashboardProps.interface';
@@ -98,24 +97,10 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
   // Gemini suit analysis cache (lazy loaded per suit)
   const [suitAnalysisCache, setSuitAnalysisCache] = useState<Record<string, SuitAnalysisCache>>({});
   const [hoveredPort, setHoveredPort] = useState<string|null>(null);
-  const [jiraUnresolved, setJiraUnresolved] = useState(24);
-  const [jiraInProgress, setJiraInProgress] = useState(11);
   const [portPcts, setPortPcts] = useState([31,19,16,12,10,7,5]);
   const [updatedPortIdxs, setUpdatedPortIdxs] = useState<number[]>([]);
 
-  useEffect(()=>{
-    const id = setInterval(()=>{
-      const events = ["new_ticket","less_in_progress","more_in_progress","less_unresolved"];
-      const ev = events[Math.floor(Math.random()*events.length)];
-      if(ev==="new_ticket")         setJiraUnresolved(n=>n+1);
-      if(ev==="less_in_progress")   setJiraInProgress(n=>Math.max(0,n-1));
-      if(ev==="more_in_progress")   setJiraInProgress(n=>n+1);
-      if(ev==="less_unresolved")    setJiraUnresolved(n=>Math.max(0,n-1));
-    },30000);
-    return ()=>clearInterval(id);
-  },[]);
-
-  useEffect(()=>{
+useEffect(()=>{
     const id = setInterval(()=>{
       const len=7;
       const a=Math.floor(Math.random()*len);
@@ -679,28 +664,6 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
               })()}
             </div>
 
-            {/* Jira Ticketing */}
-            <div className="panel" style={{padding:"10px 12px"}}>
-              <div className="ptitle" style={{marginBottom:10}}>Jira Ticketing</div>
-              <div style={{display:"flex",gap:8}}>
-                <div style={{flex:1,padding:"10px 8px",background:"rgba(255,107,107,.06)",border:"1px solid rgba(255,107,107,.2)",borderRadius:6,textAlign:"center"}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:28,fontWeight:900,color:"#ff6b6b",lineHeight:1,textShadow:"0 0 12px rgba(255,107,107,.5)"}}>{jiraUnresolved}</div>
-                  <div style={{fontFamily:"var(--fm)",fontSize:10,letterSpacing:1.2,color:"rgba(255,107,107,.7)",marginTop:4}}>UNRESOLVED</div>
-                </div>
-                <div style={{flex:1,padding:"10px 8px",background:"rgba(255,159,67,.06)",border:"1px solid rgba(255,159,67,.2)",borderRadius:6,textAlign:"center"}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:28,fontWeight:900,color:"#ff9f43",lineHeight:1,textShadow:"0 0 12px rgba(255,159,67,.5)"}}>{jiraInProgress}</div>
-                  <div style={{fontFamily:"var(--fm)",fontSize:10,letterSpacing:1.2,color:"rgba(255,159,67,.7)",marginTop:4}}>IN PROGRESS</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Threat-Gap Overlay */}
-            <ThreatGapOverlay
-              activeCve={activeCve}
-              geminiAttackVectors={geminiAttackVectors}
-              ranks={ranks}
-              optimalHand={optimalHand}
-            />
 
           </div>
 
