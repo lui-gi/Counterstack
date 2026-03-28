@@ -5,8 +5,11 @@ import apiRouter from './routes/index.js';
 
 const app = express();
 
+// Normalize FRONTEND_URL by removing trailing slash for CORS
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: frontendUrl,
   credentials: true,
 }));
 
