@@ -4087,10 +4087,6 @@ function VictoryOverlay() {
             style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(77,166,255,0.08)', border: '2px solid rgba(77,166,255,0.5)', color: '#4da6ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
             [ REVIEW LOG ]
           </motion.button>
-          <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowThankYou(true)}
-            style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(51,221,119,0.08)', border: '2px solid rgba(51,221,119,0.55)', color: '#33dd77', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
-            [ THANK YOU ]
-          </motion.button>
           {onBack && (
             <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={onBack}
               style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 2, padding: '12px 28px', cursor: 'pointer', background: 'rgba(204,136,255,0.08)', border: '2px solid rgba(204,136,255,0.5)', color: '#cc88ff', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
@@ -4098,6 +4094,11 @@ function VictoryOverlay() {
             </motion.button>
           )}
         </div>
+        {/* Sits below all other buttons */}
+        <motion.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }} onClick={() => setShowThankYou(true)}
+          style={{ fontFamily: 'var(--px-font)', fontSize: 9, letterSpacing: 3, padding: '12px 48px', cursor: 'pointer', background: 'rgba(51,221,119,0.08)', border: '2px solid rgba(51,221,119,0.55)', color: '#33dd77', boxShadow: '4px 4px 0 #000', borderRadius: 2 }}>
+          NEXT ENEMY →
+        </motion.button>
       </motion.div>
       {showLog && <BattleLogOverlay log={state.log} onClose={() => setShowLog(false)} />}
     </>
