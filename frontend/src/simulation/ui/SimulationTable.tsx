@@ -482,48 +482,93 @@ function playDing(count: number): void {
   } catch { /* AudioContext unavailable — skip */ }
 }
 
+/** Shiny glitter sparkle burst — plays when jackpot button slams in. */
+function playGlitter(): void {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    // Ascending sparkle tones — like gold coins raining from above
+    const freqs = [2093, 2637, 2794, 3136, 3520, 3951, 4186];
+    freqs.forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.055;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.08, t + 0.15);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.start(t);
+      osc.stop(t + 0.35);
+    });
+    // Final shimmer sweep — rising gold shine
+    const sweep = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    sweep.connect(sweepGain);
+    sweepGain.connect(ctx.destination);
+    sweep.type = 'sine';
+    sweep.frequency.setValueAtTime(1800, ctx.currentTime + 0.1);
+    sweep.frequency.exponentialRampToValueAtTime(4200, ctx.currentTime + 0.55);
+    sweepGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.1);
+    sweepGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    sweep.start(ctx.currentTime + 0.1);
+    sweep.stop(ctx.currentTime + 0.6);
+  } catch { /* AudioContext unavailable */ }
+}
+
 function SlotReel({ stopped, jackpotFlash }: { stopped: boolean; jackpotFlash: boolean }) {
   return (
     <div style={{
-      width: 88, height: 110, overflow: 'hidden',
-      background: '#04020a',
-      border: `3px solid ${jackpotFlash ? '#ffd700' : 'rgba(255,200,40,0.4)'}`,
-      borderRadius: 10,
-      boxShadow: jackpotFlash ? '0 0 40px #ffd700, 0 0 80px #ffd70066' : '0 0 10px rgba(255,200,40,0.2)',
+      width: 104, height: 134, overflow: 'hidden',
+      background: 'linear-gradient(180deg, #06010f 0%, #0b0220 100%)',
+      border: `3px solid ${jackpotFlash ? '#ffd700' : 'rgba(255,200,40,0.5)'}`,
+      borderRadius: 12,
+      boxShadow: jackpotFlash
+        ? '0 0 50px #ffd700, 0 0 100px #ffd70055, inset 0 0 20px rgba(255,215,0,0.1)'
+        : '0 0 14px rgba(255,200,40,0.22), inset 0 0 10px rgba(0,0,0,0.5)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative',
     }}>
-      {/* shine overlay */}
+      {/* top shine */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '40%',
-        background: 'linear-gradient(to bottom, rgba(255,255,255,0.06), transparent)',
-        pointerEvents: 'none', borderRadius: '8px 8px 0 0',
+        position: 'absolute', top: 0, left: 0, right: 0, height: '38%',
+        background: 'linear-gradient(to bottom, rgba(255,255,255,0.08), transparent)',
+        pointerEvents: 'none', borderRadius: '10px 10px 0 0',
+      }} />
+      {/* bottom shadow */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '28%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
+        pointerEvents: 'none', borderRadius: '0 0 10px 10px',
       }} />
       {stopped ? (
         <motion.div
-          initial={{ y: -40, opacity: 0 }}
+          initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
           style={{
-            fontSize: 52, lineHeight: 1, fontWeight: 900,
+            fontSize: 64, lineHeight: 1, fontWeight: 900,
             color: '#ffd700', fontFamily: 'monospace',
             textShadow: jackpotFlash
-              ? '0 0 24px #ffd700, 0 0 48px #ffd700'
-              : '0 0 8px #ffd70088',
+              ? '0 0 30px #ffd700, 0 0 60px #ffd700, 0 0 90px #ffaa00'
+              : '0 0 12px #ffd70099',
           }}
         >
           7
         </motion.div>
       ) : (
         <motion.div
-          animate={{ y: [0, -110 * REEL_SYMS.length / 2] }}
-          transition={{ duration: 0.4, repeat: Infinity, ease: 'linear' }}
+          animate={{ y: [0, -67 * REEL_SYMS.length] }}
+          transition={{ duration: 0.38, repeat: Infinity, ease: 'linear' }}
           style={{ display: 'flex', flexDirection: 'column', position: 'absolute', top: 0 }}
         >
           {[...REEL_SYMS, ...REEL_SYMS].map((s, i) => (
             <div key={i} style={{
-              height: 55, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 36, color: '#ffd700',
+              height: 67, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 40,
+              color: i % 4 === 0 ? '#ffd700' : i % 4 === 1 ? '#cc88ff' : i % 4 === 2 ? '#ff6644' : '#4da6ff',
             }}>
               {s}
             </div>
@@ -540,14 +585,11 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
   const [stopped, setStopped] = useState([false, false, false]);
 
   useEffect(() => {
-    // Hat throw → reels appear
     const t1 = setTimeout(() => setStage('reels'), 900);
-    // Reels stop left → right — each landing fires N dings
     const t2 = setTimeout(() => { setStopped([true, false, false]); playDing(1); }, 1600);
     const t3 = setTimeout(() => { setStopped([true, true,  false]); playDing(2); }, 2300);
     const t4 = setTimeout(() => { setStopped([true, true,  true]);  playDing(3); }, 3100);
     const t5 = setTimeout(() => setStage('jackpot'), 3200);
-    // Give confetti + JACKPOT text 2.5 s to breathe before calling onDone
     const t6 = setTimeout(onDone, 5700);
     return () => [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
   }, []);
@@ -561,12 +603,18 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 950,
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 28,
-        background: 'radial-gradient(ellipse at center, rgba(20,8,40,0.97) 0%, rgba(0,0,0,0.98) 100%)',
+        alignItems: 'center', justifyContent: 'center', gap: 24,
+        background: 'radial-gradient(ellipse at center, rgba(22,6,44,0.97) 0%, rgba(0,0,0,0.99) 100%)',
         pointerEvents: 'none',
       }}
     >
-      {/* Hat throw arc — always visible during throw stage */}
+      {/* Scanlines overlay */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)',
+      }} />
+
+      {/* Hat throw arc */}
       <AnimatePresence>
         {stage === 'throw' && (
           <motion.div
@@ -575,66 +623,153 @@ function JackpotCinematic({ onDone }: { onDone: () => void }) {
             animate={{ x: 0, y: -60, rotate: 720, scale: 2.2, opacity: 1 }}
             exit={{ y: -200, opacity: 0, scale: 0.5, rotate: 900 }}
             transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            style={{ filter: 'drop-shadow(0 0 40px #ffd700)', position: 'absolute' }}
+            style={{ filter: 'drop-shadow(0 0 40px #ffd700)', position: 'absolute', zIndex: 10 }}
           >
             <img src={JACKPOT_ICON} alt="" style={{ width: 96, height: 96, objectFit: 'contain' }} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Slot machine reels — revealed left to right */}
+      {/* Slot machine — revealed after hat throw */}
       {stage !== 'throw' && (
         <>
+          {/* Slot machine chrome housing */}
           <motion.div
-            initial={{ scale: 0, opacity: 0 }}
+            initial={{ scale: 0.4, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.35, ease: 'backOut' }}
-            style={{ display: 'flex', gap: 14, alignItems: 'center' }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              background: 'linear-gradient(180deg, #1a0830 0%, #0c0120 100%)',
+              border: `3px solid ${stage === 'jackpot' ? '#ffd700' : 'rgba(200,150,50,0.6)'}`,
+              borderRadius: 20,
+              padding: '18px 24px 16px',
+              boxShadow: stage === 'jackpot'
+                ? '0 0 70px #ffd700, 0 0 140px #ffd70033, inset 0 0 28px rgba(255,215,0,0.07)'
+                : '0 0 30px rgba(170,68,255,0.35), inset 0 0 20px rgba(0,0,0,0.6)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+              position: 'relative', zIndex: 5,
+              transition: 'box-shadow 0.4s ease, border-color 0.4s ease',
+            }}
           >
-            {[0, 1, 2].map(i => (
-              <motion.div
-                key={i}
-                initial={{ y: -80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: i * 0.12, duration: 0.3, ease: 'backOut' }}
-              >
-                <SlotReel stopped={stopped[i]} jackpotFlash={stage === 'jackpot'} />
-              </motion.div>
-            ))}
+            {/* Top label */}
+            <div style={{
+              fontFamily: 'monospace', fontSize: 11, fontWeight: 900, letterSpacing: 5,
+              color: stage === 'jackpot' ? '#ffd700' : 'rgba(255,215,0,0.65)',
+              textShadow: stage === 'jackpot'
+                ? '0 0 14px #ffd700, 0 0 28px #ffd700'
+                : '0 0 8px rgba(255,215,0,0.4)',
+              textTransform: 'uppercase',
+              transition: 'all 0.4s ease',
+            }}>
+              ★ TRIPLE SEVENS ★
+            </div>
+
+            {/* Reels row with chrome dividers */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ width: 4, height: 134, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
+              {[0, 1, 2].map(i => (
+                <motion.div
+                  key={i}
+                  initial={{ y: -80, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: i * 0.12, duration: 0.3, ease: 'backOut' }}
+                >
+                  <SlotReel stopped={stopped[i]} jackpotFlash={stage === 'jackpot'} />
+                </motion.div>
+              ))}
+              <div style={{ width: 4, height: 134, background: 'linear-gradient(180deg, #886600, #ffd700, #886600)', borderRadius: 2, opacity: 0.7 }} />
+            </div>
+
+            {/* Bottom chrome strip */}
+            <div style={{
+              width: '88%', height: 3,
+              background: 'linear-gradient(90deg, transparent, #ffd700, #cc88ff, #ffd700, transparent)',
+              opacity: 0.55, borderRadius: 2,
+            }} />
           </motion.div>
 
+          {/* JACKPOT! stage */}
           <AnimatePresence>
             {stage === 'jackpot' && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [0, 1.5, 1.1], opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: 'backOut' }}
-                style={{ filter: 'drop-shadow(0 0 40px #ffd700) drop-shadow(0 0 80px #ffd70066)' }}
-              >
-                <img src={JACKPOT_ICON} alt="" style={{ width: 140, height: 140, objectFit: 'contain' }} />
-              </motion.div>
+              <>
+                {/* JACKPOT! text slam */}
+                <motion.div
+                  key="jackpot-text"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.5, 0.9, 1.12, 1], opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  style={{
+                    fontFamily: 'monospace', fontWeight: 900,
+                    fontSize: 54, letterSpacing: 6,
+                    color: '#ffd700',
+                    textShadow: '0 0 20px #ffd700, 0 0 50px #ffd700, 0 0 100px #ffaa00, 4px 4px 0 #7700aa',
+                    WebkitTextStroke: '1px #cc8800',
+                    zIndex: 10,
+                    userSelect: 'none',
+                  }}
+                >
+                  JACKPOT!
+                </motion.div>
+
+                {/* Jackpot icon */}
+                <motion.div
+                  key="jackpot-icon"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.5, 1.05], opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5, ease: 'backOut' }}
+                  style={{ filter: 'drop-shadow(0 0 40px #ffd700) drop-shadow(0 0 80px #ffd70055)', zIndex: 10 }}
+                >
+                  <img src={JACKPOT_ICON} alt="" style={{ width: 120, height: 120, objectFit: 'contain' }} />
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
 
+          {/* Gold shimmer rays */}
           {stage === 'jackpot' && (
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              {Array.from({ length: 18 }, (_, i) => {
-                const angle = (i / 18) * 360;
-                const dist  = 200 + Math.random() * 150;
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scaleY: 0, opacity: 0.9 }}
+                  animate={{ scaleY: [0, 1, 0.5], opacity: [0.9, 0.5, 0] }}
+                  transition={{ duration: 1.0, delay: i * 0.04, ease: 'easeOut' }}
+                  style={{
+                    position: 'absolute',
+                    width: 3, height: 320,
+                    background: 'linear-gradient(to top, transparent, #ffd700aa, transparent)',
+                    transform: `rotate(${i * 30}deg)`,
+                    transformOrigin: 'center center',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Confetti burst — 36 particles */}
+          {stage === 'jackpot' && (
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
+              {Array.from({ length: 36 }, (_, i) => {
+                const angle = (i / 36) * 360;
+                const dist  = 160 + Math.random() * 240;
                 const x = Math.cos((angle * Math.PI) / 180) * dist;
                 const y = Math.sin((angle * Math.PI) / 180) * dist;
+                const size = 7 + Math.floor(Math.random() * 9);
+                const color = i % 4 === 0 ? '#ffd700' : i % 4 === 1 ? '#cc88ff' : i % 4 === 2 ? '#ff6644' : '#4da6ff';
                 return (
                   <motion.div
                     key={i}
-                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                    animate={{ x, y, opacity: 0, scale: 0 }}
-                    transition={{ duration: 1.2, delay: i * 0.04, ease: 'easeOut' }}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1, rotate: 0 }}
+                    animate={{ x, y, opacity: 0, scale: 0, rotate: angle * 2.5 }}
+                    transition={{ duration: 1.4, delay: i * 0.022, ease: 'easeOut' }}
                     style={{
                       position: 'absolute', top: '50%', left: '50%',
-                      width: 10, height: 10, borderRadius: '50%',
-                      background: i % 3 === 0 ? '#ffd700' : i % 3 === 1 ? '#cc88ff' : '#4da6ff',
-                      boxShadow: '0 0 8px currentColor',
+                      width: size, height: size,
+                      borderRadius: i % 3 === 0 ? '50%' : 2,
+                      background: color,
+                      boxShadow: `0 0 ${size + 2}px ${color}`,
                     }}
                   />
                 );
@@ -1090,13 +1225,14 @@ function CasinoBackground() {
 
 // ── Top-left phase prompt (only shown when in actual battle) ─
 const PHASE_LABELS: Record<string, string> = {
-  'player-draw':  '► DRAW A CARD',
-  'card-select':  '► SELECT POWER',
-  'resolve':      '⟳ RESOLVING...',
-  'enemy-attack': '✕ ENEMY ATTACKING!',
-  'phase-clear':  '★ BOSS DEFEATED!',
-  'victory':      '★ VICTORY',
-  'game-over':    '✕ GAME OVER',
+  'player-draw':    '► DRAW A CARD',
+  'card-select':    '► SELECT POWER',
+  'resolve':        '⟳ RESOLVING...',
+  'enemy-attack':   '✕ ENEMY ATTACKING!',
+  'defeat-pending': '★ THREAT DEFEATED',
+  'phase-clear':    '★ THREAT DEFEATED',
+  'victory':        '★ VICTORY',
+  'game-over':      '✕ GAME OVER',
 };
 
 // Phases where prompt is hidden (overlay handles it)
@@ -1112,12 +1248,13 @@ export function PhasePrompt() {
     : (PHASE_LABELS[state.phase] ?? state.phase.toUpperCase());
 
   const color =
-    state.phase === 'game-over'    ? '#ff4455' :
-    state.phase === 'victory'      ? '#33dd77' :
-    state.phase === 'phase-clear'  ? '#ffd700' :
-    state.phase === 'enemy-attack' ? '#ff8844' :
-    state.phase === 'card-select'  ? '#cc88ff' :
-    state.phase === 'player-draw'  ? '#ffffff' :
+    state.phase === 'game-over'       ? '#ff4455' :
+    state.phase === 'victory'         ? '#33dd77' :
+    state.phase === 'phase-clear'     ? '#ffd700' :
+    state.phase === 'defeat-pending'  ? '#ffd700' :
+    state.phase === 'enemy-attack'    ? '#ff8844' :
+    state.phase === 'card-select'     ? '#cc88ff' :
+    state.phase === 'player-draw'     ? '#ffffff' :
     'rgba(255,255,255,0.55)';
 
   return (
@@ -1227,8 +1364,9 @@ function SystemCompromisedBanner() {
 function WeskerStunnedBanner() {
   const { state } = useCampaignContext();
   if (!state.weskerExposed || state.weskerStunTurnsLeft <= 0) return null;
-  if (state.phase === 'boss-intro' || state.phase === 'phase-clear' ||
-      state.phase === 'victory'    || state.phase === 'game-over') return null;
+  if (state.phase === 'boss-intro' || state.phase === 'defeat-pending' ||
+      state.phase === 'phase-clear' || state.phase === 'victory' ||
+      state.phase === 'game-over') return null;
 
   return (
     <AnimatePresence>
@@ -1278,8 +1416,9 @@ function WeskerStunnedBanner() {
 function WeskerTimer() {
   const { state, weskerTimeLeft } = useCampaignContext();
   if (state.boss.id !== 'wesker') return null;
-  if (state.phase === 'boss-intro' || state.phase === 'phase-clear' ||
-      state.phase === 'victory' || state.phase === 'game-over') return null;
+  if (state.phase === 'boss-intro' || state.phase === 'defeat-pending' ||
+      state.phase === 'phase-clear' || state.phase === 'victory' ||
+      state.phase === 'game-over') return null;
 
   const mins = Math.floor(weskerTimeLeft / 60);
   const secs = weskerTimeLeft % 60;
@@ -1996,15 +2135,16 @@ function JackpotButton() {
   const videoRef   = useRef<HTMLVideoElement>(null);
   const safetyRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Called when video ends naturally OR safety timeout fires.
+  // Fire glitter SFX the instant this button mounts (turn 13 unlock)
+  useEffect(() => { playGlitter(); }, []);
+
   const handleVideoDone = useCallback(() => {
     if (safetyRef.current) { clearTimeout(safetyRef.current); safetyRef.current = null; }
     setVideoOpen(false);
     SfxPlayer.play(SFX.virusDefeat);
-    triggerJackpot(); // phase-clear → victory screen
+    triggerJackpot();
   }, [triggerJackpot]);
 
-  // Called by JackpotCinematic when 777 + confetti sequence finishes.
   const handleSlotsDone = useCallback(() => {
     setSlotsActive(false);
     setVideoOpen(true);
@@ -2012,62 +2152,98 @@ function JackpotButton() {
     el.currentTime = 0;
     el.muted  = false;
     el.volume = 1;
-    // Video was pre-authorized (muted play) in the click handler,
-    // so this unmuted play call works even outside user-gesture window.
-    el.play().catch(() => { /* safety timeout will advance */ });
+    el.play().catch(() => { });
     safetyRef.current = setTimeout(handleVideoDone, 15000);
   }, [handleVideoDone]);
 
   const handleJackpot = () => {
     MusicManager.stop();
     setSlotsActive(true);
-
-    // ── Pre-authorize the video element ──────────────────────
-    // Call play() muted inside the user-gesture window so the browser
-    // marks this element as activated. Then immediately pause so the
-    // video does NOT advance and onEnded NEVER fires during the slots.
-    // handleSlotsDone will seek to 0, unmute, and start it for real.
     const el = videoRef.current!;
     el.currentTime = 0;
     el.muted  = true;
     el.volume = 1;
     el.play()
       .then(() => { el.pause(); el.currentTime = 0; })
-      .catch(() => { /* pre-auth failed — play() in handleSlotsDone will still work */ });
+      .catch(() => { });
   };
 
   return (
     <>
-      {/* ── JACKPOT button — gold, glowing, hard to miss ── */}
-      <motion.button
-        animate={{
-          filter: [
-            'drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #aa44ff)',
-            'drop-shadow(0 0 20px #ffd700) drop-shadow(0 0 40px #cc66ff)',
-            'drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #aa44ff)',
-          ],
-          scale: [1, 1.06, 1],
-        }}
-        transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
-        whileHover={{ scale: 1.15 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={handleJackpot}
-        style={{
-          fontFamily: 'var(--px-font)', fontSize: 7, letterSpacing: 1,
-          width: 68, height: 68,
-          cursor: 'pointer',
-          background: 'linear-gradient(135deg, rgba(255,215,0,0.18), rgba(170,68,255,0.18))',
-          border: '2px solid #ffd700',
-          color: '#ffd700',
-          boxShadow: '3px 3px 0 #000, inset 0 0 12px rgba(255,215,0,0.1)',
-          borderRadius: 6,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 2,
-          lineHeight: 1.2,
-        }}
+      {/* ── JACKPOT button — slams in with spring bounce + gold burst ── */}
+      <motion.div
+        initial={{ y: 90, scale: 0.15, opacity: 0 }}
+        animate={{ y: 0, scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 7, stiffness: 280, mass: 0.85 }}
+        style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
       >
-        <img src={JACKPOT_ICON} alt="Jackpot" style={{ width: 48, height: 48, objectFit: 'contain' }} />
-      </motion.button>
+        {/* Entrance burst ring 1 */}
+        <motion.div
+          initial={{ scale: 0.6, opacity: 1 }}
+          animate={{ scale: 4.5, opacity: 0 }}
+          transition={{ duration: 0.75, ease: 'easeOut', delay: 0.2 }}
+          style={{
+            position: 'absolute', inset: 0, borderRadius: 10,
+            border: '3px solid #ffd700', pointerEvents: 'none',
+          }}
+        />
+        {/* Entrance burst ring 2 */}
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0.7 }}
+          animate={{ scale: 7, opacity: 0 }}
+          transition={{ duration: 1.0, ease: 'easeOut', delay: 0.32 }}
+          style={{
+            position: 'absolute', inset: 0, borderRadius: 10,
+            border: '2px solid #ffaa00', pointerEvents: 'none',
+          }}
+        />
+
+        <motion.button
+          animate={{
+            filter: [
+              'drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 18px #aa44ff)',
+              'drop-shadow(0 0 30px #ffd700) drop-shadow(0 0 60px #cc66ff)',
+              'drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 18px #aa44ff)',
+            ],
+            scale: [1, 1.08, 1],
+          }}
+          transition={{ duration: 0.88, repeat: Infinity, ease: 'easeInOut' }}
+          whileHover={{
+            scale: 1.2,
+            filter: 'drop-shadow(0 0 42px #ffd700) drop-shadow(0 0 84px #ffaa00)',
+          }}
+          whileTap={{ scale: 0.87 }}
+          onClick={handleJackpot}
+          style={{
+            fontFamily: 'var(--px-font)',
+            width: 80, height: 80,
+            cursor: 'pointer',
+            background: 'linear-gradient(135deg, rgba(255,215,0,0.26) 0%, rgba(170,68,255,0.22) 50%, rgba(255,140,0,0.2) 100%)',
+            border: '2px solid #ffd700',
+            color: '#ffd700',
+            boxShadow: '3px 3px 0 #000, inset 0 0 22px rgba(255,215,0,0.16), 0 0 30px rgba(255,215,0,0.12)',
+            borderRadius: 10,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <img src={JACKPOT_ICON} alt="Jackpot" style={{ width: 54, height: 54, objectFit: 'contain' }} />
+        </motion.button>
+
+        {/* "JACKPOT" label — pulses with the button */}
+        <motion.div
+          animate={{ opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 0.88, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            fontFamily: 'monospace', fontSize: 9, fontWeight: 900, letterSpacing: 3,
+            color: '#ffd700',
+            textShadow: '0 0 10px #ffd700, 0 0 22px #ffaa00',
+            userSelect: 'none',
+          }}
+        >
+          JACKPOT
+        </motion.div>
+      </motion.div>
 
       {/* ── Slot machine cinematic — fullscreen overlay ── */}
       <AnimatePresence>
@@ -2093,12 +2269,6 @@ function JackpotButton() {
         )}
       </AnimatePresence>
 
-      {/*
-        Video is ALWAYS in the DOM (invisible when not active).
-        Pre-authorized via muted play inside the click handler so
-        the later unmuted play() in handleSlotsDone works outside
-        the user-gesture window.
-      */}
       <video
         ref={videoRef}
         src={JACKPOT_VIDEO}
@@ -2108,8 +2278,7 @@ function JackpotButton() {
           position: 'fixed',
           top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '100vw',
-          height: '100vh',
+          width: '100vw', height: '100vh',
           objectFit: 'contain',
           zIndex: 901,
           opacity:    videoOpen ? 1 : 0,
@@ -2223,7 +2392,9 @@ function CardHand() {
       })}
 
       {/* Jackpot button — inline at end when available */}
-      {state.jackpotAvailable && !state.jackpotUsed && canPlay && <JackpotButton />}
+      <AnimatePresence>
+        {state.jackpotAvailable && !state.jackpotUsed && canPlay && <JackpotButton key="jackpot-btn" />}
+      </AnimatePresence>
 
       {/* Power list popup — floats above everything when suit selected */}
       <AnimatePresence>
@@ -2377,22 +2548,24 @@ function HandPhasePanel({ onShowInfo }: { onShowInfo?: () => void }) {
   const { state } = useCampaignContext();
 
   const LABELS: Record<string, string> = {
-    'player-draw':  'DRAW A CARD',
-    'card-select':  'SELECT CARD',
-    'resolve':      'RESOLVING...',
-    'enemy-attack': 'INCOMING!',
-    'phase-clear':  'BOSS DEFEATED',
-    'victory':      'VICTORY',
-    'game-over':    'GAME OVER',
+    'player-draw':    'DRAW A CARD',
+    'card-select':    'SELECT CARD',
+    'resolve':        'RESOLVING...',
+    'enemy-attack':   'INCOMING!',
+    'defeat-pending': 'THREAT DEFEATED',
+    'phase-clear':    'THREAT DEFEATED',
+    'victory':        'VICTORY',
+    'game-over':      'GAME OVER',
   };
 
   const color =
-    state.phase === 'game-over'    ? '#ff4455' :
-    state.phase === 'victory'      ? '#33dd77' :
-    state.phase === 'phase-clear'  ? '#ffd700' :
-    state.phase === 'enemy-attack' ? '#ff8844' :
-    state.phase === 'card-select'  ? '#00d4ff' :
-    state.phase === 'player-draw'  ? '#e0d8ff' :
+    state.phase === 'game-over'       ? '#ff4455' :
+    state.phase === 'victory'         ? '#33dd77' :
+    state.phase === 'phase-clear'     ? '#ffd700' :
+    state.phase === 'defeat-pending'  ? '#ffd700' :
+    state.phase === 'enemy-attack'    ? '#ff8844' :
+    state.phase === 'card-select'     ? '#00d4ff' :
+    state.phase === 'player-draw'     ? '#e0d8ff' :
     'rgba(255,255,255,0.45)';
 
   const label = state.phase === 'enemy-attack' && state.lastAttackMsg
@@ -3337,6 +3510,42 @@ function BossIntroOverlay() {
   );
 }
 
+// ── Defeat message banner (shown during 1s defeat-pending window) ──
+function DefeatMessageBanner() {
+  const { state } = useCampaignContext();
+  if (state.phase !== 'defeat-pending' || !state.dialogueText) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 490,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}
+    >
+      <div style={{
+        fontFamily: 'var(--px-font)', fontSize: 11,
+        color: '#ffd700',
+        textShadow: '0 0 20px #ffd70066, 2px 2px 0 #000',
+        letterSpacing: 3,
+        textAlign: 'center',
+        padding: '14px 32px',
+        background: 'rgba(0,0,0,0.72)',
+        border: '1px solid rgba(255,215,0,0.3)',
+        borderRadius: 3,
+        maxWidth: 440,
+      }}>
+        {state.dialogueText}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Phase clear overlay ────────────────────────────────────
 function PhaseClearOverlay() {
   const { state, advance } = useCampaignContext();
@@ -3391,7 +3600,7 @@ function PhaseClearOverlay() {
           letterSpacing: 5,
         }}
       >
-        BOSS DEFEATED
+        {state.dialogueText ?? 'THREAT DEFEATED'}
       </motion.div>
       <motion.button
         whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
@@ -3892,6 +4101,7 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
     const isWeskerBattle =
       state.boss.id === 'wesker' &&
       state.phase !== 'boss-intro' &&
+      state.phase !== 'defeat-pending' &&
       state.phase !== 'phase-clear' &&
       state.phase !== 'victory' &&
       state.phase !== 'game-over';
@@ -4009,8 +4219,8 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
       }
     }
 
-    // Boss defeated — stop music immediately
-    if (phase === 'phase-clear' && prevPhase !== 'phase-clear') {
+    // Boss defeated — stop music on defeat-pending (the 1s delay window before overlay)
+    if (phase === 'defeat-pending' && prevPhase !== 'defeat-pending') {
       MusicManager.stop();
       SfxPlayer.stopAll(); // cut off any card SFX before defeat stinger
       SfxPlayer.play(SFX.virusDefeat);
@@ -4138,6 +4348,7 @@ export default function SimulationTable({ initialRanks, onBack }: { initialRanks
 
       {/* Overlays */}
       <BossIntroOverlay />
+      <DefeatMessageBanner />
       <PhaseClearOverlay />
       <VictoryOverlay />
       <GameOverOverlay />
