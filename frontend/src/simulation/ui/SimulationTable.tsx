@@ -11,6 +11,7 @@ import React, {
   createContext, useContext, useCallback,
   useEffect, useRef, useState,
 } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { computePosture } from '../../engine/computePosture';
 import {
@@ -2416,8 +2417,8 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
     );
   };
 
-  // ── Popup modal ───────────────────────────────────────────
-  return (
+  // ── Popup modal — portalled to document.body to escape stacking context ──
+  return ReactDOM.createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -2425,7 +2426,7 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
       transition={{ duration: 0.15 }}
       onClick={onCancel}
       style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
         display: 'flex', alignItems: 'center',
         justifyContent: tutView ? 'flex-start' : 'center',
         paddingBottom: 100,
@@ -2511,7 +2512,8 @@ function PowerList({ suit, options, onPick, onCancel, playerMana }: PowerListPro
         </div>
 
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
