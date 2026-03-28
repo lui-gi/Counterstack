@@ -15,7 +15,7 @@ interface AIAdapterSpriteProps {
 
 export function AIAdapterSprite({ animationState, size = 1 }: AIAdapterSpriteProps) {
   const spriteMap: Record<string, string> = {
-    idle: '/assets/sprites/aiadapter/idle.png',
+    idle: '/assets/sprites/aiadapter/idle.gif',
     adapting: '/assets/sprites/aiadapter/reactions/adapt.png',
     attack: '/assets/sprites/aiadapter/actions/attack.png',
     damage: '/assets/sprites/aiadapter/reactions/damage.png',
