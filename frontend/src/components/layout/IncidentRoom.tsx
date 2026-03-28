@@ -19,11 +19,29 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
           <button className="modal-x" onClick={onClose}>✕</button>
         </div>
 
-        {/* Magician Analysis — top of modal */}
+        {/* CVE Details */}
+        {activeCve && (
+          <div style={{background:"rgba(247,37,133,.06)",border:"1px solid rgba(247,37,133,.2)",
+            borderRadius:6,padding:12,marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontFamily:"var(--fm)",fontSize:14,color:"var(--cyan)",marginBottom:2}}>{activeCve.cveId}</div>
+                <div style={{fontFamily:"var(--fh)",fontSize:15,fontWeight:700,color:"#fff"}}>{activeCve.name}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:8}}>
+              <div style={{fontSize:12,color:"var(--dim)"}}>CVSS: <span style={{color:"var(--pink)",fontWeight:700}}>{activeCve.cvssScore}</span></div>
+              <div style={{fontSize:12,color:"var(--dim)"}}>Vendor: <span style={{color:"var(--text)"}}>{activeCve.affectedVendor}</span></div>
+              <div style={{fontSize:12,color:"var(--dim)"}}>Product: <span style={{color:"var(--text)"}}>{activeCve.affectedProduct}</span></div>
+              {activeCve.dueDate && <div style={{fontSize:12,color:"var(--dim)"}}>CISA Due: <span style={{color:"#ff9f1c"}}>{activeCve.dueDate}</span></div>}
+            </div>
+          </div>
+        )}
+
+        {/* Magician Analysis */}
         {geminiAnalyzing ? (
           <div style={{background:"rgba(0,212,255,.06)",border:"1px solid rgba(0,212,255,.2)",
             borderRadius:6,padding:14,marginBottom:14}}>
-            {/* Header row */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:16}}>🔮</span>
@@ -34,7 +52,6 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
                 <span style={{fontSize:11}}>ANALYZING...</span>
               </div>
             </div>
-            {/* Skeleton rows */}
             <div style={{borderTop:"1px solid rgba(0,212,255,.12)",paddingTop:10,display:"flex",flexDirection:"column",gap:12}}>
               {ANALYSIS_ROWS.map(({label})=>(
                 <div key={label}>
@@ -47,15 +64,16 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
         ) : hasAnalysis ? (
           <div style={{background:"rgba(0,212,255,.06)",border:"1px solid rgba(0,212,255,.2)",
             borderRadius:6,padding:14,marginBottom:14}}>
-            {/* Header row */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:16}}>🔮</span>
                 <span style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--cyan)",letterSpacing:2}}>THE MAGICIAN'S ASSESSMENT</span>
               </div>
-              <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,color:"var(--pink)"}}>{geminiThreatPct}%</div>
+              <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                <span style={{fontFamily:"var(--fm)",fontSize:11,color:"var(--dim)",letterSpacing:1.5,textTransform:"uppercase"}}>Threat Level</span>
+                <span style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,color:"var(--pink)"}}>{geminiThreatPct}%</span>
+              </div>
             </div>
-            {/* Summary + labeled analysis rows */}
             <div style={{borderTop:"1px solid rgba(0,212,255,.12)",paddingTop:10,display:"flex",flexDirection:"column",gap:12}}>
               {geminiSummary && (
                 <div style={{fontSize:14,color:"var(--text)",lineHeight:1.6,paddingBottom:4,borderBottom:"1px solid rgba(0,212,255,.08)"}}>
@@ -63,13 +81,19 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
                 </div>
               )}
               {ANALYSIS_ROWS.map(({key, label})=>(
-                <div key={key}>
+                <div key={key} style={key === 'geminiVerdict' ? {
+                  borderLeft:"2px solid var(--pink)",
+                  paddingLeft:10,
+                } : undefined}>
                   <div style={{fontFamily:"var(--fm)",fontSize:11,letterSpacing:1.5,color:"var(--dim)",textTransform:"uppercase",marginBottom:4}}>{label}</div>
-                  <div style={{fontSize:14,color:"var(--text)",lineHeight:1.6}}>{analysisValues[key]}</div>
+                  <div style={{
+                    fontSize:14,
+                    color: key === 'geminiVerdict' ? '#fff' : "var(--text)",
+                    lineHeight:1.6,
+                  }}>{analysisValues[key]}</div>
                 </div>
               ))}
             </div>
-            {/* Attack vector pills */}
             {geminiAttackVectors && geminiAttackVectors.length > 0 && (
               <div style={{borderTop:"1px solid rgba(0,212,255,.12)",marginTop:12,paddingTop:10,display:"flex",gap:5,flexWrap:"wrap"}}>
                 {geminiAttackVectors.map(v=>(
@@ -88,7 +112,7 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
           </div>
         )}
 
-        {/* Threat Containment Checklist — AI-generated */}
+        {/* Threat Containment Checklist */}
         {(geminiAnalyzing || (geminiRemediationSteps && geminiRemediationSteps.length > 0)) && (
           <>
             <div className="modal-sect-t">Threat Containment Checklist</div>
@@ -102,43 +126,13 @@ export default function IncidentRoom({ posture, activeCve, geminiThreatPct, gemi
               </div>
             ) : (
               geminiRemediationSteps!.map((step, idx)=>(
-                <div key={idx} className="action-item" style={{color:"var(--text)"}}>
-                  <span>○</span>{step}
+                <div key={idx} className="action-item" style={{color:"var(--text)",display:"flex",alignItems:"flex-start",gap:8}}>
+                  <span style={{flexShrink:0,marginTop:1}}>○</span><span>{step}</span>
                 </div>
               ))
             )}
           </>
         )}
-
-        {/* CVE Details */}
-        {activeCve && (
-          <div style={{background:"rgba(247,37,133,.06)",border:"1px solid rgba(247,37,133,.2)",
-            borderRadius:6,padding:12,marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-              <div>
-                <div style={{fontFamily:"var(--fm)",fontSize:14,color:"var(--cyan)",marginBottom:2}}>{activeCve.cveId}</div>
-                <div style={{fontFamily:"var(--fh)",fontSize:15,fontWeight:700,color:"#fff"}}>{activeCve.name}</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:900,color:"var(--pink)"}}>{geminiThreatPct ?? activeCve.threatPct}%</div>
-                <div style={{fontFamily:"var(--fm)",fontSize:12,color:"var(--dim)"}}>THREAT LEVEL</div>
-              </div>
-            </div>
-            <div style={{fontSize:14,color:"var(--text)",lineHeight:1.5,marginBottom:10}}>{activeCve.description}</div>
-            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-              <div style={{fontSize:12,color:"var(--dim)"}}>CVSS: <span style={{color:"var(--pink)",fontWeight:700}}>{activeCve.cvssScore}</span></div>
-              <div style={{fontSize:12,color:"var(--dim)"}}>Vendor: <span style={{color:"var(--text)"}}>{activeCve.affectedVendor}</span></div>
-              <div style={{fontSize:12,color:"var(--dim)"}}>Product: <span style={{color:"var(--text)"}}>{activeCve.affectedProduct}</span></div>
-              {activeCve.dueDate && <div style={{fontSize:12,color:"var(--dim)"}}>CISA Due: <span style={{color:"#ff9f1c"}}>{activeCve.dueDate}</span></div>}
-            </div>
-          </div>
-        )}
-
-        {/* Compact posture stats */}
-        <div style={{display:"flex",gap:16,alignItems:"center",padding:"8px 0",marginBottom:12,borderBottom:"1px solid rgba(0,212,255,.08)"}}>
-          <div style={{fontSize:12,color:"var(--dim)"}}>Stack Posture: <span style={{color:posture.royal?"var(--gold)":"var(--cyan)",fontWeight:700}}>{posture.hand}</span></div>
-          <div style={{fontSize:12,color:"var(--dim)"}}>Score: <span style={{color:"#fff",fontWeight:700}}>{posture.score}/100</span></div>
-        </div>
 
       </div>
     </div>
