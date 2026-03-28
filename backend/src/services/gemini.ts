@@ -1,6 +1,6 @@
 import type { GeminiRanks } from '../interfaces/index.js';
 
-const MODEL = 'gemini-2.0-flash-lite';
+const MODEL = 'gemini-3.1-flash-lite-preview';
 const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 async function callGemini(prompt: string): Promise<string> {
