@@ -386,7 +386,7 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 <span style={{color:"var(--pink)"}}>1 CRITICAL ACTIVE</span>
               </div>
               <span className="tb-time">{time}</span>
-              <button className="tb-btn" onClick={()=>setShowIR(true)}>⬡ INCIDENT ROOM</button>
+              <button className="tb-btn" onClick={()=>setShowIR(true)}>⬡ THREAT ANALYSIS</button>
             </div>
           </div>
 
@@ -548,10 +548,10 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
                 {geminiReasoning && (
                   <div style={{marginTop:6,display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--cyan)"}}>
                     <span>🔮</span>
-                    <span style={{opacity:.7}}>AI analysis ready — open Incident Room for details</span>
+                    <span style={{opacity:.7}}>AI analysis ready — open Threat Analysis for details</span>
                   </div>
                 )}
-                <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN INCIDENT ROOM</button>
+                <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN THREAT ANALYSIS</button>
               </div>
             </div>
 
