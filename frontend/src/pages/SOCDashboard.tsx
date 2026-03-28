@@ -6,7 +6,7 @@ import { SUITS, INIT_RANKS } from '../data/gameData';
 import { computePosture, computeOptimalHand } from '../engine/computePosture';
 import { fetchCisaKevData } from '../data/cisaKev';
 import { scoreAllCves, shuffleCve, DEFAULT_ORG_PROFILE } from '../engine/cveScorer';
-import { analyzeCveThreat, analyzeSuitDomain, analyzeMagicianReading } from '../services/geminiPosture';
+import { analyzeCveThreat, analyzeSuitDomain } from '../services/geminiPosture';
 import type { ScoredCve } from '../interfaces/ScoredCve.interface';
 import type { SuitAnalysisCache } from '../interfaces/SuitDashboardProps.interface';
 import FiveYearPlan from '../components/layout/FiveYearPlan';
@@ -18,7 +18,6 @@ import PostureExplainer from '../components/layout/PostureExplainer';
 import MagicianReading from '../components/layout/MagicianReading';
 import IntegrationsPanel from '../components/layout/IntegrationsPanel';
 import AnalyzeIntro from '../components/layout/AnalyzeIntro';
-import SecurityCommandBrief from '../components/layout/SecurityCommandBrief';
 import { MOCK_SPLUNK_DATA, MOCK_CROWDSTRIKE_DATA } from '../data/integrationMockData';
 
 import type { SOCDashboardProps } from '../interfaces/SOCDashboardProps.interface';
@@ -69,11 +68,6 @@ export default function SOCDashboard({ onboarded, onOnboarded, mode, onModeChang
   const [showFiveYearPlan, setShowFiveYearPlan] = useState(false);
   const [showAnalyzeIntro, setShowAnalyzeIntro] = useState(false);
 
-  // Security Command Brief — Magician Reading state (eagerly fetched)
-  const [briefSummary, setBriefSummary] = useState('');
-  const [briefTopPriority, setBriefTopPriority] = useState('');
-  const [briefWeaknesses, setBriefWeaknesses] = useState<{ text: string; urgency: 'immediate' | 'short_term' | 'long_term' }[]>([]);
-  const [briefLoading, setBriefLoading] = useState(false);
   const [time, setTime] = useState(new Date().toLocaleTimeString("en-US",{hour12:false}));
 
   // CVE/Joker state
@@ -261,33 +255,7 @@ useEffect(()=>{
   }, [orgProfile, suitAnalysisCache, ranks, activeCve]);
 
 
-  // Eagerly fetch Magician Reading for the Brief when org profile loads
-  useEffect(() => {
-    if (!orgProfile) return;
-    let mounted = true;
-    setBriefLoading(true);
-    analyzeMagicianReading(orgProfile, {
-      clover: ranks.clover,
-      spade: ranks.spade,
-      diamond: ranks.diamond,
-      heart: ranks.heart,
-    })
-      .then((data) => {
-        if (!mounted) return;
-        setBriefSummary(data.summary ?? '');
-        setBriefTopPriority(data.topPriority ?? '');
-        setBriefWeaknesses(data.weaknesses ?? []);
-      })
-      .catch((err) => {
-        console.error('Brief Magician Reading failed:', err);
-      })
-      .finally(() => {
-        if (mounted) setBriefLoading(false);
-      });
-    return () => { mounted = false; };
-  }, [orgProfile]);
-
-  useEffect(()=>{
+useEffect(()=>{
     const t = setInterval(()=>setTime(new Date().toLocaleTimeString("en-US",{hour12:false})),1000);
     return ()=>clearInterval(t);
   },[]);
@@ -741,23 +709,6 @@ useEffect(()=>{
               })()}
             </div>
 
-            {/* Security Command Brief */}
-            <SecurityCommandBrief
-              ranks={ranks}
-              optimalHand={optimalHand}
-              posture={posture}
-              accountData={accountData}
-              activeCve={activeCve}
-              geminiThreatPct={geminiThreatPct}
-              geminiAttackVectors={geminiAttackVectors}
-              magicianSummary={briefSummary}
-              magicianTopPriority={briefTopPriority}
-              magicianWeaknesses={briefWeaknesses}
-              magicianLoading={briefLoading}
-              onOpenReading={() => setShowMagicianReading(true)}
-              onOpenRoadmap={() => setShowFiveYearPlan(true)}
-              onOpenIncidentRoom={() => setShowIR(true)}
-            />
 
           </div>
 

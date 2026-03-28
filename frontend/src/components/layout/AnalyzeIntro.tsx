@@ -24,7 +24,7 @@ const TOUR_STEPS: TourStep[] = [
   { id: 'tour-joker',          modalPosition: 'right',   title: 'THE JOKER',             subtitle: 'YOUR THREAT PRESSURE' },
   { id: 'tour-integrations',   modalPosition: 'right',   title: 'INTEGRATIONS',          subtitle: 'YOUR LIVE TELEMETRY' },
   { id: 'tour-magician',       modalPosition: 'left-of', title: 'THE MAGICIAN',          subtitle: 'YOUR STRATEGIC ADVISOR' },
-  { id: 'tour-command-brief', modalPosition: 'above', title: 'COMMAND BRIEF', subtitle: 'YOUR BIG PICTURE' },
+  { id: null, modalPosition: 'center', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
   { id: 'tour-mode-toggle', modalPosition: 'below', title: 'ANALYZE VS SIMULATE', subtitle: 'TWO MODES, ONE MISSION' },
 ];
 
@@ -216,14 +216,14 @@ export default function AnalyzeIntro({ onClose, accountData }: AnalyzeIntroProps
             </>
           )}
 
-          {/* Step 5 — Command Brief */}
+          {/* Step 5 — Analyze vs Simulate */}
           {currentStep === 5 && (
             <>
               <div className="tour-text">
-                The <strong style={{ color: '#00d4ff' }}>Security Command Brief</strong> is your big-picture summary — showing the domain gap matrix, active threat exposure, AI situation assessment, and top priority action all in one place.
+                <strong style={{ color: '#00d4ff' }}>● ANALYZE</strong> gives you a live view of your organization's security posture across all four domains — and shows how vulnerable you are to different known threats in the wild.
               </div>
               <div className="tour-text" style={{ marginTop: 10 }}>
-                Use it to quickly orient yourself, then drill into the <strong style={{ color: '#a78bfa' }}>Full Reading</strong>, the <strong style={{ color: '#00d4ff' }}>5-Year Roadmap</strong>, or the <strong style={{ color: '#f72585' }}>Threat Analysis</strong> from the action buttons at the bottom.
+                <strong style={{ color: '#a78bfa' }}>○ SIMULATE</strong> pits your organization directly against a known threat. If your hand rank isn't strong enough to defeat it, you lose the simulation — exposing exactly where you need to improve.
               </div>
             </>
           )}
