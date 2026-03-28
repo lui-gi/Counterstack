@@ -68,7 +68,7 @@ const INTEGRATIONS = {
   ],
 };
 
-type CardState = "stacked" | "tilted" | "throwing" | "landed";
+type CardState = "stacked" | "tilted" | "throwing" | "landed" | "video-dropping";
 type WizardStep = "tier" | "account" | "org" | "integrations" | "confirm" | "posture-choice";
 
 interface WizardData {
@@ -84,9 +84,16 @@ interface WizardData {
   integrations: string[];
 }
 
-export default function Onboarding({ onDone }: OnboardingProps) {
+export default function Onboarding({ onDone, videoTransition }: OnboardingProps) {
+  // Freeze the initial videoTransition value — prop may flip to false once the video unmounts,
+  // but the animation should keep playing based on what it started with.
+  const [isVideoEntry] = useState(videoTransition ?? false);
   const [phase, setPhase] = useState("landing");
-  const [cardStates, setCardStates] = useState<CardState[]>(["stacked", "stacked", "stacked", "stacked"]);
+  const [cardStates, setCardStates] = useState<CardState[]>(
+    isVideoEntry
+      ? ["video-dropping", "video-dropping", "video-dropping", "video-dropping"]
+      : ["stacked", "stacked", "stacked", "stacked"]
+  );
   const [showTitle, setShowTitle] = useState(false);
   const [qi, setQi] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -286,11 +293,28 @@ export default function Onboarding({ onDone }: OnboardingProps) {
   useEffect(() => {
     if (phase !== "landing") return;
 
-    // Step 1: Brief pause, then tilt the deck
+    if (isVideoEntry) {
+      // Video-transition mode:
+      // Cards are already rendering as "video-dropping" (CSS handles the staggered drop-from-above).
+      // We just need to chain each card's throw once its individual drop finishes.
+      // CSS delays: card i starts dropping at i*65ms; animation is 440ms long.
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      [0, 1, 2, 3].forEach(i => {
+        const throwAt = i * 65 + 440 + 20; // drop delay + drop duration + tiny buffer
+        timers.push(setTimeout(() => {
+          setCardStates(prev => { const n = [...prev]; n[i] = "throwing"; return n; });
+          timers.push(setTimeout(() => {
+            setCardStates(prev => { const n = [...prev]; n[i] = "landed"; return n; });
+            if (i === 3) timers.push(setTimeout(() => setShowTitle(true), 200));
+          }, 700));
+        }, throwAt));
+      });
+      return () => timers.forEach(clearTimeout);
+    }
+
+    // Normal (non-video) animation — brief pause, tilt deck, then throw
     const tiltTimer = setTimeout(() => {
       setCardStates(["tilted", "tilted", "tilted", "tilted"]);
-
-      // Step 2: After tilt animation completes, throw cards one by one
       setTimeout(() => {
         [0, 1, 2, 3].forEach((i) => {
           setTimeout(() => {
@@ -299,25 +323,21 @@ export default function Onboarding({ onDone }: OnboardingProps) {
               next[i] = "throwing";
               return next;
             });
-            // After throw animation, set to landed
             setTimeout(() => {
               setCardStates(prev => {
                 const next = [...prev];
                 next[i] = "landed";
                 return next;
               });
-              // Show title after last card lands
-              if (i === 3) {
-                setTimeout(() => setShowTitle(true), 300);
-              }
+              if (i === 3) setTimeout(() => setShowTitle(true), 300);
             }, 700);
           }, i * 100);
         });
-      }, 200); // Wait for tilt animation
+      }, 200);
     }, 500);
 
     return () => clearTimeout(tiltTimer);
-  }, [phase]);
+  }, [phase, isVideoEntry]);
 
   const posMap: Record<string, {x:number,y:number,rot:number}> = {
     clover:  {x:-180, y:-80, rot:-4},

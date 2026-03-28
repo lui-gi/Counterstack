@@ -129,6 +129,58 @@ class SfxPlayerClass {
     }
   }
 
+  /**
+   * Synthesised threat-alert stinger — three descending beeps.
+   * No audio file needed; generated via Web Audio API.
+   */
+  playThreatAlert(): void {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)() as AudioContext;
+
+      // Threat alarm: 3x rising siren woop + deep pulse bass underneath
+      const woop = (startTime: number) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, startTime);
+        osc.frequency.exponentialRampToValueAtTime(1100, startTime + 0.22);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.4, startTime + 0.01);
+        gain.gain.setValueAtTime(0.4, startTime + 0.18);
+        gain.gain.linearRampToValueAtTime(0, startTime + 0.25);
+        osc.start(startTime);
+        osc.stop(startTime + 0.26);
+      };
+
+      // Deep menacing bass pulse under each woop
+      const pulse = (startTime: number) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(80, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.01);
+        gain.gain.setValueAtTime(0.3, startTime + 0.14);
+        gain.gain.linearRampToValueAtTime(0, startTime + 0.22);
+        osc.start(startTime);
+        osc.stop(startTime + 0.23);
+      };
+
+      const t = ctx.currentTime;
+      woop(t);        pulse(t);
+      woop(t + 0.28); pulse(t + 0.28);
+      woop(t + 0.56); pulse(t + 0.56);
+
+      setTimeout(() => ctx.close(), 1400);
+    } catch {
+      // Web Audio API unavailable — skip silently
+    }
+  }
+
   /** Stop every active SFX — sequence AND last fire-and-forget. */
   stopAll(): void {
     this.stopSequence();
