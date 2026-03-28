@@ -49,6 +49,21 @@ function extractOrgSummary(profile: Record<string, unknown>) {
 }
 
 
+function rankQualLabel(rank: number): { label: string; color: string } {
+  if (rank <= 3) return { label: 'CRITICAL', color: '#ef4444' };
+  if (rank <= 6) return { label: 'AT RISK',  color: '#f59e0b' };
+  if (rank <= 9) return { label: 'FAIR',     color: 'var(--dim)' };
+  if (rank <= 11) return { label: 'GOOD',    color: '#39d353' };
+  return { label: 'EXCELLENT', color: 'var(--cyan)' };
+}
+
+const SUIT_COLORS: Record<string, string> = {
+  clover: '#39d353',
+  spade: 'var(--cyan)',
+  diamond: '#f59e0b',
+  heart: '#ef4444',
+};
+
 // Tier display info
 const TIER_INFO: Record<string, { name: string; icon: string; color: string }> = {
   'dealers': { name: "Dealer's House", icon: '🎲', color: 'var(--cyan)' },
@@ -393,7 +408,6 @@ useEffect(()=>{
                 <span style={{color:"var(--pink)"}}>1 CRITICAL ACTIVE</span>
               </div>
               <span className="tb-time">{time}</span>
-              <button className="tb-btn" onClick={()=>setShowIR(true)}>⬡ THREAT ANALYSIS</button>
             </div>
           </div>
 
@@ -642,12 +656,12 @@ useEffect(()=>{
                     <span>CISA DUE</span><span>{activeCve.dueDate}</span>
                   </div>
                 )}
-                <button className="btn-ir" onClick={()=>setShowIR(true)}>⬡ OPEN THREAT ANALYSIS</button>
+                <button className="btn-ir" onClick={()=>setShowIR(true)}>OPEN THREAT ANALYSIS</button>
               </div>
             </div>
 
             {/* Magician's Reading */}
-            <div id="tour-magician" className="panel" style={{flex:1}}>
+            <div id="tour-magician" className="panel" style={{flex:1,display:'flex',flexDirection:'column'}}>
               <div className="ptitle" style={{display:'flex',alignItems:'center',gap:6}}><img src="/magician-icon.png" style={{height:16,objectFit:'contain',flexShrink:0}} />Magician's Reading</div>
               {!orgProfile ? (
                 <div style={{padding:'14px 12px',textAlign:'center'}}>
@@ -658,52 +672,76 @@ useEffect(()=>{
               ) : (()=>{
                 const { totalSections, detectedFunctions, controlsCount } = extractOrgSummary(orgProfile);
                 return (
-                  <div className="cve-quick-panel">
-                    {accountData?.orgName && (
+                  <div style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
+                    <div className="cve-quick-panel" style={{flex:1,overflowY:'auto'}}>
+                      {accountData?.orgName && (
+                        <div className="cve-quick-row">
+                          <span className="cve-quick-label">Org</span>
+                          <span className="cve-quick-val">{accountData.orgName}</span>
+                        </div>
+                      )}
+                      {accountData?.industry && (
+                        <div className="cve-quick-row">
+                          <span className="cve-quick-label">Industry</span>
+                          <span className="cve-quick-val">{accountData.industry}</span>
+                        </div>
+                      )}
+                      {accountData?.employeeCount && (
+                        <div className="cve-quick-row">
+                          <span className="cve-quick-label">Size</span>
+                          <span className="cve-quick-val">{accountData.employeeCount}</span>
+                        </div>
+                      )}
+                      {accountData?.infraType && (
+                        <div className="cve-quick-row">
+                          <span className="cve-quick-label">Infra</span>
+                          <span className="cve-quick-val">{accountData.infraType}</span>
+                        </div>
+                      )}
                       <div className="cve-quick-row">
-                        <span className="cve-quick-label">Org</span>
-                        <span className="cve-quick-val">{accountData.orgName}</span>
+                        <span className="cve-quick-label">Sections</span>
+                        <span className="cve-quick-val">{totalSections}</span>
                       </div>
-                    )}
-                    {accountData?.industry && (
                       <div className="cve-quick-row">
-                        <span className="cve-quick-label">Industry</span>
-                        <span className="cve-quick-val">{accountData.industry}</span>
+                        <span className="cve-quick-label">Controls</span>
+                        <span className="cve-quick-val">{controlsCount}</span>
                       </div>
-                    )}
-                    {accountData?.employeeCount && (
-                      <div className="cve-quick-row">
-                        <span className="cve-quick-label">Size</span>
-                        <span className="cve-quick-val">{accountData.employeeCount}</span>
+                      {detectedFunctions.length > 0 && (
+                        <div className="cve-tags-row">
+                          {detectedFunctions.map(fn => (
+                            <span key={fn} className="cve-tag" style={{color:'var(--cyan)',borderColor:'rgba(0,212,255,0.35)'}}>
+                              {fn.toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{marginTop:10}}>
+                        <div className="modal-sect-t" style={{marginBottom:6}}>Domain Posture</div>
+                        {([
+                          { key: 'clover',  symbol: '♣', label: 'Visibility' },
+                          { key: 'spade',   symbol: '♠', label: 'Offsec'     },
+                          { key: 'diamond', symbol: '♦', label: 'Hardening'  },
+                          { key: 'heart',   symbol: '♥', label: 'Resilience' },
+                        ] as { key: string; symbol: string; label: string }[]).map(({ key, symbol, label }) => {
+                          const rank = ranks[key] ?? 7;
+                          const qual = rankQualLabel(rank);
+                          return (
+                            <div key={key} className="cve-quick-row" style={{gap:6}}>
+                              <span style={{color:SUIT_COLORS[key],fontFamily:'var(--fm)',minWidth:14}}>{symbol}</span>
+                              <span className="cve-quick-label" style={{flex:1}}>{label}</span>
+                              <span style={{fontFamily:'var(--fm)',fontSize:11,color:'var(--dim)'}}>{rank}/13</span>
+                              <span style={{fontSize:10,color:qual.color,letterSpacing:'.5px',fontFamily:'var(--fm)'}}>{qual.label}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                    {accountData?.infraType && (
-                      <div className="cve-quick-row">
-                        <span className="cve-quick-label">Infra</span>
-                        <span className="cve-quick-val">{accountData.infraType}</span>
-                      </div>
-                    )}
-                    <div className="cve-quick-row">
-                      <span className="cve-quick-label">Sections</span>
-                      <span className="cve-quick-val">{totalSections}</span>
                     </div>
-                    <div className="cve-quick-row">
-                      <span className="cve-quick-label">Controls</span>
-                      <span className="cve-quick-val">{controlsCount}</span>
+                    <div style={{padding:'9px 11px',borderTop:'1px solid rgba(180,79,255,.08)'}}>
+                      <button className="btn-ir" style={{width:'100%'}}
+                        onClick={() => setShowMagicianReading(true)}>
+                        VIEW MAGICIAN'S FULL READING
+                      </button>
                     </div>
-                    {detectedFunctions.length > 0 && (
-                      <div className="cve-tags-row">
-                        {detectedFunctions.map(fn => (
-                          <span key={fn} className="cve-tag" style={{color:'var(--cyan)',borderColor:'rgba(0,212,255,0.35)'}}>
-                            {fn.toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <button className="btn-ir" style={{marginTop:10,width:'100%'}}
-                      onClick={() => setShowMagicianReading(true)}>
-                      VIEW MAGICIAN'S FULL READING
-                    </button>
                   </div>
                 );
               })()}
