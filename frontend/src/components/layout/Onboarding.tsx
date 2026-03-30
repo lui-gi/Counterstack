@@ -544,8 +544,10 @@ export default function Onboarding({ onDone, videoTransition }: OnboardingProps)
             <img src="/counterstack.ico" alt="" style={{ height: "52px", width: "auto", verticalAlign: "middle", marginRight: "0.35em" }} />
             <span className="landing-title-logo-text">CounterStack</span>
           </div>
-
           {/* Landing cards stack */}
+          <div className={`landing-demo-label ${showTitle ? "visible" : ""}`}>
+            Welcome to the demo! Click the first or last card to try us out!
+          </div>
           <div className="landing-stack">
             {LANDING_CARDS.map((card, i) => (
               <div

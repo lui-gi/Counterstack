@@ -105,7 +105,7 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
 /* ── LANDING CARD ANIMATION ── */
 .landing-stack{
   position:absolute;
-  top:12%;
+  top:22%;
   left:50%;
   transform:translateX(-50%);
   width:220px;height:300px;
@@ -280,6 +280,23 @@ body{font-family:var(--fb);color:var(--text);font-size:16px}
   62%  {box-shadow:0 0 16px 5px rgba(195,150,30,.70),0 0 44px 12px rgba(195,150,30,.36),0 0 90px 26px rgba(195,150,30,.16),0 14px 36px 8px rgba(0,0,0,.55)}
   100% {box-shadow:0 0  8px 2px rgba(195,150,30,.35),0 0 24px 6px rgba(195,150,30,.18),0 0 55px 14px rgba(195,150,30,.08),0 10px 28px 4px rgba(0,0,0,.45)}
 }
+
+/* Demo label above cards */
+.landing-demo-label{
+  position:absolute;
+  top:calc(22% - 32px);
+  left:50%;
+  transform:translateX(-50%);
+  white-space:nowrap;
+  font-family:var(--fm);
+  font-size:11px;
+  letter-spacing:1.5px;
+  color:rgba(180,79,255,0.75);
+  text-align:center;
+  opacity:0;
+  transition:opacity 1.4s ease-out 0.5s}
+.landing-demo-label.visible{
+  opacity:1}
 
 /* Card content styling */
 .lc-icon{font-size:58px;margin-bottom:10px;filter:drop-shadow(0 0 14px currentColor);z-index:2}
